@@ -2,15 +2,11 @@ name: Mobile CI
 
 on:
   pull_request:
-    paths:
-      - "apps/mobile/**"
-      - ".github/workflows/mobile-ci.yml"
+    branches:
+      - main
   push:
     branches:
       - main
-    paths:
-      - "apps/mobile/**"
-      - ".github/workflows/mobile-ci.yml"
 
 permissions:
   contents: read
