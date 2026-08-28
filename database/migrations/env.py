@@ -8,7 +8,7 @@ from keylornet_database.models import Base
 
 config = context.config
 settings = DatabaseSettings()
-config.set_main_option("sqlalchemy.url", settings.database_url)
+config.set_main_option("sqlalchemy.url", settings.sqlalchemy_url().render_as_string(hide_password=False))
 target_metadata = Base.metadata
 
 

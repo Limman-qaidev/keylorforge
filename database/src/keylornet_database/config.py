@@ -18,9 +18,11 @@ class Environment(StrEnum):
 
 
 class DatabaseSettings(BaseSettings):
-    """Validated database settings loaded from KEYLORNET environment variables."""
+    """Validated psycopg 3 PostgreSQL settings loaded from KEYLORNET variables."""
 
-    model_config = SettingsConfigDict(env_prefix="KEYLORNET_", case_sensitive=False, extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="KEYLORNET_", case_sensitive=False, extra="ignore"
+    )
 
     environment: Environment = Environment.DEVELOPMENT
     database_url: str
@@ -28,13 +30,13 @@ class DatabaseSettings(BaseSettings):
     @field_validator("database_url")
     @classmethod
     def validate_postgres_url(cls, value: str) -> str:
-        """Require an explicit PostgreSQL SQLAlchemy URL with a database name."""
+        """Require the project's explicit PostgreSQL psycopg 3 URL and database."""
         try:
             url = make_url(value)
         except Exception as exc:
             raise ValueError("must be a valid SQLAlchemy database URL") from exc
-        if url.get_backend_name() != "postgresql":
-            raise ValueError("must use a PostgreSQL URL")
+        if url.drivername != "postgresql+psycopg":
+            raise ValueError("must use postgresql+psycopg:// with psycopg 3")
         if not url.database:
             raise ValueError("must include a database name")
         return value

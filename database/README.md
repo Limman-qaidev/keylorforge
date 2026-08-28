@@ -10,12 +10,40 @@ tests.
 | Variable | Required | Values / purpose |
 | --- | --- | --- |
 | KEYLORNET_ENVIRONMENT | no | development (default), test, or production |
-| KEYLORNET_DATABASE_URL | yes | PostgreSQL SQLAlchemy URL |
-| KEYLORNET_TEST_DATABASE_URL | migration test only | Separate disposable PostgreSQL URL; name ends in _test |
+| KEYLORNET_DATABASE_URL | yes | `postgresql+psycopg://` SQLAlchemy URL using psycopg 3 |
+| KEYLORNET_TEST_DATABASE_URL | migration test only | Separate psycopg 3 PostgreSQL URL; name ends in _test |
 
 Keep credentials in an untracked local environment file or secret store; do not
 commit them. The current configuration intentionally does not load .env files,
 so a process must explicitly supply its environment.
+
+Only the synchronous psycopg 3 SQLAlchemy driver is supported. Every URL must
+start with `postgresql+psycopg://`; generic `postgresql://` URLs are rejected
+because SQLAlchemy can resolve them to psycopg2, which this package does not
+depend on.
+
+## Reproducible dependencies
+
+The package supports Python 3.11, 3.12, and 3.13. `pyproject.toml` pins direct
+dependencies and `constraints.txt` records their fully resolved transitive
+set. Install development dependencies with the constraints file:
+
+```powershell
+Set-Location database
+python -m pip install --upgrade pip
+python -m pip install -c constraints.txt -e '.[dev]'
+```
+
+After intentionally changing dependencies, recreate the resolved environment
+and update the constraints file with the same supported Python version used for
+validation:
+
+```powershell
+python -m pip install -e '.[dev]'
+python -m pip freeze --exclude-editable | Sort-Object | Set-Content constraints.txt
+```
+
+Commit `pyproject.toml` and `constraints.txt` together.
 
 ## Migration conventions
 
@@ -55,7 +83,7 @@ has no tables and fails rather than deleting an existing test database.
 
 ```powershell
 Set-Location database
-python -m pip install -e '.[dev]'
+python -m pip install -c constraints.txt -e '.[dev]'
 $env:KEYLORNET_TEST_DATABASE_URL = 'postgresql+psycopg://keylornet:change-me@localhost:5432/keylornet_test'
 pytest
 ```
