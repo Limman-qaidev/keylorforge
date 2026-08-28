@@ -1,9 +1,18 @@
 """FastAPI application entry point."""
 
+from typing import Literal
+
 from fastapi import FastAPI
+from pydantic import BaseModel
 
 from app.config import Settings
 from app.logging_config import configure_logging
+
+
+class HealthResponse(BaseModel):
+    """Stable health endpoint response."""
+
+    status: Literal["ok"] = "ok"
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -13,10 +22,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     application = FastAPI(title=resolved_settings.app_name)
 
-    @application.get("/health")
-    def health() -> dict[str, str]:
+    @application.get("/health", response_model=HealthResponse)
+    def health() -> HealthResponse:
         """Return the stable service health contract."""
-        return {"status": "ok"}
+        return HealthResponse()
 
     return application
 

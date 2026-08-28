@@ -5,8 +5,8 @@ import logging
 from app.logging_config import configure_logging
 
 
-def test_configure_logging_replaces_existing_root_configuration() -> None:
-    """An injected level applies even when the root logger already has a handler."""
+def test_configure_logging_preserves_existing_root_handlers() -> None:
+    """Injected levels apply without removing externally managed handlers."""
     root_logger = logging.getLogger()
     original_handlers = root_logger.handlers[:]
     original_level = root_logger.level
@@ -20,10 +20,10 @@ def test_configure_logging_replaces_existing_root_configuration() -> None:
         configure_logging("DEBUG")
 
         assert root_logger.level == logging.DEBUG
-        assert existing_handler not in root_logger.handlers
+        assert existing_handler in root_logger.handlers
+        assert root_logger.handlers == [existing_handler]
     finally:
-        for handler in root_logger.handlers[:]:
-            root_logger.removeHandler(handler)
-            handler.close()
+        root_logger.handlers.clear()
         root_logger.handlers.extend(original_handlers)
         root_logger.setLevel(original_level)
+        existing_handler.close()
