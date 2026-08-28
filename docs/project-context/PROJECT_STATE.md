@@ -1,6 +1,6 @@
 # Keylornet project state
 
-Last updated: 2026-08-28
+Last updated: 2026-08-29
 
 This is the fast handoff for resuming work. It is intentionally operational and may become stale if not updated after merges; GitHub issues, PRs and `main` are the final authority for real-time status.
 
@@ -29,75 +29,68 @@ M0 gate includes:
 - FND-003 FastAPI skeleton — merged
 - FND-004 Expo/React Native mobile skeleton — merged
 - FND-005 PostgreSQL/Alembic baseline — merged
+- FND-006 Local Docker/PostgreSQL environment — merged via PR #20; real clean Compose/PostgreSQL/Alembic/pytest validation completed
 - FND-007 Backend CI — merged
+- FND-008 Mobile CI — merged via PR #22; real `Mobile CI / mobile-quality` GitHub Actions run passed
+- FND-009 Database migration CI — merged via PR #21; real `Database Migration CI / Database migration validation` GitHub Actions run passed and the integration migration test is guarded against skipping
+- DOC-001 durable project context — merged; future sessions must read `docs/project-context/`
 
-Current `main` at the time of this update includes FND-007.
+Current `main` after this wave is based on merge commit `ca6e069c9b38889acd81fd46623c2ba1716cef53` or later.
 
-## Open M0 work
+## Active M0 work
 
-### FND-006 — Local Docker environment
+### FND-007A — Backend CI branch-protection safety
 
-- Issue: #15
-- PR: #20
-- Branch: `codex/fnd-006-local-docker`
-- State: draft, mergeable
-- Implementation validation reported: Compose config, fresh PostgreSQL health, dev/test databases, Alembic upgrade/current and 11 database tests
-- Remaining gate: independent QA completion before merge
+- Issue: #25
+- Goal: remove backend CI path filters so the required check exists on every PR targeting `main`
+- Preserve authoritative check: `Backend CI / Backend CI`
+- Requires real GitHub Actions validation and independent QA before merge
 
-### FND-008 — Mobile CI
+### FND-010 — Mobile -> API health integration
 
-- Issue: #17
-- PR: #22
-- Branch: `codex/fnd-008-mobile-ci`
-- State: draft, mergeable
-- Real GitHub Actions `Mobile CI / mobile-quality`: PASS
-- Local clean install, format, lint, TypeScript and Jest validation: PASS
-- Important repair included: the FND-004 lock/dependency baseline was not reproducible with `npm ci`; dependency versions/lockfile were repaired and Jest types added to TypeScript configuration
-- Workflow was corrected to run the required mobile check for every PR targeting `main`, avoiding future branch-protection deadlocks caused by path-filtered required checks
-- Remaining gate: independent `qa_engineer` verification, then Ready/merge
+- Issue: #26
+- Owners: `mobile_engineer` + `backend_engineer`
+- Acceptance path: `Mobile -> GET /health -> FastAPI -> 200 -> visible development status`
+- Must use the existing mobile API abstraction/environment configuration
+- Must support/document emulator/simulator plus reachable LAN host behavior for physical devices
+- Must handle error state without crashing and include focused tests
+- Independent QA verifies the M0 health path
 
-### FND-009 — Database migration CI
+### FND-011 — Foundation test architecture
 
-- Issue: #18
-- PR: #21
-- Branch: `codex/fnd-009-database-ci`
-- State: draft, mergeable
-- Real GitHub Actions migration workflow previously observed green
-- Validates PostgreSQL service, constrained install, real migration integration test and Alembic current/head
-- Remaining gate: independent QA
-- Follow-up before FND-012: review/remove path filtering if this check is to become required on all PRs
-
-## Next M0 work after current parallel wave
-
-### FND-010 — Mobile -> API health path
-
-Depends on the API/mobile foundations and usable local environment. Implement a real end-to-end development path where the mobile client can reach a FastAPI health endpoint with environment-safe configuration.
-
-### FND-011 — Test architecture
-
-Consolidate how unit/integration/domain tests are organized across API, mobile and database layers and ensure foundation tests reflect intended boundaries.
+- Issue: #27
+- Primary owner: `qa_engineer`
+- Define repository-wide test taxonomy, locations/ownership, PostgreSQL integration rules, isolation conventions and the M0 smoke path
+- May proceed in parallel with FND-010 only when write-heavy changes do not overlap
+- Reconcile final smoke-path documentation with FND-010 before acceptance
 
 ### FND-012 — Protect `main`
 
-Depends on real backend/mobile/database CI checks and their exact GitHub check names.
+Not started yet.
 
-Before enabling protection, ensure every check selected as required is guaranteed to report on every protected PR. Do not configure a path-filtered workflow as a globally required status check unless an always-reporting gating design is used.
+Dependencies: backend/mobile/database required checks must be stable and guaranteed to report on every protected PR.
 
-Known corrective work: merged Backend CI currently uses path filters and needs adjustment before it is made globally required. Database CI should be corrected before merge or in a focused follow-up. Mobile CI has already been corrected on PR #22.
+Before enabling protection, verify the exact GitHub check contexts again from real runs. Do not rely only on documentation.
 
 ## Current CI names
 
-Observed/intended deterministic contexts:
+Observed deterministic contexts:
 
 - Backend: `Backend CI / Backend CI`
 - Mobile: `Mobile CI / mobile-quality`
 - Database: `Database Migration CI / Database migration validation`
 
-Verify exact GitHub check contexts again immediately before FND-012 rather than trusting this document.
+Mobile and Database CI now run for every PR targeting `main`. Backend CI still requires FND-007A before it is safe to configure as a globally required check.
+
+## Immediate execution order
+
+1. Implement and validate FND-007A.
+2. Implement FND-010 and FND-011 in isolated worktrees; they may proceed in parallel subject to non-overlapping writes.
+3. Merge accepted work only after independent QA and real CI where applicable.
+4. Create/execute FND-012 using the exact observed required check names.
+5. Run the complete M0 smoke path and close the milestone only when every gate is satisfied.
 
 ## Roadmap after M0
-
-The current roadmap is:
 
 - M1 Identity
 - M2 Exercise Catalog
@@ -128,7 +121,3 @@ One focused issue should normally map to one branch and PR. Use isolated worktre
 ## Definition of Done reminder
 
 A task is not done only because code exists or local commands pass. It should satisfy acceptance criteria, relevant tests, format/lint/type checks, documentation, focused diff, required architecture/security review, independent QA and real CI where applicable.
-
-## Active documentation continuity task
-
-DOC-001 / issue #23 introduces `docs/project-context/` so future sessions can recover the product and technical intent without relying on chat memory. Once merged, future agents should read this directory before planning or changing architecture.
