@@ -48,6 +48,6 @@ Use `npm run format` to apply the configured Prettier formatting.
 
 ## Continuous integration
 
-Pull requests that change `apps/mobile/` run the `Mobile CI / mobile-quality`
-GitHub Actions check. This is the authoritative mobile check name for future
-branch protection.
+Pull requests targeting `main` run the `Mobile CI / mobile-quality` GitHub
+Actions check. This is the authoritative mobile check name for future branch
+protection.
