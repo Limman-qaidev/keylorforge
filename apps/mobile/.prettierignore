@@ -1,0 +1,6 @@
+.expo/
+node_modules/
+coverage/
+.npm-cache/
+package-lock.json
+AGENTS.md
