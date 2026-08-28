@@ -64,3 +64,9 @@ ruff check .
 mypy app
 pytest
 ```
+
+## Continuous integration
+
+The GitHub Actions workflow runs the same validation commands on pull requests
+that affect `services/api/` and on pushes to `main`. Its stable job/check name
+for branch protection is `Backend CI`.
