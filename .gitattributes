@@ -1,0 +1,2 @@
+# Docker entrypoint scripts run inside Linux containers and require LF endings.
+infra/docker/postgres/init/*.sh text eol=lf

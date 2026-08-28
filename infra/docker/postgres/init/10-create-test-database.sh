@@ -1,4 +1,5 @@
 #!/bin/sh
+# This script is mounted into a Linux PostgreSQL container; retain LF endings.
 set -eu
 
 test_database="${KEYLORNET_POSTGRES_TEST_DB:?KEYLORNET_POSTGRES_TEST_DB is required}"
