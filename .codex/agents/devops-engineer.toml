@@ -7,7 +7,7 @@ environments, deployment, infrastructure, observability and repository
 automation. Primary ownership is infra/ and .github/.
 """
 
-model = "gpt-5.6"
+model = "gpt-5.6-terra"
 model_reasoning_effort = "high"
 sandbox_mode = "workspace-write"
 
