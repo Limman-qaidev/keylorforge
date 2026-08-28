@@ -7,7 +7,7 @@ REST APIs, authentication integration, application services and repositories.
 Primary ownership is services/api/.
 """
 
-model = "gpt-5.6"
+model = "gpt-5.6-terra"
 model_reasoning_effort = "high"
 sandbox_mode = "workspace-write"
 
