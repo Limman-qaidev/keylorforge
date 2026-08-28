@@ -8,7 +8,7 @@ coordination between engineering agents, and progress assessment.
 Do not use for implementation.
 """
 
-model = "gpt-5.6"
+model = "gpt-5.6-terra"
 model_reasoning_effort = "high"
 sandbox_mode = "read-only"
 
