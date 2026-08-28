@@ -45,6 +45,10 @@ python -m pip freeze --exclude-editable | Sort-Object | Set-Content constraints.
 
 Commit `pyproject.toml` and `constraints.txt` together.
 
+The stable GitHub Actions check for this package is `Database Migration CI /
+Database migration validation`; FND-012 can require this exact check name for
+branch protection.
+
 ## Migration conventions
 
 - Every schema change is a new Alembic revision in migrations/versions; do not
