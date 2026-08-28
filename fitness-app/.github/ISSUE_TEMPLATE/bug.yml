@@ -1,0 +1,83 @@
+name: Bug
+
+description: Report a reproducible defect
+
+title: "[BUG] "
+
+labels: []
+
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Describe the defect and its user or system impact.
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Branch/version, platform, device/runtime, backend/database environment, and any relevant configuration.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Logs, screenshots, failing tests, request/response examples, or relevant identifiers. Do not include secrets or personal data unnecessarily.
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - P0 - critical / data loss / security / unusable core flow
+        - P1 - major functional failure
+        - P2 - normal defect
+        - P3 - minor or cosmetic
+    validations:
+      required: true
+
+  - type: textarea
+    id: suspected_scope
+    attributes:
+      label: Suspected scope
+      description: Modules or paths likely involved. Leave unknown if not established.
+    validations:
+      required: true
+
+  - type: textarea
+    id: regression
+    attributes:
+      label: Required regression test
+      description: Describe the test that should fail before the fix and pass after it.
+    validations:
+      required: true
