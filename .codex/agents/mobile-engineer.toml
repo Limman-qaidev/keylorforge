@@ -7,7 +7,7 @@ Expo Router, TanStack Query, Zustand, SQLite, forms, offline workflows,
 mobile UX and API integration. Primary ownership is apps/mobile/.
 """
 
-model = "gpt-5.6"
+model = "gpt-5.6-terra"
 model_reasoning_effort = "high"
 sandbox_mode = "workspace-write"
 
