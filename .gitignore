@@ -1,0 +1,2 @@
+# Developer-specific local Docker configuration. Never commit credentials.
+.env
