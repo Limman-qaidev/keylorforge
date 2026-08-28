@@ -13,7 +13,7 @@ contains no authentication, persistence, migrations, or product-domain APIs.
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -e ".[dev]"
+python -m pip install -c constraints.txt -e ".[dev]"
 uvicorn app.main:app --reload
 ```
 
@@ -41,6 +41,18 @@ Settings are read from environment variables prefixed with `KEYLORNET_`.
 
 No secrets are required by this skeleton. A future secret must be supplied
 through the environment, never committed to this repository.
+
+## Updating dependency constraints
+
+After intentionally changing dependencies in `pyproject.toml`, regenerate the
+resolved dependency constraints:
+
+```powershell
+python -m pip install -e ".[dev]"
+python -m pip freeze --exclude-editable | Sort-Object | Set-Content constraints.txt
+```
+
+Commit `pyproject.toml` and `constraints.txt` together.
 
 ## Validation
 
