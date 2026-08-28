@@ -6,11 +6,19 @@ This document describes the AI agents configured for the fitness-app project.
 
 ## Source of truth
 
-Before making changes, inspect the relevant documentation under:
+At the start of a fresh session or when project context may be incomplete, read:
+- `docs/project-context/README.md`
+- `docs/project-context/PRODUCT_VISION.md`
+- `docs/project-context/TECHNICAL_BLUEPRINT.md`
+- `docs/project-context/PROJECT_STATE.md`
+
+Then inspect the relevant authoritative documentation under:
 - docs/architecture/
 - docs/design-docs/
 - docs/product-specs/
 - docs/exec-plans/
+
+The project-context pack is a rehydration layer, not a replacement for accepted ADRs or current implementation contracts. Follow the source-of-truth precedence documented in `docs/project-context/README.md`.
 
 Do not invent architecture when an existing decision exists.
 
