@@ -31,20 +31,14 @@ M0 gate includes:
 - FND-005 PostgreSQL/Alembic baseline — merged
 - FND-006 Local Docker/PostgreSQL environment — merged via PR #20; real clean Compose/PostgreSQL/Alembic/pytest validation completed
 - FND-007 Backend CI — merged
+- FND-007A Backend CI branch-protection safety — merged via PR #30; backend path filters removed and real Backend/Mobile/Database CI all passed on the final PR head
 - FND-008 Mobile CI — merged via PR #22; real `Mobile CI / mobile-quality` GitHub Actions run passed
 - FND-009 Database migration CI — merged via PR #21; real `Database Migration CI / Database migration validation` GitHub Actions run passed and the integration migration test is guarded against skipping
 - DOC-001 durable project context — merged; future sessions must read `docs/project-context/`
 
-Current `main` after this wave is based on merge commit `ca6e069c9b38889acd81fd46623c2ba1716cef53` or later.
+Current `main` after this wave is based on merge commit `92ac4217377010b1d939079860b59931d5accdd5` or later.
 
 ## Active M0 work
-
-### FND-007A — Backend CI branch-protection safety
-
-- Issue: #25
-- Goal: remove backend CI path filters so the required check exists on every PR targeting `main`
-- Preserve authoritative check: `Backend CI / Backend CI`
-- Requires real GitHub Actions validation and independent QA before merge
 
 ### FND-010 — Mobile -> API health integration
 
@@ -80,15 +74,14 @@ Observed deterministic contexts:
 - Mobile: `Mobile CI / mobile-quality`
 - Database: `Database Migration CI / Database migration validation`
 
-Mobile and Database CI now run for every PR targeting `main`. Backend CI still requires FND-007A before it is safe to configure as a globally required check.
+All three workflows now report on every PR targeting `main`, making them suitable candidates for FND-012 required checks once their exact contexts are re-verified immediately before protection is enabled.
 
 ## Immediate execution order
 
-1. Implement and validate FND-007A.
-2. Implement FND-010 and FND-011 in isolated worktrees; they may proceed in parallel subject to non-overlapping writes.
-3. Merge accepted work only after independent QA and real CI where applicable.
-4. Create/execute FND-012 using the exact observed required check names.
-5. Run the complete M0 smoke path and close the milestone only when every gate is satisfied.
+1. Implement FND-010 and FND-011 in isolated worktrees; they may proceed in parallel subject to non-overlapping writes.
+2. Merge accepted work only after independent QA and real CI where applicable.
+3. Create/execute FND-012 using the exact observed required check names.
+4. Run the complete M0 smoke path and close the milestone only when every gate is satisfied.
 
 ## Roadmap after M0
 
