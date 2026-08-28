@@ -1,0 +1,105 @@
+name: Feature
+
+description: Plan a bounded product or engineering feature
+
+title: "[FEATURE] "
+
+labels: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Define the work narrowly enough that one owner can implement and validate it without inventing missing requirements.
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Why is this needed? Link relevant specs, ADRs, issues or discussions.
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: State the observable outcome, not the implementation activity.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What must be implemented in this issue?
+    validations:
+      required: true
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of scope
+      description: Explicitly list adjacent work that must not be included.
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Other issues, contracts, ADRs or prerequisites. Write None if there are none.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: owner
+    attributes:
+      label: Primary engineering owner
+      options:
+        - project_manager
+        - tech_lead
+        - backend_engineer
+        - mobile_engineer
+        - data_engineer
+        - qa_engineer
+        - devops_engineer
+        - security_engineer
+        - cross-functional
+    validations:
+      required: true
+
+  - type: textarea
+    id: affected_modules
+    attributes:
+      label: Expected affected modules
+      description: Repository paths or logical modules that are expected to change.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Use a checkable list of externally verifiable outcomes.
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: tests
+    attributes:
+      label: Required validation and tests
+      description: State unit, integration, E2E, migration, security, or manual verification requirements.
+    validations:
+      required: true
+
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks and review gates
+      description: Note data, architecture, security, migration, compatibility or rollout risks. Identify required specialist reviews.
+    validations:
+      required: true
