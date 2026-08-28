@@ -2,15 +2,11 @@ name: Database Migration CI
 
 on:
   pull_request:
-    paths:
-      - "database/**"
-      - ".github/workflows/database-migration.yml"
+    branches:
+      - main
   push:
     branches:
       - main
-    paths:
-      - "database/**"
-      - ".github/workflows/database-migration.yml"
 
 permissions:
   contents: read
