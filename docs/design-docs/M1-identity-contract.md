@@ -91,7 +91,7 @@ Required dashboard state:
 3. Current publishable API key available for the Expo client.
 4. Current asymmetric JWT signing-key system active; Keylornet expects a JWKS endpoint with public verification keys.
 5. Redirect URLs configured for the Keylornet custom scheme used by the development build.
-6. A server secret key available later for the deletion flow; do not put it in mobile configuration.
+6. A server secret key can be provisioned later for the deletion flow; do not put it in mobile configuration and do not expose it early without a consumer.
 
 Do not alter auth timeouts/session policy simply to make tests pass. Use normal provider behavior unless a specific acceptance test needs a temporary, documented development setting.
 
