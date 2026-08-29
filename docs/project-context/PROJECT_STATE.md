@@ -6,11 +6,31 @@ This is the fast handoff for resuming work. It is intentionally operational and 
 
 ## Current milestone
 
-**M0 — Foundation (complete)**
+**M1 — Identity (planned; implementation not started)**
 
-Goal: establish a reproducible professional baseline before implementing identity or product-domain features.
+M0 Foundation is complete. M1 is now explicitly prioritized for planning and will deliver the first visibly product-like Keylornet slice: real signed-out/authenticated navigation, Supabase-backed registration/login/session handling, FastAPI-authenticated profile operations, recovery, logout and account deletion.
 
-M0 gate includes:
+M1 parent issue: #36. Durable execution plan: `docs/exec-plans/M1-identity.md`.
+
+### M1 work items
+
+- #37 IDN-001 — identity contract and Supabase development configuration
+- #38 IDN-002 — backend JWT validation and application-user/profile foundation
+- #39 IDN-003 — mobile auth UX, session persistence and protected navigation
+- #40 IDN-004 — authenticated profile API and mobile profile editing
+- #41 IDN-005 — password recovery and auth deep-link handling
+- #42 IDN-006 — account deletion and identity privacy flow
+- #43 IDN-007 — end-to-end, security and physical-device acceptance
+
+Dependency shape:
+
+`#37 -> (#38 || #39) -> #40`, with #41 following the mobile auth lifecycle, #42 following the authenticated profile foundation, and #43 as the final integrated gate.
+
+The first visible product checkpoint is IDN-003: the physical phone should show a real Keylornet welcome/login/register experience and authenticated shell rather than the M0 diagnostics screen. M1 is not complete until the physical-device demo gate in `M1-identity.md` passes.
+
+## M0 — Foundation (complete)
+
+M0 established the reproducible professional baseline required before product features:
 
 - backend skeleton
 - mobile skeleton
@@ -24,7 +44,7 @@ M0 gate includes:
 - protected `main` using real CI checks
 - independent QA/review gates
 
-## Merged foundation work
+### Merged foundation work
 
 - FND-003 FastAPI skeleton — merged
 - FND-004 Expo/React Native mobile skeleton — merged
@@ -41,42 +61,24 @@ M0 gate includes:
 
 ## FND-012 effective protection and validation
 
-`main` is protected by classic GitHub branch protection; no repository ruleset
-also affects it. The GitHub Actions check-run identities configured by the REST
-API map to the following authoritative workflow/job names shown in pull
-requests:
+`main` is protected by classic GitHub branch protection; no repository ruleset also affects it. The GitHub Actions check-run identities configured by the REST API map to the following authoritative workflow/job names shown in pull requests:
 
 - `Backend CI / Backend CI` — check-run `Backend CI`
 - `Mobile CI / mobile-quality` — check-run `mobile-quality`
 - `Database Migration CI / Database migration validation` — check-run `Database migration validation`
 
-The effective policy requires a pull request, requires all three checks with
-strict up-to-date branches, and requires all review conversations to be
-resolved. It has zero required approvals, does not require CODEOWNERS or signed
-commits, and has no bypass actors. Administrators are included in enforcement,
-so normal direct and force pushes are blocked; a repository administrator can
-still recover by editing the repository's protection settings. Deletion of
-`main` is disabled.
+The effective policy requires a pull request, requires all three checks with strict up-to-date branches, and requires all review conversations to be resolved. It has zero required approvals, does not require CODEOWNERS or signed commits, and has no bypass actors. Administrators are included in enforcement, so normal direct and force pushes are blocked; a repository administrator can still recover by editing the repository's protection settings. Deletion of `main` is disabled.
 
-Disposable validation PR #34 was created from current protected `main` at
-`cda8611fb46cbd8bcd493d57a1cff12ee79d6aa0`. While its three checks were
-pending, GitHub reported the PR as blocked. The real workflow runs all passed:
+Disposable validation PR #34 was created from protected `main` at `cda8611fb46cbd8bcd493d57a1cff12ee79d6aa0`. While its three checks were pending, GitHub reported the PR as blocked. The real workflow runs all passed:
 
 - Backend CI: run `33269877012`
 - Mobile CI: run `33269877008`
 - Database Migration CI: run `33269877007`
 
-Each relevant job step completed successfully, including the database migration
-execution and Alembic-head verification. After a temporary review thread was
-resolved, GitHub reported the PR as merge-clean without requesting an approving
-review. The disposable branch and PR are closed after this evidence is recorded.
+Each relevant job step completed successfully, including the database migration execution and Alembic-head verification. After a temporary review thread was resolved, GitHub reported the PR as merge-clean without requesting an approving review. The disposable branch and PR were closed after recording the evidence.
 
-All M0 gates are satisfied. Do not start M1 implementation until explicitly
-prioritized.
+## Roadmap after M1
 
-## Roadmap after M0
-
-- M1 Identity
 - M2 Exercise Catalog
 - M3 Workout Engine
 - M4 History / Analytics
