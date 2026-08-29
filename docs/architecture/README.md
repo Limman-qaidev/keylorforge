@@ -40,6 +40,9 @@ Supporting services:
 ## Documentation map
 
 - `adr/`: Architecture Decision Records.
+- `foundation-test-architecture.md`: M0 repository-wide taxonomy, test
+  locations, PostgreSQL integration rules, isolation conventions, and smoke
+  path.
 - `../design-docs/`: implementation-oriented designs for bounded features or subsystems.
 - `../product-specs/`: product requirements and behavior.
 - `../exec-plans/`: implementation plans for milestones and complex changes.
