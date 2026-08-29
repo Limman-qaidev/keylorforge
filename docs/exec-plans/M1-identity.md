@@ -29,8 +29,11 @@ launch signed out
 
 M1 must also independently prove:
 
+- access-token expiry while the refresh session remains valid causes a successful session refresh and protected API access continues without user intervention;
+- refresh failure/invalid refresh credentials fail safely back to the signed-out state rather than leaving a stale authenticated shell;
 - password recovery from the physical development client;
 - account deletion using a disposable account;
+- after deletion, access tokens and refresh credentials issued before deletion cannot regain protected access or recreate application state, and a new password login for the deleted identity cannot restore the deleted Keylornet account under the accepted final semantics;
 - invalid/missing/expired token behavior fails closed;
 - no privileged Supabase credential is present in the mobile bundle or repository.
 
@@ -59,13 +62,16 @@ M1 does not implement OAuth/social providers, exercise catalogue, workouts, grou
 4. Keylornet application user/profile data is owned by the application database and linked deterministically to the external auth subject.
 5. Privileged Supabase/service-role credentials remain server-side only.
 6. Public Expo configuration contains only values intentionally safe to ship in a client bundle.
-7. Any change to these boundaries requires ADR review rather than silent drift.
+7. Account deletion has an explicit terminal identity state: valid-looking credentials issued before deletion must not be able to reprovision or regain a deleted Keylornet account.
+8. Any change to these boundaries requires ADR review rather than silent drift.
 
 ## Work items and dependencies
 
 ### IDN-001 — Identity contract and Supabase development configuration (#37)
 
-First gate. Make provider configuration, JWT verification, auth lifecycle, recovery/deep-link behavior, external-subject mapping and deletion authority implementation-ready. This work may expose a manual Supabase project provisioning step; if so, document the exact user action and never request privileged secrets in chat or commit them.
+First gate. Make provider configuration, JWT verification, access/refresh-token lifecycle, auth restoration, recovery/deep-link behavior, external-subject mapping, deleted-identity semantics and deletion authority implementation-ready. This work may expose a manual Supabase project provisioning step; if so, document the exact user action and never request privileged secrets in chat or commit them.
+
+The contract must define how access-token expiry is exercised in development, what happens when refresh succeeds or fails, and how FastAPI prevents a deleted external subject from recreating application state while old credentials are still cryptographically valid.
 
 ### IDN-002 — Backend JWT validation and user/profile foundation (#38)
 
@@ -73,9 +79,9 @@ Depends on IDN-001. Build fail-closed token validation, reusable authenticated p
 
 ### IDN-003 — Mobile auth UX/session/protected navigation (#39)
 
-Depends on IDN-001 and may run in parallel with IDN-002 in an isolated worktree. Build the visible signed-out and signed-in product shell, forms, session restoration, route protection and logout.
+Depends on IDN-001 and may run in parallel with IDN-002 in an isolated worktree. Build the visible signed-out and signed-in product shell, forms, session restoration, route protection, automatic session refresh and logout.
 
-**First visible product checkpoint:** after IDN-003, the phone should already show a real Keylornet welcome/login/register experience and authenticated shell, even before profile integration is complete.
+**First visible product checkpoint:** after IDN-003, the phone should already show a real Keylornet welcome/login/register experience and authenticated shell, even before profile integration is complete. Acceptance also exercises access-token expiry with a still-valid refresh session and a refresh-failure path back to signed out.
 
 ### IDN-004 — Authenticated profile API + mobile editing (#40)
 
@@ -89,11 +95,11 @@ Depends on the stable IDN-001/IDN-003 auth lifecycle. Verify the complete recove
 
 ### IDN-006 — Account deletion/privacy flow (#42)
 
-Depends on the authenticated backend/mobile/profile foundation. Any provider-administration privilege remains server-side. Deletion semantics must be retry-safe and must not permit deletion of a different user by identifier manipulation.
+Depends on the authenticated backend/mobile/profile foundation. Any provider-administration privilege remains server-side. Deletion semantics must be retry-safe, must not permit deletion of a different user by identifier manipulation, and must define a terminal deleted-identity behavior that rejects pre-deletion access/refresh credentials and prevents automatic reprovisioning of application state.
 
 ### IDN-007 — Integrated acceptance (#43)
 
-Final M1 gate. QA and security independently verify the complete physical-device journeys and update durable project state with real evidence. M2 must not begin until this gate passes.
+Final M1 gate. QA and security independently verify the complete physical-device journeys, including token refresh/refresh failure and post-deletion credential rejection, and update durable project state with real evidence. M2 must not begin until this gate passes.
 
 ## Parallelization
 
@@ -145,10 +151,13 @@ M1 is complete only when:
 - IDN-001 through IDN-007 are accepted/closed;
 - physical-device registration/login/logout works;
 - session restoration across app restart works;
+- access-token expiry is exercised while the refresh session is valid and protected API access continues after refresh;
+- refresh failure safely returns the user to signed out;
 - FastAPI authenticates the real access token and returns only the caller's protected identity/profile;
 - profile edits persist through PostgreSQL;
 - password recovery works end-to-end;
 - account deletion works for a disposable account;
+- pre-deletion access/refresh credentials cannot regain protected access or recreate deleted application state, and the accepted login-after-deletion behavior is verified;
 - invalid/missing/expired tokens fail closed;
 - no privileged auth secret is present in mobile/repository history introduced by M1;
 - all required CI is green;
