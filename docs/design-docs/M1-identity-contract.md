@@ -1,6 +1,6 @@
 # M1 Identity contract
 
-- Status: Proposed for IDN-001
+- Status: Accepted for IDN-001
 - Parent milestone: #36
 - Issue: #37
 - Architectural authority: ADR-002
