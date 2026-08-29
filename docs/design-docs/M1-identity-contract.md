@@ -31,6 +31,18 @@ For the Expo client, use the current Supabase React Native approach:
 
 The repository currently has Expo SDK 57 / React Native 0.86 and already declares the custom app scheme `keylornet` in `apps/mobile/app.json`.
 
+## Observed Supabase development-project state
+
+The connected Keylornet development project is active in `eu-central-1` and exposes a modern publishable API key. During IDN-001 setup, the Authentication dashboard was checked manually and confirmed:
+
+- Email/password provider enabled.
+- Email confirmation enabled.
+- Redirect URLs configured for `keylornet://auth/confirm` and `keylornet://auth/recovery`.
+- Current JWT signing key is asymmetric ECC P-256, suitable for public JWKS verification.
+- A legacy HS256 shared-secret signing key remains only under **Previously used keys** after rotation; it is not the current signing key.
+
+Do not revoke the previous legacy key merely to finish IDN-001. Revocation is a separate cleanup step and must happen only after legacy API-key dependencies and outstanding token lifetime have been considered. New Keylornet implementation must use the publishable-key + asymmetric-JWKS model and must not add new dependencies on legacy `anon`, `service_role`, or shared JWT-secret verification.
+
 ## Public, backend, and privileged configuration
 
 ### Safe/public mobile configuration
@@ -56,7 +68,7 @@ These identify the trusted issuer; they do not grant administrative access.
 
 ### Privileged server-only configuration
 
-Account administration in IDN-006 requires a Supabase secret/server credential. For new projects, use a current `sb_secret_...` key rather than introducing the legacy `service_role` key unless provider constraints require otherwise.
+Account administration in IDN-006 requires a Supabase secret/server credential. Use a current `sb_secret_...` key rather than introducing the legacy `service_role` key unless provider constraints require otherwise.
 
 A privileged Supabase secret must:
 
@@ -66,16 +78,18 @@ A privileged Supabase secret must:
 - never be put in PR descriptions, issue comments, screenshots, logs, or chat;
 - be used only by backend code that has already authenticated and authorized the requesting Keylornet user.
 
+The secret value does not need to be copied out of the Supabase dashboard during IDN-001. Provision it into backend-only local/deployment secret storage when IDN-006 actually needs administrative deletion capability, minimizing unnecessary exposure.
+
 ## Development Supabase project requirements
 
-Create one dedicated Supabase development project for M1. Do not use a production project.
+Use the existing dedicated Keylornet development project for M1 acceptance.
 
 Required dashboard state:
 
 1. Email/password authentication enabled.
-2. Email confirmation behavior explicitly chosen and documented. M1 will keep confirmation enabled unless a documented provider/test constraint requires a temporary development-only alternative.
+2. Email confirmation enabled for the real M1 confirmation flow.
 3. Current publishable API key available for the Expo client.
-4. Current asymmetric JWT signing-key system active. New Supabase projects use asymmetric signing keys by default; Keylornet expects a JWKS endpoint with public verification keys.
+4. Current asymmetric JWT signing-key system active; Keylornet expects a JWKS endpoint with public verification keys.
 5. Redirect URLs configured for the Keylornet custom scheme used by the development build.
 6. A server secret key available later for the deletion flow; do not put it in mobile configuration.
 
@@ -87,7 +101,7 @@ The repository already declares:
 
 `scheme: keylornet`
 
-Use stable app callbacks under that scheme, for example:
+Use stable app callbacks under that scheme:
 
 - `keylornet://auth/confirm`
 - `keylornet://auth/recovery`
@@ -144,7 +158,7 @@ Logout terminates the applicable Supabase session and clears local session/appli
 
 IDN-002 must validate Supabase user access tokens server-side.
 
-For the M1 development project, use asymmetric signing keys and JWKS-based validation. Do not distribute a JWT signing secret to FastAPI or mobile.
+For the M1 development project, use the current asymmetric signing key and JWKS-based validation. Do not distribute a JWT signing secret to FastAPI or mobile.
 
 For every protected request FastAPI must verify at least:
 
@@ -262,21 +276,16 @@ The Supabase project URL is internet-reachable and independent of the LAN API UR
 
 ## Manual provisioning checklist
 
-A human must create/configure the development Supabase project before IDN-002/IDN-003 can complete real-provider integration.
+The connected Keylornet Supabase project has been configured for M1 as follows:
 
-In Supabase Dashboard:
+1. Email provider/password auth enabled.
+2. Email confirmation enabled.
+3. Project URL and modern publishable key available through project configuration.
+4. Current asymmetric ECC P-256 signing key confirmed in JWT settings.
+5. Auth redirect URL settings include `keylornet://auth/confirm` and `keylornet://auth/recovery`.
+6. Any future `sb_secret_...` administrative credential remains server-only and should only be copied into secret storage when IDN-006 needs it.
 
-1. Create a new project dedicated to Keylornet development.
-2. Confirm Email provider/password auth is enabled.
-3. Confirm email-confirmation policy for development.
-4. In project Connect / Settings > API Keys, obtain:
-   - Project URL — public;
-   - Publishable key (`sb_publishable_...`) — public/mobile-safe;
-   - Secret key (`sb_secret_...`) — privileged, server-only, needed later for admin deletion.
-5. Confirm Auth uses the current asymmetric signing-key system and that the JWKS endpoint returns public keys.
-6. In Auth redirect URL settings, allow the chosen `keylornet://auth/...` development callbacks.
-
-Store locally:
+Store locally when implementation starts:
 
 - mobile `.env`: project URL + publishable key only;
 - backend/server secret storage: secret key only when IDN-006 needs it;
@@ -284,13 +293,13 @@ Store locally:
 
 ## Acceptance handoff to implementation
 
-IDN-002 and IDN-003 may proceed in parallel only after:
+IDN-002 and IDN-003 may proceed in parallel because:
 
-- the development Supabase project exists;
-- project URL and publishable key are available locally;
-- the JWT issuer/JWKS endpoint are confirmed;
+- the development Supabase project exists and is healthy;
+- project URL and publishable key are available;
+- the current asymmetric signing-key/JWKS model is established;
 - redirect/deep-link configuration is established;
-- email-confirmation behavior is known;
+- email confirmation is enabled;
 - the terminal deletion/reprovisioning rule above is accepted.
 
 IDN-001 itself does not require application login code or backend JWT middleware.
