@@ -190,8 +190,11 @@ The smoke run is:
    `API is healthy.` after the accepted response. Exercise unavailable or
    malformed configuration, a network rejection, a non-2xx response, and an
    invalid payload; each must render a readable
-   `API health check failed: <reason>` state without crashing. Native iOS and
-   Android do not require CORS for this M0 smoke path; browser web is outside it.
+   `API health check failed: <reason>` state without crashing. An unreachable
+   health endpoint is aborted after five seconds and must render
+   `API health check failed: Health request timed out.` rather than remain in
+   the loading state. Native iOS and Android do not require CORS for this M0
+   smoke path; browser web is outside it.
 6. Stop local services using the documented non-destructive teardown. Reset
    the named Docker volume only when an explicit clean-state run is required.
 
@@ -214,8 +217,9 @@ this local end-to-end development smoke run:
   authorization, offline synchronization, domain database schema, or product
   workflow coverage. These are intentional gaps for later milestones, not
   permission to skip the appropriate tests when those features are introduced.
-- FND-010 covers health-client transport success, non-2xx responses, and
-  invalid payloads, plus the `DevelopmentStatus` loading, healthy, and error
-  states (six Jest cases). Keep subsequent mobile contract/component coverage
-  focused on the client boundary and visible state rather than duplicating
-  backend business-rule matrices.
+- FND-010 covers health-client transport success, non-2xx responses, invalid
+  payloads, the five-second timeout/cancellation path, and
+  `DevelopmentStatus` loading, healthy, error, and unmount-cancellation states
+  (nine Jest cases). Keep subsequent mobile contract/component coverage focused
+  on the client boundary and visible state rather than duplicating backend
+  business-rule matrices.
