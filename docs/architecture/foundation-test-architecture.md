@@ -1,6 +1,6 @@
 # Foundation test architecture
 
-- Status: Proposed for M0; pending independent review and FND-010 reconciliation
+- Status: Proposed for M0; pending independent review
 - Owner: `qa_engineer`
 - Scope: repository-wide test strategy and conventions
 
@@ -163,11 +163,10 @@ The authoritative M0 health route is:
 Mobile -> GET /health -> FastAPI -> 200 -> visible development status
 ```
 
-Before the final FND-010 acceptance, the mobile-specific execution details in
-this section are provisional. FND-011 does not invent a second client path or
-override FND-010's validated API abstraction. When FND-010 is ready, reconcile
-this runbook with its actual tests, configuration names, supported emulator /
-simulator host, and physical-device LAN instructions.
+The mobile health check uses the existing `requestApi` abstraction through the
+health client. It issues `GET /health` and accepts only HTTP `200` with
+`{"status":"ok"}`. This preserves the backend health contract without creating
+a second mobile request path.
 
 The smoke run is:
 
@@ -177,14 +176,22 @@ The smoke run is:
 2. Install constrained database dependencies; run Alembic upgrade/current on
    the development database and the real database pytest suite against the
    disposable `_test` target.
-3. Install constrained backend dependencies; start FastAPI locally and verify
-   `GET /health` returns HTTP `200` with `{"status":"ok"}`.
-4. Configure the mobile app through its documented public development API base
-   URL. For an emulator/simulator use its documented host mapping; for a
-   physical device use a reachable LAN address, never an assumed `localhost`.
-5. Start the mobile development build and observe the FND-010 loading then
-   healthy state. Exercise an unavailable API target and confirm the visible
-   error state is recoverable and the app does not crash.
+3. Install constrained backend dependencies and start FastAPI with
+   `uvicorn app.main:app --host 0.0.0.0 --port 8000`. Verify `GET /health`
+   returns HTTP `200` with `{"status":"ok"}`.
+4. Configure the mobile public development API base URL for the target:
+   `http://localhost:8000` for iOS Simulator,
+   `http://10.0.2.2:8000` for Android Emulator, or
+   `http://<development-machine-LAN-IPv4>:8000` for a physical Expo Go device.
+   A physical device must be on the same trusted LAN, the host firewall must
+   allow port `8000`, and Expo must be restarted after changing `.env`.
+   `localhost` never identifies the development machine from a physical phone.
+5. Start the mobile development build and observe `Checking API health…`, then
+   `API is healthy.` after the accepted response. Exercise unavailable or
+   malformed configuration, a network rejection, a non-2xx response, and an
+   invalid payload; each must render a readable
+   `API health check failed: <reason>` state without crashing. Native iOS and
+   Android do not require CORS for this M0 smoke path; browser web is outside it.
 6. Stop local services using the documented non-destructive teardown. Reset
    the named Docker volume only when an explicit clean-state run is required.
 
@@ -207,6 +214,8 @@ this local end-to-end development smoke run:
   authorization, offline synchronization, domain database schema, or product
   workflow coverage. These are intentional gaps for later milestones, not
   permission to skip the appropriate tests when those features are introduced.
-- FND-010 must add focused coverage for the mobile API abstraction and visible
-  health states. Its final validated configuration is the pending reconciliation
-  item for this smoke path.
+- FND-010 covers health-client transport success, non-2xx responses, and
+  invalid payloads, plus the `DevelopmentStatus` loading, healthy, and error
+  states (six Jest cases). Keep subsequent mobile contract/component coverage
+  focused on the client boundary and visible state rather than duplicating
+  backend business-rule matrices.
