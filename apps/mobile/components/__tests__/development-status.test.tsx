@@ -39,4 +39,39 @@ describe('DevelopmentStatus', () => {
       ).toBeTruthy();
     });
   });
+
+  it('shows the health timeout message instead of loading indefinitely', async () => {
+    const { getByText } = await render(
+      <DevelopmentStatus
+        loadHealth={async () => {
+          throw new Error('Health request timed out.');
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(
+        getByText('API health check failed: Health request timed out.'),
+      ).toBeTruthy();
+    });
+  });
+
+  it('cancels an in-flight health check when the component unmounts', async () => {
+    let requestSignal: AbortSignal | undefined;
+    const loadHealth = jest.fn(({ signal }: { signal?: AbortSignal } = {}) => {
+      requestSignal = signal;
+      return new Promise<never>(() => undefined);
+    });
+
+    const { unmount } = await render(
+      <DevelopmentStatus loadHealth={loadHealth} />,
+    );
+
+    await waitFor(() => {
+      expect(loadHealth).toHaveBeenCalled();
+    });
+    await unmount();
+
+    expect(requestSignal?.aborted).toBe(true);
+  });
 });

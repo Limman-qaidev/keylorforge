@@ -52,8 +52,10 @@ npm run web
 
 The root route calls `GET /health` through the shared API abstraction. It shows
 loading, healthy, or readable error status without crashing if the server is
-unreachable or its response is invalid. The stable accepted backend response is
-`200 {"status":"ok"}`.
+unreachable or its response is invalid. The health request is cancelled after
+five seconds so an unreachable LAN endpoint shows `Health request timed out.`
+instead of leaving the screen loading indefinitely. The stable accepted backend
+response is `200 {"status":"ok"}`.
 
 ## Validation
 

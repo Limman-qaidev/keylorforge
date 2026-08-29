@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { getApiBaseUrl } from '@/lib/api/client';
-import { getHealth, type HealthResponse } from '@/lib/api/health';
+import {
+  getHealth,
+  type HealthRequestOptions,
+  type HealthResponse,
+} from '@/lib/api/health';
 
 type HealthState =
   | { kind: 'loading' }
@@ -10,7 +14,7 @@ type HealthState =
   | { kind: 'error'; message: string };
 
 type DevelopmentStatusProps = {
-  loadHealth?: () => Promise<HealthResponse>;
+  loadHealth?: (options?: HealthRequestOptions) => Promise<HealthResponse>;
 };
 
 function errorMessage(error: unknown): string {
@@ -38,14 +42,16 @@ export function DevelopmentStatus({
 
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
 
     if (apiConfiguration.error) {
       return () => {
         active = false;
+        controller.abort();
       };
     }
 
-    void loadHealth()
+    void loadHealth({ signal: controller.signal })
       .then(() => {
         if (active) {
           setHealthState({ kind: 'healthy' });
@@ -59,6 +65,7 @@ export function DevelopmentStatus({
 
     return () => {
       active = false;
+      controller.abort();
     };
   }, [apiConfiguration.error, loadHealth]);
 
