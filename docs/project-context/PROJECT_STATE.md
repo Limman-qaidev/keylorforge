@@ -6,7 +6,7 @@ This is the fast handoff for resuming work. It is intentionally operational and 
 
 ## Current milestone
 
-**M0 — Foundation**
+**M0 — Foundation (complete)**
 
 Goal: establish a reproducible professional baseline before implementing identity or product-domain features.
 
@@ -34,54 +34,45 @@ M0 gate includes:
 - FND-007A Backend CI branch-protection safety — merged via PR #30; backend path filters removed and real Backend/Mobile/Database CI all passed on the final PR head
 - FND-008 Mobile CI — merged via PR #22; real `Mobile CI / mobile-quality` GitHub Actions run passed
 - FND-009 Database migration CI — merged via PR #21; real `Database Migration CI / Database migration validation` GitHub Actions run passed and the integration migration test is guarded against skipping
+- FND-010 Mobile-to-API health integration — merged via PR #32; physical Android/Expo Go smoke passed with backend ON -> `API is healthy.`, backend OFF -> five-second `API health check failed: Health request timed out.`, then backend ON -> `API is healthy.` again
+- FND-011 Foundation test architecture — merged via PR #31; the accepted smoke path and test taxonomy are recorded in `docs/architecture/foundation-test-architecture.md`
+- FND-012 Protect `main` — effective branch protection validated through disposable PR #34; pull requests, strict CI checks, and resolved conversations are required without a mandatory approving review
 - DOC-001 durable project context — merged; future sessions must read `docs/project-context/`
 
-Current `main` after this wave is based on merge commit `92ac4217377010b1d939079860b59931d5accdd5` or later.
+## FND-012 effective protection and validation
 
-## Active M0 work
+`main` is protected by classic GitHub branch protection; no repository ruleset
+also affects it. The GitHub Actions check-run identities configured by the REST
+API map to the following authoritative workflow/job names shown in pull
+requests:
 
-### FND-010 — Mobile -> API health integration
+- `Backend CI / Backend CI` — check-run `Backend CI`
+- `Mobile CI / mobile-quality` — check-run `mobile-quality`
+- `Database Migration CI / Database migration validation` — check-run `Database migration validation`
 
-- Issue: #26
-- Owners: `mobile_engineer` + `backend_engineer`
-- Acceptance path: `Mobile -> GET /health -> FastAPI -> 200 -> visible development status`
-- Must use the existing mobile API abstraction/environment configuration
-- Must support/document emulator/simulator plus reachable LAN host behavior for physical devices
-- Must handle error state without crashing and include focused tests
-- Independent QA verifies the M0 health path
+The effective policy requires a pull request, requires all three checks with
+strict up-to-date branches, and requires all review conversations to be
+resolved. It has zero required approvals, does not require CODEOWNERS or signed
+commits, and has no bypass actors. Administrators are included in enforcement,
+so normal direct and force pushes are blocked; a repository administrator can
+still recover by editing the repository's protection settings. Deletion of
+`main` is disabled.
 
-### FND-011 — Foundation test architecture
+Disposable validation PR #34 was created from current protected `main` at
+`cda8611fb46cbd8bcd493d57a1cff12ee79d6aa0`. While its three checks were
+pending, GitHub reported the PR as blocked. The real workflow runs all passed:
 
-- Issue: #27
-- Primary owner: `qa_engineer`
-- Define repository-wide test taxonomy, locations/ownership, PostgreSQL integration rules, isolation conventions and the M0 smoke path
-- May proceed in parallel with FND-010 only when write-heavy changes do not overlap
-- Reconcile final smoke-path documentation with FND-010 before acceptance
+- Backend CI: run `33269877012`
+- Mobile CI: run `33269877008`
+- Database Migration CI: run `33269877007`
 
-### FND-012 — Protect `main`
+Each relevant job step completed successfully, including the database migration
+execution and Alembic-head verification. After a temporary review thread was
+resolved, GitHub reported the PR as merge-clean without requesting an approving
+review. The disposable branch and PR are closed after this evidence is recorded.
 
-Not started yet.
-
-Dependencies: backend/mobile/database required checks must be stable and guaranteed to report on every protected PR.
-
-Before enabling protection, verify the exact GitHub check contexts again from real runs. Do not rely only on documentation.
-
-## Current CI names
-
-Observed deterministic contexts:
-
-- Backend: `Backend CI / Backend CI`
-- Mobile: `Mobile CI / mobile-quality`
-- Database: `Database Migration CI / Database migration validation`
-
-All three workflows now report on every PR targeting `main`, making them suitable candidates for FND-012 required checks once their exact contexts are re-verified immediately before protection is enabled.
-
-## Immediate execution order
-
-1. Implement FND-010 and FND-011 in isolated worktrees; they may proceed in parallel subject to non-overlapping writes.
-2. Merge accepted work only after independent QA and real CI where applicable.
-3. Create/execute FND-012 using the exact observed required check names.
-4. Run the complete M0 smoke path and close the milestone only when every gate is satisfied.
+All M0 gates are satisfied. Do not start M1 implementation until explicitly
+prioritized.
 
 ## Roadmap after M0
 
