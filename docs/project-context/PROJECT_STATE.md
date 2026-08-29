@@ -8,43 +8,29 @@ This is the fast handoff for resuming work. It is intentionally operational and 
 
 **M1 — Identity (planned; implementation not started)**
 
-M0 Foundation is complete. M1 is now explicitly prioritized for planning and will deliver the first visibly product-like Keylornet slice: real signed-out/authenticated navigation, Supabase-backed registration/login/session handling, FastAPI-authenticated profile operations, recovery, logout and account deletion.
+M0 Foundation is complete. M1 is the first user-facing product slice and is tracked by parent issue #36 and execution plan `docs/exec-plans/M1-identity.md`.
 
-M1 parent issue: #36. Durable execution plan: `docs/exec-plans/M1-identity.md`.
+M1 exit requires a real physical-device identity journey: signed-out launch, registration/login, authenticated app shell, FastAPI-backed profile, persisted profile editing, session restoration and refresh, logout/login, password recovery, account deletion, and independent QA/security acceptance.
 
-### M1 work items
+The milestone must explicitly exercise access-token expiry with a valid refresh session, safe behavior when refresh fails, and post-deletion rejection of credentials issued before deletion so deleted identity state cannot be silently reprovisioned.
 
-- #37 IDN-001 — identity contract and Supabase development configuration
-- #38 IDN-002 — backend JWT validation and application-user/profile foundation
-- #39 IDN-003 — mobile auth UX, session persistence and protected navigation
-- #40 IDN-004 — authenticated profile API and mobile profile editing
-- #41 IDN-005 — password recovery and auth deep-link handling
-- #42 IDN-006 — account deletion and identity privacy flow
-- #43 IDN-007 — end-to-end, security and physical-device acceptance
+Planned work:
+
+- #37 IDN-001 identity contract and Supabase development configuration
+- #38 IDN-002 backend JWT validation and application-user/profile foundation
+- #39 IDN-003 mobile auth UX, session persistence/refresh and protected navigation
+- #40 IDN-004 authenticated profile API and mobile profile editing
+- #41 IDN-005 password recovery and auth deep-link handling
+- #42 IDN-006 account deletion and identity privacy flow
+- #43 IDN-007 M1 end-to-end, security and physical-device acceptance
 
 Dependency shape:
 
-`#37 -> (#38 || #39) -> #40`, with #41 following the mobile auth lifecycle, #42 following the authenticated profile foundation, and #43 as the final integrated gate.
+`#37 -> (#38 || #39) -> #40`; `#39 -> #41`; `#38 + #39 + #40 -> #42`; all implementation work -> #43.
 
-The first visible product checkpoint is IDN-003: the physical phone should show a real Keylornet welcome/login/register experience and authenticated shell rather than the M0 diagnostics screen. M1 is not complete until the physical-device demo gate in `M1-identity.md` passes.
+Do not start M2 until #43 passes and M1 completion evidence is recorded here.
 
-## M0 — Foundation (complete)
-
-M0 established the reproducible professional baseline required before product features:
-
-- backend skeleton
-- mobile skeleton
-- PostgreSQL/Alembic baseline
-- reproducible local Docker/PostgreSQL environment
-- backend CI
-- mobile CI
-- database migration CI
-- real mobile-to-API health path
-- coherent test architecture
-- protected `main` using real CI checks
-- independent QA/review gates
-
-### Merged foundation work
+## Completed M0 foundation
 
 - FND-003 FastAPI skeleton — merged
 - FND-004 Expo/React Native mobile skeleton — merged
@@ -59,23 +45,21 @@ M0 established the reproducible professional baseline required before product fe
 - FND-012 Protect `main` — effective branch protection validated through disposable PR #34; pull requests, strict CI checks, and resolved conversations are required without a mandatory approving review
 - DOC-001 durable project context — merged; future sessions must read `docs/project-context/`
 
-## FND-012 effective protection and validation
+## Effective branch protection and CI
 
-`main` is protected by classic GitHub branch protection; no repository ruleset also affects it. The GitHub Actions check-run identities configured by the REST API map to the following authoritative workflow/job names shown in pull requests:
+`main` is protected by classic GitHub branch protection; no repository ruleset also affects it.
 
-- `Backend CI / Backend CI` — check-run `Backend CI`
-- `Mobile CI / mobile-quality` — check-run `mobile-quality`
-- `Database Migration CI / Database migration validation` — check-run `Database migration validation`
+Authoritative pull-request workflow/job checks:
 
-The effective policy requires a pull request, requires all three checks with strict up-to-date branches, and requires all review conversations to be resolved. It has zero required approvals, does not require CODEOWNERS or signed commits, and has no bypass actors. Administrators are included in enforcement, so normal direct and force pushes are blocked; a repository administrator can still recover by editing the repository's protection settings. Deletion of `main` is disabled.
+- `Backend CI / Backend CI`
+- `Mobile CI / mobile-quality`
+- `Database Migration CI / Database migration validation`
 
-Disposable validation PR #34 was created from protected `main` at `cda8611fb46cbd8bcd493d57a1cff12ee79d6aa0`. While its three checks were pending, GitHub reported the PR as blocked. The real workflow runs all passed:
+The policy requires a pull request, requires all three checks with strict up-to-date branches, and requires all review conversations to be resolved. It has zero required approvals, no CODEOWNERS or signed-commit requirement, and no bypass actors. Administrators are included in enforcement; normal direct/force pushes and deletion of `main` are blocked, while a repository administrator can still recover by editing repository settings.
 
-- Backend CI: run `33269877012`
-- Mobile CI: run `33269877008`
-- Database Migration CI: run `33269877007`
+Disposable validation PR #34 proved the three checks appear while pending, block merging until green, and conversation resolution also blocks merging. After all checks passed and the temporary review thread was resolved, GitHub reported the PR merge-clean without an approving review requirement.
 
-Each relevant job step completed successfully, including the database migration execution and Alembic-head verification. After a temporary review thread was resolved, GitHub reported the PR as merge-clean without requesting an approving review. The disposable branch and PR were closed after recording the evidence.
+M0 physical-device/API and branch-protection evidence is complete.
 
 ## Roadmap after M1
 
