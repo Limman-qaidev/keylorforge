@@ -1,6 +1,25 @@
 """PostgreSQL configuration and migration primitives for Keylornet."""
 
 from keylornet_database.config import DatabaseSettings, Environment
-from keylornet_database.models import Base
+from keylornet_database.identity import ApplicationUserRepository, TerminalIdentityError
+from keylornet_database.models import (
+    ApplicationUser,
+    ApplicationUserIdentity,
+    ApplicationUserLifecycle,
+    ApplicationUserProfile,
+    AuthProvider,
+    Base,
+)
 
-__all__ = ["Base", "DatabaseSettings", "Environment"]
+__all__ = [
+    "ApplicationUser",
+    "ApplicationUserIdentity",
+    "ApplicationUserLifecycle",
+    "ApplicationUserProfile",
+    "ApplicationUserRepository",
+    "AuthProvider",
+    "Base",
+    "DatabaseSettings",
+    "Environment",
+    "TerminalIdentityError",
+]
