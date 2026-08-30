@@ -1,8 +1,8 @@
 # Keylornet mobile
 
-Expo/React Native baseline for the Keylornet mobile client. It intentionally
-contains only a development-status route; product screens and backend contracts
-belong to later workstreams.
+Expo/React Native client for Keylornet. The primary route is the M1
+email/password identity flow; the M0 health diagnostic is no longer the normal
+entry experience.
 
 ## Prerequisites
 
@@ -20,6 +20,11 @@ npm install
 must be an `http` or `https` URL that points to a development or test
 environment. Do not commit a `.env` file, production endpoint, or credentials:
 all `EXPO_PUBLIC_` values are visible in the client bundle.
+
+`EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` configure
+the Supabase Auth client. They are public client configuration, not secrets.
+Never put a `sb_secret_...`, service-role credential, refresh token, or user
+password in `.env.example` or source control.
 
 ### Connecting to the local API
 
@@ -50,12 +55,16 @@ npm run ios
 npm run web
 ```
 
-The root route calls `GET /health` through the shared API abstraction. It shows
-loading, healthy, or readable error status without crashing if the server is
-unreachable or its response is invalid. The health request is cancelled after
-five seconds so an unreachable LAN endpoint shows `Health request timed out.`
-instead of leaving the screen loading indefinitely. The stable accepted backend
-response is `200 {"status":"ok"}`.
+At launch, the app restores the persisted Supabase session before choosing a
+route, preventing an authenticated-screen flash. Signed-out users see welcome,
+sign-in, registration, and confirmation-required states; signed-in users see
+the authenticated shell and can sign out. Session refresh is active only while
+the app is foregrounded. A definitive refresh failure clears the local
+authenticated state and returns to sign-in.
+
+For confirmation or password-recovery deep links, use a Keylornet development
+build with the `keylornet` scheme; Expo Go does not provide the stable callback
+URL required by the M1 contract.
 
 ## Validation
 
