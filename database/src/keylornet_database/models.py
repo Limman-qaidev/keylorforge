@@ -29,6 +29,12 @@ NAMING_CONVENTION = {
 }
 
 
+def _enum_values(enum_type: type[StrEnum]) -> list[str]:
+    """Persist StrEnum values instead of Python member names."""
+
+    return [member.value for member in enum_type]
+
+
 class Base(DeclarativeBase):
     """Base class for future domain models and Alembic autogeneration."""
 
@@ -63,7 +69,13 @@ class ApplicationUser(Base):
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     lifecycle_state: Mapped[ApplicationUserLifecycle] = mapped_column(
-        Enum(ApplicationUserLifecycle, native_enum=False, length=32),
+        Enum(
+            ApplicationUserLifecycle,
+            native_enum=False,
+            length=32,
+            values_callable=_enum_values,
+            validate_strings=True,
+        ),
         default=ApplicationUserLifecycle.ACTIVE,
         nullable=False,
     )
@@ -103,7 +115,14 @@ class ApplicationUserIdentity(Base):
         primary_key=True,
     )
     auth_provider: Mapped[AuthProvider] = mapped_column(
-        Enum(AuthProvider, native_enum=False, length=32), primary_key=True
+        Enum(
+            AuthProvider,
+            native_enum=False,
+            length=32,
+            values_callable=_enum_values,
+            validate_strings=True,
+        ),
+        primary_key=True,
     )
     external_subject: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
     created_at: Mapped[datetime] = mapped_column(
