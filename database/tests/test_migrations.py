@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier, Lock
 from uuid import UUID, uuid4
 
 import pytest
@@ -70,10 +71,40 @@ def test_provisioning_is_idempotent_and_creates_profile(test_database_url: str) 
         engine.dispose()
 
 
-def test_concurrent_provisioning_creates_one_identity(test_database_url: str) -> None:
+def test_concurrent_provisioning_creates_one_identity(
+    test_database_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The unique provider mapping safely resolves concurrent first access."""
     engine = create_engine(test_database_url)
     subject = uuid4()
+    barrier = Barrier(2)
+    lookup_lock = Lock()
+    original_find_identity = ApplicationUserRepository._find_identity
+    initial_misses = 0
+    requeries = 0
+
+    def synchronize_initial_misses(
+        self: ApplicationUserRepository,
+        auth_provider: AuthProvider,
+        external_subject: UUID,
+    ) -> ApplicationUserIdentity | None:
+        nonlocal initial_misses, requeries
+        identity = original_find_identity(self, auth_provider, external_subject)
+        if identity is None:
+            with lookup_lock:
+                if initial_misses < 2:
+                    initial_misses += 1
+                    synchronize = True
+                else:
+                    requeries += 1
+                    synchronize = False
+            if synchronize:
+                barrier.wait(timeout=5)
+        return identity
+
+    monkeypatch.setattr(
+        ApplicationUserRepository, "_find_identity", synchronize_initial_misses
+    )
 
     def provision() -> UUID:
         with Session(engine) as session:
@@ -88,6 +119,8 @@ def test_concurrent_provisioning_creates_one_identity(test_database_url: str) ->
             user_ids = list(executor.map(lambda _: provision(), range(2)))
 
         assert user_ids[0] == user_ids[1]
+        assert initial_misses == 2
+        assert requeries == 1
         with Session(engine) as session:
             identities = session.scalars(
                 select(ApplicationUserIdentity).where(

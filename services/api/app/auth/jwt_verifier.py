@@ -58,10 +58,19 @@ class JwksCache:
         self._fetcher = fetcher
         self._keys: dict[str, Any] = {}
         self._expires_at = 0.0
+        self._generation = 0
+        self._signature_refresh_generation_by_key: dict[str, int] = {}
         self._lock = RLock()
 
     def get_key(self, key_id: str, *, refresh: bool = False) -> Any:
         """Return a trusted public key, refreshing once for an unknown key ID."""
+        key, _ = self.get_key_with_generation(key_id, refresh=refresh)
+        return key
+
+    def get_key_with_generation(
+        self, key_id: str, *, refresh: bool = False
+    ) -> tuple[Any, int]:
+        """Return a trusted key and cache generation for signature-failure recovery."""
         with self._lock:
             if refresh or monotonic() >= self._expires_at:
                 self._refresh()
@@ -71,7 +80,30 @@ class JwksCache:
                 key = self._keys.get(key_id)
             if key is None:
                 raise AuthenticationError("untrusted signing key")
-            return key
+            return key, self._generation
+
+    def refresh_key_after_signature_failure(
+        self, key_id: str, observed_generation: int
+    ) -> Any | None:
+        """Refresh a known key at most once per cache generation.
+
+        A failed signature may indicate a provider key rotation that reused a
+        key identifier.  The first failure refreshes under the cache lock; later
+        invalid tokens against that refreshed generation fail closed without
+        repeatedly fetching the configured JWKS endpoint.
+        """
+        with self._lock:
+            if self._generation != observed_generation:
+                return self._keys.get(key_id)
+            if (
+                self._signature_refresh_generation_by_key.get(key_id)
+                == self._generation
+            ):
+                return None
+
+            self._refresh()
+            self._signature_refresh_generation_by_key[key_id] = self._generation
+            return self._keys.get(key_id)
 
     def _refresh(self) -> None:
         jwk_set = PyJWKSet.from_dict(dict(self._fetcher(self._jwks_url)))
@@ -81,6 +113,7 @@ class JwksCache:
             if key.key_id is not None and key.key is not None
         }
         self._expires_at = monotonic() + self._cache_seconds
+        self._generation += 1
 
 
 class SupabaseJwtVerifier:
@@ -103,11 +136,16 @@ class SupabaseJwtVerifier:
             key_id = header.get("kid")
             if not isinstance(key_id, str) or not key_id:
                 raise AuthenticationError("missing token key identifier")
-            key = self._jwks.get_key(key_id)
+            key, generation = self._jwks.get_key_with_generation(key_id)
             try:
                 claims = self._decode(token, key)
             except InvalidSignatureError:
-                claims = self._decode(token, self._jwks.get_key(key_id, refresh=True))
+                refreshed_key = self._jwks.refresh_key_after_signature_failure(
+                    key_id, generation
+                )
+                if refreshed_key is None:
+                    raise
+                claims = self._decode(token, refreshed_key)
             if claims.get("role") != self._ROLE:
                 raise AuthorizationError("token does not have the authenticated role")
             subject = claims.get("sub")

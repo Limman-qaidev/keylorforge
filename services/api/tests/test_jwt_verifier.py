@@ -121,3 +121,27 @@ def test_refreshes_jwks_when_a_key_rotates_with_the_same_id() -> None:
     )
 
     verifier.verify(_token(rotated_key, key_id="stable-id"))
+
+
+def test_rejects_bad_signature_without_repeated_jwks_refreshes() -> None:
+    trusted_key = ec.generate_private_key(ec.SECP256R1())
+    attacker_key = ec.generate_private_key(ec.SECP256R1())
+    fetch_count = 0
+
+    def fetcher(_: str) -> dict[str, object]:
+        nonlocal fetch_count
+        fetch_count += 1
+        return _jwks(trusted_key, "stable-id")
+
+    verifier = SupabaseJwtVerifier(
+        issuer=ISSUER,
+        jwks=JwksCache("https://example.invalid/jwks", 300, fetcher=fetcher),
+    )
+    invalid_token = _token(attacker_key, key_id="stable-id")
+
+    with pytest.raises(AuthenticationError):
+        verifier.verify(invalid_token)
+    with pytest.raises(AuthenticationError):
+        verifier.verify(invalid_token)
+
+    assert fetch_count == 2

@@ -31,6 +31,15 @@ def test_me_rejects_a_missing_bearer_token() -> None:
     assert response.headers["www-authenticate"] == "Bearer"
 
 
+def test_me_rejects_a_malformed_bearer_header() -> None:
+    client = TestClient(create_app())
+
+    response = client.get("/me", headers={"Authorization": "Basic malformed"})
+
+    assert response.status_code == 401
+    assert response.headers["www-authenticate"] == "Bearer"
+
+
 def test_me_uses_the_authenticated_principal_not_a_client_identifier(
     monkeypatch,
 ) -> None:
