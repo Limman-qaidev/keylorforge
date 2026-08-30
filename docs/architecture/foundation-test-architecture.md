@@ -6,7 +6,7 @@
 
 ## Purpose and scope
 
-This document defines the test foundation for Keylornet's modular monolith and
+This document defines the test foundation for KeylorFit's modular monolith and
 mobile client. It complements the accepted architecture decisions; it does not
 change API, database, authentication, or offline-sync contracts.
 

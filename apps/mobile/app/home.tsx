@@ -19,7 +19,7 @@ function HomeScreen() {
       <Text accessibilityRole="header" style={styles.title}>
         Your training home
       </Text>
-      <Text style={styles.message}>You are signed in to Keylornet.</Text>
+      <Text style={styles.message}>You are signed in to KeylorFit.</Text>
       {error ? (
         <Text accessibilityLiveRegion="polite" style={styles.error}>
           {error}

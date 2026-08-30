@@ -1,6 +1,6 @@
-# Keylornet project state
+# KeylorFit project state
 
-Last updated: 2026-08-29
+Last updated: 2026-08-30
 
 This is the fast handoff for resuming work. It is intentionally operational and may become stale if not updated after merges; GitHub issues, PRs and `main` are the final authority for real-time status.
 

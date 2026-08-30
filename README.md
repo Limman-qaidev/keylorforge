@@ -1,4 +1,4 @@
-# keylornet
+# KeylorFit
 
 ## Local PostgreSQL
 

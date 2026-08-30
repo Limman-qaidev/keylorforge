@@ -1,4 +1,4 @@
-# Keylornet project context
+# KeylorFit project context
 
 This directory is the durable handoff for product and engineering context that would otherwise live only in long chat histories.
 
@@ -48,4 +48,4 @@ Do not silently promote a provisional idea into an irreversible contract.
 
 ## Why this exists
 
-Keylornet was designed through a long product/architecture discussion covering workout logging, exercise taxonomy, rankings, groups, social features, privacy, offline behavior, analytics, infrastructure and delivery strategy. The important ideas must survive model/session changes and should not depend on anyone remembering a previous conversation.
+KeylorFit was designed through a long product/architecture discussion covering workout logging, exercise taxonomy, rankings, groups, social features, privacy, offline behavior, analytics, infrastructure and delivery strategy. The important ideas must survive model/session changes and should not depend on anyone remembering a previous conversation.

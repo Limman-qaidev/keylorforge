@@ -1,6 +1,6 @@
-# Keylornet mobile
+# KeylorFit mobile
 
-Expo/React Native client for Keylornet. The primary route is the M1
+Expo/React Native client for KeylorFit. The primary route is the M1
 email/password identity flow; the M0 health diagnostic is no longer the normal
 entry experience.
 
@@ -62,8 +62,8 @@ the authenticated shell and can sign out. Session refresh is active only while
 the app is foregrounded. A definitive refresh failure clears the local
 authenticated state and returns to sign-in.
 
-For confirmation or password-recovery deep links, use a Keylornet development
-build with the `keylornet` scheme; Expo Go does not provide the stable callback
+For confirmation or password-recovery deep links, use a KeylorFit development
+build with the `keylorfit` scheme; Expo Go does not provide the stable callback
 URL required by the M1 contract.
 
 ## Validation

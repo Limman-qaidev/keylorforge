@@ -17,7 +17,7 @@ describe('DevelopmentStatus', () => {
       <DevelopmentStatus loadHealth={async () => ({ status: 'ok' })} />,
     );
 
-    expect(getByText('Keylornet mobile')).toBeTruthy();
+    expect(getByText('KeylorFit mobile')).toBeTruthy();
 
     await waitFor(() => {
       expect(getByText('API is healthy.')).toBeTruthy();

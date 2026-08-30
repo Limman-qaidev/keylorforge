@@ -1,8 +1,8 @@
-# Keylornet product vision
+# KeylorFit product vision
 
 ## Product in one sentence
 
-Keylornet is a mobile-first gym training product where users can reliably record workouts, understand their progress, compare meaningful performance with groups, and optionally share training-related social content.
+KeylorFit is a mobile-first gym training product where users can reliably record workouts, understand their progress, compare meaningful performance with groups, and optionally share training-related social content.
 
 The product is not intended to be a generic social network with a workout form attached. The training record is the core domain and source of value; competition, analytics and social features are built on top of trustworthy workout data.
 
@@ -105,11 +105,11 @@ This protects the product from later schema redesign for running, cycling, plank
 
 ## Exercise catalogue intent
 
-The app should have its own internal exercise catalogue. A source such as wger may be useful for bootstrapping data, but Keylornet must not depend on an external exercise API at runtime.
+The app should have its own internal exercise catalogue. A source such as wger may be useful for bootstrapping data, but KeylorFit must not depend on an external exercise API at runtime.
 
 The intended ingestion model is:
 
-`external/open source -> importer -> normalization -> Keylornet database -> curation`
+`external/open source -> importer -> normalization -> KeylorFit database -> curation`
 
 Licensing for descriptions and media must be checked independently before redistribution.
 

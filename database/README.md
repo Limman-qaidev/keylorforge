@@ -1,6 +1,6 @@
 # Database baseline
 
-This package owns Keylornet's PostgreSQL connection configuration, SQLAlchemy
+This package owns KeylorFit's PostgreSQL connection configuration, SQLAlchemy
 metadata conventions and Alembic migration history. PostgreSQL is the server
 source of truth; SQLite is not a supported substitute for database integration
 tests.

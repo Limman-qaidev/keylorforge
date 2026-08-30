@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "keylornet-api"
 version = "0.1.0"
-description = "Keylornet FastAPI backend foundation"
+description = "KeylorFit FastAPI backend foundation"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [

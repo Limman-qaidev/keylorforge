@@ -83,6 +83,6 @@ class ApplicationUserRepository:
         user = identity.user
         if user.lifecycle_state is not ApplicationUserLifecycle.ACTIVE:
             raise TerminalIdentityError(
-                "the external identity has a terminal Keylornet lifecycle state"
+                "the external identity has a terminal KeylorFit lifecycle state"
             )
         return user

@@ -4,7 +4,7 @@ This directory is the source of truth for system-wide technical decisions.
 
 ## Baseline architecture
 
-Keylornet is designed as a modular monolith with a mobile client and a server-side API:
+KeylorFit is designed as a modular monolith with a mobile client and a server-side API:
 
 ```text
 React Native / Expo / TypeScript

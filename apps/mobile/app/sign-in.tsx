@@ -11,7 +11,7 @@ function SignInScreen() {
 
   return (
     <AuthScreen
-      subtitle="Use your Keylornet email and password."
+      subtitle="Use your KeylorFit email and password."
       title="Sign in"
     >
       {feedback ? (
