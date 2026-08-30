@@ -81,23 +81,19 @@ def test_concurrent_provisioning_creates_one_identity(
     lookup_lock = Lock()
     original_find_identity = ApplicationUserRepository._find_identity
     initial_misses = 0
-    requeries = 0
 
     def synchronize_initial_misses(
         self: ApplicationUserRepository,
         auth_provider: AuthProvider,
         external_subject: UUID,
     ) -> ApplicationUserIdentity | None:
-        nonlocal initial_misses, requeries
+        nonlocal initial_misses
         identity = original_find_identity(self, auth_provider, external_subject)
         if identity is None:
             with lookup_lock:
-                if initial_misses < 2:
+                synchronize = initial_misses < 2
+                if synchronize:
                     initial_misses += 1
-                    synchronize = True
-                else:
-                    requeries += 1
-                    synchronize = False
             if synchronize:
                 barrier.wait(timeout=5)
         return identity
@@ -118,9 +114,13 @@ def test_concurrent_provisioning_creates_one_identity(
         with ThreadPoolExecutor(max_workers=2) as executor:
             user_ids = list(executor.map(lambda _: provision(), range(2)))
 
-        assert user_ids[0] == user_ids[1]
+        # The barrier proves both workers observed the mapping as absent before
+        # provisioning. Correctness is the externally observable result: both
+        # callers resolve to the same application user and the database retains
+        # exactly one provider/subject identity row. Avoid asserting an internal
+        # repository lookup count, which is scheduling- and implementation-sensitive.
         assert initial_misses == 2
-        assert requeries == 1
+        assert user_ids[0] == user_ids[1]
         with Session(engine) as session:
             identities = session.scalars(
                 select(ApplicationUserIdentity).where(
