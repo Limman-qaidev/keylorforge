@@ -6,6 +6,9 @@
     "scheme": "keylorfit",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
+    "android": {
+      "package": "com.jonathansalgadonieto.keylorfit"
+    },
     "plugins": ["expo-router"],
     "experiments": {
       "typedRoutes": true
