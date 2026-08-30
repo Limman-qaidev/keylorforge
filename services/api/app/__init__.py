@@ -1,1 +1,1 @@
-"""Keylornet API application package."""
+"""KeylorFit API application package."""

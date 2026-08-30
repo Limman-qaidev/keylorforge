@@ -1,11 +1,14 @@
 {
   "expo": {
-    "name": "Keylornet",
-    "slug": "keylornet",
+    "name": "KeylorFit",
+    "slug": "keylorfit",
     "version": "0.1.0",
-    "scheme": "keylornet",
+    "scheme": "keylorfit",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
+    "android": {
+      "package": "com.jonathansalgadonieto.keylorfit"
+    },
     "plugins": ["expo-router"],
     "experiments": {
       "typedRoutes": true

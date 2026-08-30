@@ -7,7 +7,7 @@
 
 ## Objective
 
-Deliver the first visibly product-like Keylornet slice on a real phone while preserving ADR-002: Supabase Auth owns identity/token issuance and FastAPI owns application authorization.
+Deliver the first visibly product-like KeylorFit slice on a real phone while preserving ADR-002: Supabase Auth owns identity/token issuance and FastAPI owns application authorization.
 
 M1 is not complete merely because auth libraries are wired or CI passes. The user must be able to use the identity flow on a physical device.
 
@@ -33,7 +33,7 @@ M1 must also independently prove:
 - refresh failure/invalid refresh credentials fail safely back to the signed-out state rather than leaving a stale authenticated shell;
 - password recovery from the physical development client;
 - account deletion using a disposable account;
-- after deletion, access tokens and refresh credentials issued before deletion cannot regain protected access or recreate application state, and a new password login for the deleted identity cannot restore the deleted Keylornet account under the accepted final semantics;
+- after deletion, access tokens and refresh credentials issued before deletion cannot regain protected access or recreate application state, and a new password login for the deleted identity cannot restore the deleted KeylorFit account under the accepted final semantics;
 - invalid/missing/expired token behavior fails closed;
 - no privileged Supabase credential is present in the mobile bundle or repository.
 
@@ -59,10 +59,10 @@ M1 does not implement OAuth/social providers, exercise catalogue, workouts, grou
 1. Supabase Auth establishes identity and issues access tokens.
 2. FastAPI validates the token and derives the authenticated principal from it.
 3. Protected endpoints never trust a client-supplied owner/user identifier.
-4. Keylornet application user/profile data is owned by the application database and linked deterministically to the external auth subject.
+4. KeylorFit application user/profile data is owned by the application database and linked deterministically to the external auth subject.
 5. Privileged Supabase/service-role credentials remain server-side only.
 6. Public Expo configuration contains only values intentionally safe to ship in a client bundle.
-7. Account deletion has an explicit terminal identity state: valid-looking credentials issued before deletion must not be able to reprovision or regain a deleted Keylornet account.
+7. Account deletion has an explicit terminal identity state: valid-looking credentials issued before deletion must not be able to reprovision or regain a deleted KeylorFit account.
 8. Any change to these boundaries requires ADR review rather than silent drift.
 
 ## Work items and dependencies
@@ -81,7 +81,7 @@ Depends on IDN-001. Build fail-closed token validation, reusable authenticated p
 
 Depends on IDN-001 and may run in parallel with IDN-002 in an isolated worktree. Build the visible signed-out and signed-in product shell, forms, session restoration, route protection, automatic session refresh and logout.
 
-**First visible product checkpoint:** after IDN-003, the phone should already show a real Keylornet welcome/login/register experience and authenticated shell, even before profile integration is complete. Acceptance also exercises access-token expiry with a still-valid refresh session and a refresh-failure path back to signed out.
+**First visible product checkpoint:** after IDN-003, the phone should already show a real KeylorFit welcome/login/register experience and authenticated shell, even before profile integration is complete. Acceptance also exercises access-token expiry with a still-valid refresh session and a refresh-failure path back to signed out.
 
 ### IDN-004 — Authenticated profile API + mobile editing (#40)
 

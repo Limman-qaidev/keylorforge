@@ -12,7 +12,7 @@ This document turns ADR-002 into an implementation contract for M1. It does not 
 
 The invariant remains:
 
-`Supabase Auth authenticates -> FastAPI validates identity and authorizes -> Keylornet PostgreSQL stores application identity/profile data`
+`Supabase Auth authenticates -> FastAPI validates identity and authorizes -> KeylorFit PostgreSQL stores application identity/profile data`
 
 The mobile app is never authoritative for ownership or user identity.
 
@@ -29,19 +29,19 @@ For the Expo client, use the current Supabase React Native approach:
 - `detectSessionInUrl: false`
 - explicit app-state handling so refresh work is active while the app is foregrounded and stopped while backgrounded where appropriate
 
-The repository currently has Expo SDK 57 / React Native 0.86 and already declares the custom app scheme `keylornet` in `apps/mobile/app.json`.
+The repository currently has Expo SDK 57 / React Native 0.86 and declares the custom app scheme `keylorfit` in `apps/mobile/app.json`.
 
 ## Observed Supabase development-project state
 
-The connected Keylornet development project is active in `eu-central-1` and exposes a modern publishable API key. During IDN-001 setup, the Authentication dashboard was checked manually and confirmed:
+The connected development project is active in `eu-central-1` and exposes a modern publishable API key. Its currently visible management label remains Keylornet until the BRAND-001 manual Supabase update is completed. During IDN-001 setup, the Authentication dashboard was checked manually and confirmed:
 
 - Email/password provider enabled.
 - Email confirmation enabled.
-- Redirect URLs configured for `keylornet://auth/confirm` and `keylornet://auth/recovery`.
+- Redirect URLs configured for the then-current Keylornet callbacks.
 - Current JWT signing key is asymmetric ECC P-256, suitable for public JWKS verification.
 - A legacy HS256 shared-secret signing key remains only under **Previously used keys** after rotation; it is not the current signing key.
 
-Do not revoke the previous legacy key merely to finish IDN-001. Revocation is a separate cleanup step and must happen only after legacy API-key dependencies and outstanding token lifetime have been considered. New Keylornet implementation must use the publishable-key + asymmetric-JWKS model and must not add new dependencies on legacy `anon`, `service_role`, or shared JWT-secret verification.
+Do not revoke the previous legacy key merely to finish IDN-001. Revocation is a separate cleanup step and must happen only after legacy API-key dependencies and outstanding token lifetime have been considered. New KeylorFit implementation must use the publishable-key + asymmetric-JWKS model and must not add new dependencies on legacy `anon`, `service_role`, or shared JWT-secret verification.
 
 ## Public, backend, and privileged configuration
 
@@ -76,21 +76,21 @@ A privileged Supabase secret must:
 - never use an `EXPO_PUBLIC_` prefix;
 - never be committed;
 - never be put in PR descriptions, issue comments, screenshots, logs, or chat;
-- be used only by backend code that has already authenticated and authorized the requesting Keylornet user.
+- be used only by backend code that has already authenticated and authorized the requesting KeylorFit user.
 
 The secret value does not need to be copied out of the Supabase dashboard during IDN-001. Provision it into backend-only local/deployment secret storage when IDN-006 actually needs administrative deletion capability, minimizing unnecessary exposure.
 
 ## Development Supabase project requirements
 
-Use the existing dedicated Keylornet development project for M1 acceptance.
+Use the existing dedicated development project for KeylorFit M1 acceptance.
 
 Required dashboard state:
 
 1. Email/password authentication enabled.
 2. Email confirmation enabled for the real M1 confirmation flow.
 3. Current publishable API key available for the Expo client.
-4. Current asymmetric JWT signing-key system active; Keylornet expects a JWKS endpoint with public verification keys.
-5. Redirect URLs configured for the Keylornet custom scheme used by the development build.
+4. Current asymmetric JWT signing-key system active; KeylorFit expects a JWKS endpoint with public verification keys.
+5. Redirect URLs configured for the KeylorFit custom scheme used by the development build, with legacy callbacks retained only for a controlled development-build transition.
 6. A server secret key can be provisioned later for the deletion flow; do not put it in mobile configuration and do not expose it early without a consumer.
 
 Do not alter auth timeouts/session policy simply to make tests pass. Use normal provider behavior unless a specific acceptance test needs a temporary, documented development setting.
@@ -99,18 +99,18 @@ Do not alter auth timeouts/session policy simply to make tests pass. Use normal 
 
 The repository already declares:
 
-`scheme: keylornet`
+`scheme: keylorfit`
 
 Use stable app callbacks under that scheme:
 
-- `keylornet://auth/confirm`
-- `keylornet://auth/recovery`
+- `keylorfit://auth/confirm`
+- `keylorfit://auth/recovery`
 
 Exact route filenames may be adjusted by IDN-003/IDN-005 while preserving these semantic endpoints.
 
 For provider redirects requiring a stable callback URL, the supported M1 physical-device client is a development build, not Expo Go. Expo Go uses an `exp://` URL whose address is not stable enough to be the durable authentication callback contract. Expo Go can still be used for flows that do not depend on stable provider redirects, but IDN-005 recovery acceptance must use the supported development build if required.
 
-Supabase Auth Redirect URLs must allow the Keylornet custom scheme for the M1 development project. Use the narrowest practical allowed callback set rather than an unnecessarily broad production wildcard.
+Supabase Auth Redirect URLs must allow the KeylorFit custom scheme for the M1 development project. Use the narrowest practical allowed callback set rather than an unnecessarily broad production wildcard. During the installed-build transition, retain the old Keylornet callbacks only until no accepted development build depends on them; do not add wildcards.
 
 ## Registration and email confirmation
 
@@ -121,7 +121,7 @@ Expected states:
 1. User submits email/password.
 2. Supabase returns either a usable session or a confirmation-required state according to project settings.
 3. When confirmation is required, the app displays an explicit pending-confirmation state rather than pretending the user is authenticated.
-4. The confirmation link returns to the Keylornet development build through the configured deep link.
+4. The confirmation link returns to the KeylorFit development build through the configured deep link.
 5. The resulting Supabase session becomes the only source of authenticated client identity.
 
 Provider errors must be mapped to understandable UI errors. Do not reveal internal provider responses or credentials verbatim to users.
@@ -173,22 +173,22 @@ The authenticated principal is derived from the validated JWT `sub`; a `user_id`
 
 JWKS lookup/caching must permit Supabase signing-key rotation. Do not cache keys indefinitely.
 
-A valid signature alone is not sufficient to resurrect a deleted Keylornet identity; see deletion semantics below.
+A valid signature alone is not sufficient to resurrect a deleted KeylorFit identity; see deletion semantics below.
 
 ## Application user/profile mapping
 
-Keylornet maintains its own application identity row independently of the Supabase Auth schema.
+KeylorFit maintains its own application identity row independently of the Supabase Auth schema.
 
 Recommended M1 mapping:
 
-- internal Keylornet user ID: application-owned UUID primary key;
+- internal KeylorFit user ID: application-owned UUID primary key;
 - external auth provider: `supabase`;
 - external subject: Supabase JWT `sub`, unique and immutable for the mapping;
-- profile: application-owned profile data linked to the Keylornet user.
+- profile: application-owned profile data linked to the KeylorFit user.
 
 Do not use email as the stable foreign identity key because email can change.
 
-First authenticated access may provision the Keylornet application user/profile deterministically if no active mapping exists. The operation must be transaction-safe/idempotent so concurrent requests do not create duplicates.
+First authenticated access may provision the KeylorFit application user/profile deterministically if no active mapping exists. The operation must be transaction-safe/idempotent so concurrent requests do not create duplicates.
 
 A deleted/tombstoned external subject must never be eligible for automatic reprovisioning.
 
@@ -214,8 +214,8 @@ Avoid exposing provider-specific debugging information to the mobile UI.
 M1 recovery uses Supabase's password-reset flow.
 
 1. Signed-out user submits email.
-2. Mobile requests password recovery with a stable redirect target such as `keylornet://auth/recovery`.
-3. Email link opens the supported Keylornet development build.
+2. Mobile requests password recovery with a stable redirect target such as `keylorfit://auth/recovery`.
+3. Email link opens the supported KeylorFit development build.
 4. The app recognizes the recovery auth state and displays a new-password form.
 5. The authenticated recovery context updates the password through the supported Supabase API.
 6. Expired, reused, malformed, or wrong-flow links produce a safe recovery error and cannot enter normal protected navigation accidentally.
@@ -245,9 +245,9 @@ The exact minimal tombstone representation and retention policy must be reviewed
 
 IDN-006/IDN-007 must prove that:
 
-- an access token issued before deletion cannot regain protected Keylornet access even if its signature and `exp` would otherwise still be acceptable;
-- the old refresh credential/session cannot mint a usable Keylornet session after provider deletion;
-- logging in again with the deleted account's old credentials does not silently recreate the deleted Keylornet account under the chosen deletion semantics;
+- an access token issued before deletion cannot regain protected KeylorFit access even if its signature and `exp` would otherwise still be acceptable;
+- the old refresh credential/session cannot mint a usable KeylorFit session after provider deletion;
+- logging in again with the deleted account's old credentials does not silently recreate the deleted KeylorFit account under the chosen deletion semantics;
 - retries cannot delete a different user's identity.
 
 ## Failure behavior
@@ -268,7 +268,7 @@ Backend never converts token-verification exceptions into authenticated anonymou
 
 ## Physical-device development runbook
 
-For normal auth UI/session work, Expo Go may remain useful where no stable callback is needed. For confirmation/recovery/deep-link acceptance, use a Keylornet development build carrying the `keylornet` scheme.
+For normal auth UI/session work, Expo Go may remain useful where no stable callback is needed. For confirmation/recovery/deep-link acceptance, use a KeylorFit development build carrying the `keylorfit` scheme.
 
 The local FastAPI URL on a physical phone remains the development machine's reachable LAN IPv4, as established in M0.
 
@@ -276,14 +276,44 @@ The Supabase project URL is internet-reachable and independent of the LAN API UR
 
 ## Manual provisioning checklist
 
-The connected Keylornet Supabase project has been configured for M1 as follows:
+The connected Supabase development project has the following M1 baseline. BRAND-001 must read back the live Auth URL and email-template configuration before marking the KeylorFit transition complete:
 
 1. Email provider/password auth enabled.
 2. Email confirmation enabled.
 3. Project URL and modern publishable key available through project configuration.
 4. Current asymmetric ECC P-256 signing key confirmed in JWT settings.
-5. Auth redirect URL settings include `keylornet://auth/confirm` and `keylornet://auth/recovery`.
+5. Auth redirect URL settings must include `keylorfit://auth/confirm` and `keylorfit://auth/recovery`. Keep the legacy Keylornet callbacks only while an accepted installed development build still uses them.
 6. Any future `sb_secret_...` administrative credential remains server-only and should only be copied into secret storage when IDN-006 needs it.
+
+### BRAND-001 Supabase Auth transition boundary
+
+The repository cannot safely read or mutate the hosted Auth URL or email-template
+configuration through its configured Supabase tooling. Before physical callback
+acceptance, the Product Owner must use the Supabase dashboard for the connected
+development project and record a read-back of the resulting settings:
+
+1. Open **Authentication > URL Configuration**. Add the exact narrow redirect
+   URLs `keylorfit://auth/confirm` and `keylorfit://auth/recovery`. Do not add
+   wildcard redirect URLs.
+2. Retain `keylornet://auth/confirm` and `keylornet://auth/recovery` only while
+   an accepted installed development build still uses the old scheme. Do not
+   remove either legacy URL until that build inventory is empty.
+3. Where supported, change the Auth project/application display label to
+   **KeylorFit**. Under **Authentication > Email Templates**, update the
+   confirmation subject and visible body copy to identify KeylorFit while
+   preserving the provider-generated `{{ .ConfirmationURL }}` placeholder and
+   link. Do not expose or rotate any secret, and do not change the sender/domain
+   configuration as part of this transition.
+4. Read the URL allow-list and confirmation template back after saving. Record
+   the exact callbacks present, the KeylorFit subject/body branding, and whether
+   legacy callbacks remain for installed builds. If the new build cannot open
+   its scheme, roll back by retaining the legacy allow-list entries; do not
+   weaken allow-listing with a wildcard.
+
+This is configuration preparation only. IDN-003A (#49) remains responsible for
+passing `emailRedirectTo`, consuming confirmation links, and proving the
+end-to-end confirmation journey. IDN-005 remains responsible for recovery-link
+handling.
 
 Store locally when implementation starts:
 

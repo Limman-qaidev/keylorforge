@@ -75,7 +75,7 @@ export function DevelopmentStatus({
 
   return (
     <View style={styles.container} accessibilityRole="summary">
-      <Text style={styles.heading}>Keylornet mobile</Text>
+      <Text style={styles.heading}>KeylorFit mobile</Text>
       {visibleHealthState.kind === 'loading' ? (
         <Text accessibilityLiveRegion="polite" style={styles.message}>
           Checking API health…

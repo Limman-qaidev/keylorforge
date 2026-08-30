@@ -1,8 +1,8 @@
-# Keylornet MVP Product Specification
+# KeylorFit MVP Product Specification
 
 ## Product goal
 
-Keylornet is a mobile application for recording gym training, reviewing personal history and progress, and comparing activity and performance within groups. Social sharing is a later layer built on top of trustworthy workout data.
+KeylorFit is a mobile application for recording gym training, reviewing personal history and progress, and comparing activity and performance within groups. Social sharing is a later layer built on top of trustworthy workout data.
 
 ## MVP priorities
 

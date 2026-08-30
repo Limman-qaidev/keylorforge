@@ -11,7 +11,7 @@ export function AuthScreen({ children, subtitle, title }: AuthScreenProps) {
     <View style={styles.container}>
       <View style={styles.content}>
         <Text accessibilityRole="header" style={styles.brand}>
-          Keylornet
+          KeylorFit
         </Text>
         <Text accessibilityRole="header" style={styles.title}>
           {title}

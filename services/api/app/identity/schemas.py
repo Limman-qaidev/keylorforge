@@ -14,7 +14,7 @@ class ProfileFoundationResponse(BaseModel):
 
 
 class MeResponse(BaseModel):
-    """The active caller's own Keylornet identity and profile foundation."""
+    """The active caller's own KeylorFit identity and profile foundation."""
 
     id: UUID
     profile: ProfileFoundationResponse
