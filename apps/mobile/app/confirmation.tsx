@@ -29,7 +29,7 @@ function ConfirmationScreen() {
 
 export default function ConfirmationRoute() {
   return (
-    <RequireSignedOut>
+    <RequireSignedOut allowConfirmationPending>
       <ConfirmationScreen />
     </RequireSignedOut>
   );

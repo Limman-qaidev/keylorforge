@@ -21,7 +21,18 @@ export function RequireAuthenticated({ children }: PropsWithChildren) {
   return children;
 }
 
-export function RequireSignedOut({ children }: PropsWithChildren) {
+type RequireSignedOutProps = PropsWithChildren<{
+  allowConfirmationPending?: boolean;
+}>;
+
+/**
+ * Keeps ordinary signed-out routes away from an unfinished email-confirmation
+ * flow. The confirmation route opts in so it can render its pending state.
+ */
+export function RequireSignedOut({
+  allowConfirmationPending = false,
+  children,
+}: RequireSignedOutProps) {
   const { confirmationEmail, phase } = useAuth();
 
   if (phase === 'restoring') {
@@ -32,7 +43,7 @@ export function RequireSignedOut({ children }: PropsWithChildren) {
     return <Redirect href="/home" />;
   }
 
-  if (confirmationEmail) {
+  if (confirmationEmail && !allowConfirmationPending) {
     return <Redirect href="/confirmation" />;
   }
 
