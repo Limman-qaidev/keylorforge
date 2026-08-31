@@ -13,7 +13,7 @@ from uuid import UUID
 
 import jwt
 from jwt import InvalidSignatureError, PyJWKSet
-from jwt.exceptions import InvalidTokenError, PyJWKSetError
+from jwt.exceptions import InvalidTokenError
 
 
 class AuthenticationError(Exception):
@@ -67,13 +67,14 @@ class JwksCache:
         self._generation = 0
         self._unknown_key_refresh_generation: int | None = None
         self._unknown_key_discovery_in_flight = False
-        self._unknown_key_failure_until = 0.0
-        self._unknown_key_failure: JwksProviderUnavailableError | None = None
         self._signature_refresh_generation_by_key: dict[str, int] = {}
+        self._signature_refresh_in_flight: set[tuple[str, int]] = set()
         self._lock = RLock()
         self._refresh_condition = Condition(self._lock)
         self._refreshing = False
         self._last_refresh_error: JwksProviderUnavailableError | None = None
+        self._provider_failure_until = 0.0
+        self._provider_failure: JwksProviderUnavailableError | None = None
 
     def get_key(self, key_id: str, *, refresh: bool = False) -> Any:
         """Return a trusted public key, refreshing once for an unknown key ID."""
@@ -85,27 +86,26 @@ class JwksCache:
     ) -> tuple[Any, int]:
         """Return a trusted key and cache generation for signature-failure recovery."""
         forced_refresh_pending = refresh
-        cold_lookup_pending = False
         while True:
+            discovery_refresh = False
+            lookup_requires_refresh = False
             with self._lock:
                 key = self._keys.get(key_id)
                 cache_expired = monotonic() >= self._expires_at
                 if key is not None and not forced_refresh_pending and not cache_expired:
                     return key, self._generation
 
-                discovery_refresh = False
                 if forced_refresh_pending or cache_expired:
-                    cold_lookup_pending = key is None and self._generation == 0
-                    discovery_refresh = key is None and not cold_lookup_pending
+                    lookup_requires_refresh = key is None
                     forced_refresh_pending = False
                 elif key is None:
-                    if (
-                        self._unknown_key_failure is not None
-                        and monotonic() < self._unknown_key_failure_until
-                    ):
-                        raise self._unknown_key_failure
+                    self._raise_if_provider_backing_off()
                     if self._unknown_key_discovery_in_flight:
-                        self._refresh_condition.wait_for(lambda: not self._refreshing)
+                        self._refresh_condition.wait_for(
+                            lambda: not self._unknown_key_discovery_in_flight
+                        )
+                        if self._last_refresh_error is not None:
+                            raise self._last_refresh_error
                         continue
                     if self._unknown_key_refresh_generation == self._generation:
                         raise AuthenticationError("untrusted signing key")
@@ -113,14 +113,28 @@ class JwksCache:
                     # cache generation, rather than one provider request per
                     # forged key identifier.
                     discovery_refresh = True
+                    self._unknown_key_refresh_generation = self._generation
+                    self._unknown_key_discovery_in_flight = True
 
-            self._refresh(discovery=discovery_refresh)
-            if cold_lookup_pending:
+            try:
+                self._refresh()
+            except JwksProviderUnavailableError:
+                if discovery_refresh:
+                    with self._lock:
+                        self._unknown_key_discovery_in_flight = False
+                        self._unknown_key_refresh_generation = None
+                        self._refresh_condition.notify_all()
+                raise
+            if discovery_refresh:
+                with self._lock:
+                    self._unknown_key_discovery_in_flight = False
+                    self._unknown_key_refresh_generation = self._generation
+                    self._refresh_condition.notify_all()
+            if lookup_requires_refresh:
                 with self._lock:
                     if self._keys.get(key_id) is None:
                         self._unknown_key_refresh_generation = self._generation
                         raise AuthenticationError("untrusted signing key")
-                cold_lookup_pending = False
 
     def refresh_key_after_signature_failure(
         self, key_id: str, observed_generation: int
@@ -132,30 +146,45 @@ class JwksCache:
         invalid tokens against that refreshed generation fail closed without
         repeatedly fetching the configured JWKS endpoint.
         """
-        with self._lock:
-            if self._generation != observed_generation:
-                return self._keys.get(key_id)
-            if (
-                self._signature_refresh_generation_by_key.get(key_id)
-                == self._generation
-            ):
-                return None
-
-            self._signature_refresh_generation_by_key[key_id] = self._generation
-
-        try:
-            self._refresh()
-        except JwksProviderUnavailableError:
+        refresh_key = (key_id, observed_generation)
+        while True:
             with self._lock:
-                self._signature_refresh_generation_by_key.pop(key_id, None)
-            raise
-        with self._lock:
-            self._signature_refresh_generation_by_key[key_id] = self._generation
-            return self._keys.get(key_id)
+                if self._generation != observed_generation:
+                    return self._keys.get(key_id)
+                self._raise_if_provider_backing_off()
+                if refresh_key in self._signature_refresh_in_flight:
+                    self._refresh_condition.wait_for(
+                        lambda: refresh_key not in self._signature_refresh_in_flight
+                    )
+                    if self._last_refresh_error is not None:
+                        raise self._last_refresh_error
+                    continue
+                if (
+                    self._signature_refresh_generation_by_key.get(key_id)
+                    == self._generation
+                ):
+                    return None
+                self._signature_refresh_generation_by_key[key_id] = self._generation
+                self._signature_refresh_in_flight.add(refresh_key)
 
-    def _refresh(self, *, discovery: bool = False) -> None:
+            try:
+                self._refresh()
+            except JwksProviderUnavailableError:
+                with self._lock:
+                    self._signature_refresh_in_flight.discard(refresh_key)
+                    self._signature_refresh_generation_by_key.pop(key_id, None)
+                    self._refresh_condition.notify_all()
+                raise
+            with self._lock:
+                self._signature_refresh_in_flight.discard(refresh_key)
+                self._signature_refresh_generation_by_key[key_id] = self._generation
+                self._refresh_condition.notify_all()
+                return self._keys.get(key_id)
+
+    def _refresh(self) -> None:
         """Refresh once at a time without holding the cache lock during I/O."""
         with self._lock:
+            self._raise_if_provider_backing_off()
             if self._refreshing:
                 self._refresh_condition.wait_for(lambda: not self._refreshing)
                 if self._last_refresh_error is not None:
@@ -163,8 +192,6 @@ class JwksCache:
                 return
             self._refreshing = True
             self._last_refresh_error = None
-            if discovery:
-                self._unknown_key_discovery_in_flight = True
 
         try:
             jwk_set = PyJWKSet.from_dict(dict(self._fetcher(self._jwks_url)))
@@ -173,31 +200,38 @@ class JwksCache:
                 for key in jwk_set.keys
                 if key.key_id is not None and key.key is not None
             }
-        except (OSError, PyJWKSetError, TypeError, ValueError) as exc:
+        except Exception as exc:
             unavailable = JwksProviderUnavailableError("JWKS provider is unavailable")
             with self._lock:
                 self._last_refresh_error = unavailable
-                if discovery:
-                    self._unknown_key_discovery_in_flight = False
-                    self._unknown_key_failure = unavailable
-                    self._unknown_key_failure_until = (
-                        monotonic() + self._failure_backoff_seconds
-                    )
+                self._provider_failure = unavailable
+                self._provider_failure_until = (
+                    monotonic() + self._failure_backoff_seconds
+                )
                 self._refreshing = False
                 self._refresh_condition.notify_all()
             raise unavailable from exc
+        except BaseException:
+            with self._lock:
+                self._refreshing = False
+                self._refresh_condition.notify_all()
+            raise
 
         with self._lock:
             self._keys = keys
             self._expires_at = monotonic() + self._cache_seconds
             self._generation += 1
-            self._unknown_key_failure = None
-            self._unknown_key_failure_until = 0.0
-            if discovery:
-                self._unknown_key_refresh_generation = self._generation
-                self._unknown_key_discovery_in_flight = False
+            self._provider_failure = None
+            self._provider_failure_until = 0.0
             self._refreshing = False
             self._refresh_condition.notify_all()
+
+    def _raise_if_provider_backing_off(self) -> None:
+        if (
+            self._provider_failure is not None
+            and monotonic() < self._provider_failure_until
+        ):
+            raise self._provider_failure
 
 
 class SupabaseJwtVerifier:

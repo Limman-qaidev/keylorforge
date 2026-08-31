@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta
+from http.client import IncompleteRead
 from threading import Event, Thread
 from uuid import uuid4
 
@@ -270,6 +271,32 @@ def test_provider_outage_is_distinct_from_invalid_credentials() -> None:
         verifier.verify(_token(private_key, key_id="trusted"))
 
 
+def test_bounds_cold_cache_provider_failures_with_backoff() -> None:
+    attacker_key = ec.generate_private_key(ec.SECP256R1())
+    fetch_count = 0
+
+    def fetcher(_: str) -> dict[str, object]:
+        nonlocal fetch_count
+        fetch_count += 1
+        raise TimeoutError("provider timed out")
+
+    verifier = SupabaseJwtVerifier(
+        issuer=ISSUER,
+        jwks=JwksCache(
+            "https://example.invalid/jwks",
+            300,
+            fetcher=fetcher,
+            failure_backoff_seconds=60,
+        ),
+    )
+
+    for key_id in ("forged-one", "forged-two", "forged-three"):
+        with pytest.raises(JwksProviderUnavailableError):
+            verifier.verify(_token(attacker_key, key_id=key_id))
+
+    assert fetch_count == 1
+
+
 def test_bounds_unknown_key_provider_failures_with_backoff() -> None:
     trusted_key = ec.generate_private_key(ec.SECP256R1())
     attacker_key = ec.generate_private_key(ec.SECP256R1())
@@ -296,6 +323,93 @@ def test_bounds_unknown_key_provider_failures_with_backoff() -> None:
     for key_id in ("forged-one", "forged-two", "forged-three"):
         with pytest.raises(JwksProviderUnavailableError):
             verifier.verify(_token(attacker_key, key_id=key_id))
+
+    assert fetch_count == 2
+    verifier.verify(_token(trusted_key, key_id="trusted"))
+
+
+def test_bounds_signature_failure_provider_outages_with_backoff() -> None:
+    trusted_key = ec.generate_private_key(ec.SECP256R1())
+    attacker_key = ec.generate_private_key(ec.SECP256R1())
+    fetch_count = 0
+
+    def fetcher(_: str) -> dict[str, object]:
+        nonlocal fetch_count
+        fetch_count += 1
+        if fetch_count == 1:
+            return _jwks(trusted_key, "stable-id")
+        raise TimeoutError("provider timed out")
+
+    verifier = SupabaseJwtVerifier(
+        issuer=ISSUER,
+        jwks=JwksCache(
+            "https://example.invalid/jwks",
+            300,
+            fetcher=fetcher,
+            failure_backoff_seconds=60,
+        ),
+    )
+    invalid_token = _token(attacker_key, key_id="stable-id")
+    verifier.verify(_token(trusted_key, key_id="stable-id"))
+
+    for _ in range(3):
+        with pytest.raises(JwksProviderUnavailableError):
+            verifier.verify(invalid_token)
+
+    assert fetch_count == 2
+
+
+def test_refresh_state_recovers_from_unexpected_provider_exception() -> None:
+    private_key = ec.generate_private_key(ec.SECP256R1())
+    fetch_count = 0
+
+    def fetcher(_: str) -> dict[str, object]:
+        nonlocal fetch_count
+        fetch_count += 1
+        raise IncompleteRead(b"", 1)
+
+    verifier = SupabaseJwtVerifier(
+        issuer=ISSUER,
+        jwks=JwksCache(
+            "https://example.invalid/jwks",
+            300,
+            fetcher=fetcher,
+            failure_backoff_seconds=60,
+        ),
+    )
+
+    for _ in range(2):
+        with pytest.raises(JwksProviderUnavailableError):
+            verifier.verify(_token(private_key, key_id="trusted"))
+
+    assert fetch_count == 1
+
+
+def test_bounds_expired_cache_provider_failures_with_backoff() -> None:
+    private_key = ec.generate_private_key(ec.SECP256R1())
+    fetch_count = 0
+
+    def fetcher(_: str) -> dict[str, object]:
+        nonlocal fetch_count
+        fetch_count += 1
+        if fetch_count == 1:
+            return _jwks(private_key, "active-key")
+        raise TimeoutError("provider timed out")
+
+    cache = JwksCache(
+        "https://example.invalid/jwks",
+        300,
+        fetcher=fetcher,
+        failure_backoff_seconds=60,
+    )
+    verifier = SupabaseJwtVerifier(issuer=ISSUER, jwks=cache)
+    token = _token(private_key, key_id="active-key")
+    verifier.verify(token)
+    cache._expires_at = 0.0
+
+    for _ in range(3):
+        with pytest.raises(JwksProviderUnavailableError):
+            verifier.verify(token)
 
     assert fetch_count == 2
 
@@ -336,3 +450,128 @@ def test_rejects_bad_signature_without_repeated_jwks_refreshes() -> None:
         verifier.verify(invalid_token)
 
     assert fetch_count == 2
+
+
+def test_concurrent_signature_failures_share_a_same_key_rotation_refresh() -> None:
+    old_key = ec.generate_private_key(ec.SECP256R1())
+    rotated_key = ec.generate_private_key(ec.SECP256R1())
+    refresh_started = Event()
+    allow_refresh = Event()
+    fetch_count = 0
+    errors: list[Exception] = []
+
+    def fetcher(_: str) -> dict[str, object]:
+        nonlocal fetch_count
+        fetch_count += 1
+        if fetch_count == 1:
+            return _jwks(old_key, "stable-id")
+        refresh_started.set()
+        assert allow_refresh.wait(timeout=1)
+        return _jwks(rotated_key, "stable-id")
+
+    verifier = SupabaseJwtVerifier(
+        issuer=ISSUER,
+        jwks=JwksCache("https://example.invalid/jwks", 300, fetcher=fetcher),
+    )
+    verifier.verify(_token(old_key, key_id="stable-id"))
+    rotated_token = _token(rotated_key, key_id="stable-id")
+
+    workers = [
+        Thread(
+            target=lambda: _record_verification_error(verifier, rotated_token, errors),
+            daemon=True,
+        )
+        for _ in range(3)
+    ]
+    workers[0].start()
+    assert refresh_started.wait(timeout=1)
+    for worker in workers[1:]:
+        worker.start()
+
+    allow_refresh.set()
+    for worker in workers:
+        worker.join(timeout=1)
+        assert not worker.is_alive()
+
+    assert fetch_count == 2
+    assert errors == []
+
+
+def test_concurrent_signature_failures_share_provider_outage() -> None:
+    trusted_key = ec.generate_private_key(ec.SECP256R1())
+    attacker_key = ec.generate_private_key(ec.SECP256R1())
+    refresh_started = Event()
+    allow_refresh = Event()
+    fetch_count = 0
+    errors: list[Exception] = []
+
+    def fetcher(_: str) -> dict[str, object]:
+        nonlocal fetch_count
+        fetch_count += 1
+        if fetch_count == 1:
+            return _jwks(trusted_key, "stable-id")
+        refresh_started.set()
+        assert allow_refresh.wait(timeout=1)
+        raise TimeoutError("provider timed out")
+
+    verifier = SupabaseJwtVerifier(
+        issuer=ISSUER,
+        jwks=JwksCache(
+            "https://example.invalid/jwks",
+            300,
+            fetcher=fetcher,
+            failure_backoff_seconds=60,
+        ),
+    )
+    verifier.verify(_token(trusted_key, key_id="stable-id"))
+    invalid_token = _token(attacker_key, key_id="stable-id")
+
+    workers = [
+        Thread(
+            target=lambda: _record_verification_error(verifier, invalid_token, errors),
+            daemon=True,
+        )
+        for _ in range(3)
+    ]
+    workers[0].start()
+    assert refresh_started.wait(timeout=1)
+    for worker in workers[1:]:
+        worker.start()
+
+    allow_refresh.set()
+    for worker in workers:
+        worker.join(timeout=1)
+        assert not worker.is_alive()
+
+    assert fetch_count == 2
+    assert len(errors) == 3
+    assert all(isinstance(error, JwksProviderUnavailableError) for error in errors)
+
+
+def test_refreshes_expired_cache_entries() -> None:
+    private_key = ec.generate_private_key(ec.SECP256R1())
+    fetch_count = 0
+
+    def fetcher(_: str) -> dict[str, object]:
+        nonlocal fetch_count
+        fetch_count += 1
+        return _jwks(private_key, "active-key")
+
+    cache = JwksCache("https://example.invalid/jwks", 300, fetcher=fetcher)
+    verifier = SupabaseJwtVerifier(issuer=ISSUER, jwks=cache)
+    token = _token(private_key, key_id="active-key")
+
+    verifier.verify(token)
+    cache._expires_at = 0.0
+    verifier.verify(token)
+
+    assert fetch_count == 2
+
+
+def _record_verification_error(
+    verifier: SupabaseJwtVerifier, token: str, errors: list[Exception]
+) -> None:
+    try:
+        verifier.verify(token)
+    except (AuthenticationError, JwksProviderUnavailableError) as exc:
+        errors.append(exc)
