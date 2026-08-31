@@ -1,7 +1,12 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { RequireAuthenticated } from '@/components/auth/auth-guards';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { ErrorMessage } from '@/components/ui/form';
+import { Screen } from '@/components/ui/screen';
+import { colors, spacing, typography } from '@/components/ui/tokens';
 import { useAuth } from '@/lib/auth/auth-provider';
 
 function HomeScreen() {
@@ -15,24 +20,23 @@ function HomeScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <Screen centered>
+      <Text style={styles.eyebrow}>TRAINING SPACE</Text>
       <Text accessibilityRole="header" style={styles.title}>
         Your training home
       </Text>
       <Text style={styles.message}>You are signed in to KeylorFit.</Text>
-      {error ? (
-        <Text accessibilityLiveRegion="polite" style={styles.error}>
-          {error}
+      <Card>
+        <Text style={styles.cardTitle}>Ready when you are</Text>
+        <Text style={styles.cardMessage}>
+          Your next training tools will appear here.
         </Text>
-      ) : null}
-      <Pressable
-        accessibilityRole="button"
-        onPress={onSignOut}
-        style={styles.button}
-      >
-        <Text style={styles.buttonText}>Sign out</Text>
-      </Pressable>
-    </View>
+      </Card>
+      {error ? <ErrorMessage>{error}</ErrorMessage> : null}
+      <View style={styles.signOut}>
+        <Button label="Sign out" onPress={onSignOut} tone="secondary" />
+      </View>
+    </Screen>
   );
 }
 
@@ -45,21 +49,34 @@ export default function HomeRoute() {
 }
 
 const styles = StyleSheet.create({
-  button: {
-    backgroundColor: '#275dad',
-    borderRadius: 8,
-    marginTop: 28,
-    minHeight: 48,
-    padding: 14,
+  cardMessage: {
+    color: colors.secondary,
+    fontSize: typography.body.fontSize,
+    marginTop: spacing.sm,
   },
-  buttonText: {
-    color: '#ffffff',
-    fontSize: 16,
+  cardTitle: {
+    color: colors.primary,
+    fontSize: typography.label.fontSize,
     fontWeight: '700',
-    textAlign: 'center',
   },
-  container: { flex: 1, justifyContent: 'center', padding: 24 },
-  error: { color: '#b42318', marginTop: 12 },
-  message: { color: '#4d5d74', fontSize: 16, marginTop: 12 },
-  title: { color: '#101b2d', fontSize: 30, fontWeight: '700' },
+  eyebrow: {
+    color: colors.accent,
+    fontSize: typography.eyebrow.fontSize,
+    fontWeight: '700',
+    letterSpacing: 1.4,
+  },
+  message: {
+    color: colors.secondary,
+    fontSize: typography.body.fontSize,
+    marginBottom: spacing.xl,
+    marginTop: spacing.sm,
+  },
+  signOut: { marginTop: spacing.xl },
+  title: {
+    color: colors.primary,
+    fontSize: typography.display.fontSize,
+    fontWeight: '700',
+    lineHeight: typography.display.lineHeight,
+    marginTop: spacing.sm,
+  },
 });

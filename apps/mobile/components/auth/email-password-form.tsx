@@ -1,10 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { z } from 'zod';
 
-import { authScreenStyles } from '@/components/auth/auth-screen';
+import { Button } from '@/components/ui/button';
+import { ErrorMessage, FieldLabel, FormInput } from '@/components/ui/form';
+import { spacing } from '@/components/ui/tokens';
 
 const emailPasswordSchema = z.object({
   email: z.email('Enter a valid email address.'),
@@ -40,70 +42,60 @@ export function EmailPasswordForm({
 
   return (
     <View>
-      <Text style={authScreenStyles.inputLabel}>Email</Text>
+      <FieldLabel>Email</FieldLabel>
       <Controller
         control={control}
         name="email"
         render={({ field: { onBlur, onChange, value } }) => (
-          <TextInput
+          <FormInput
             accessibilityLabel="Email"
             autoCapitalize="none"
             autoComplete="email"
             keyboardType="email-address"
             onBlur={onBlur}
             onChangeText={onChange}
-            style={authScreenStyles.input}
             textContentType="emailAddress"
             value={value}
           />
         )}
       />
       {errors.email ? (
-        <Text style={styles.fieldError}>{errors.email.message}</Text>
+        <ErrorMessage>{errors.email.message}</ErrorMessage>
       ) : null}
 
-      <Text style={authScreenStyles.inputLabel}>Password</Text>
+      <FieldLabel>Password</FieldLabel>
       <Controller
         control={control}
         name="password"
         render={({ field: { onBlur, onChange, value } }) => (
-          <TextInput
+          <FormInput
             accessibilityLabel="Password"
             autoComplete="password"
             onBlur={onBlur}
             onChangeText={onChange}
             secureTextEntry
-            style={authScreenStyles.input}
             textContentType="password"
             value={value}
           />
         )}
       />
       {errors.password ? (
-        <Text style={styles.fieldError}>{errors.password.message}</Text>
+        <ErrorMessage>{errors.password.message}</ErrorMessage>
       ) : null}
 
-      {submissionError ? (
-        <Text accessibilityLiveRegion="polite" style={authScreenStyles.error}>
-          {submissionError}
-        </Text>
-      ) : null}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ disabled: isSubmitting }}
-        disabled={isSubmitting}
-        onPress={handleSubmit(submit)}
-        style={[authScreenStyles.button, styles.button]}
-      >
-        <Text style={authScreenStyles.buttonText}>
-          {isSubmitting ? 'Please wait…' : actionLabel}
-        </Text>
-      </Pressable>
+      {submissionError ? <ErrorMessage>{submissionError}</ErrorMessage> : null}
+      <View style={styles.button}>
+        <Button
+          disabled={isSubmitting}
+          loading={isSubmitting}
+          onPress={handleSubmit(submit)}
+          label={isSubmitting ? 'Please wait…' : actionLabel}
+        />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  button: { marginTop: 24 },
-  fieldError: { color: '#b42318', fontSize: 14, marginTop: 6 },
+  button: { marginTop: spacing.xl },
 });
