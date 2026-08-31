@@ -36,14 +36,14 @@ function createTestQueryClient() {
   });
 }
 
-function renderProfileScreen() {
+async function renderProfileScreen() {
   const queryClient = createTestQueryClient();
   const ui = () => (
     <QueryClientProvider client={queryClient}>
       <ProfileScreen />
     </QueryClientProvider>
   );
-  const result = render(ui());
+  const result = await render(ui());
 
   return {
     ...result,
@@ -72,7 +72,7 @@ describe('ProfileScreen', () => {
   it('loads the server-backed display name using the current access token', async () => {
     jest.mocked(getCurrentProfile).mockResolvedValue(profile('Taylor'));
 
-    const { findByDisplayValue } = renderProfileScreen();
+    const { findByDisplayValue } = await renderProfileScreen();
 
     expect(await findByDisplayValue('Taylor')).toBeTruthy();
     expect(getCurrentProfile).toHaveBeenCalledWith('current-token');
@@ -84,7 +84,7 @@ describe('ProfileScreen', () => {
       ...profile('Jordan Server').profile,
     });
     const { findByDisplayValue, findByText, getByLabelText, getByText } =
-      renderProfileScreen();
+      await renderProfileScreen();
 
     await findByDisplayValue('Taylor');
     await act(async () => {
@@ -106,7 +106,7 @@ describe('ProfileScreen', () => {
   it('preserves dirty input when the access token rotates or cached server data refreshes', async () => {
     jest.mocked(getCurrentProfile).mockResolvedValue(profile('Taylor'));
     const { getByLabelText, getByDisplayValue, queryClient, rerenderProfile } =
-      renderProfileScreen();
+      await renderProfileScreen();
 
     await waitFor(() => {
       expect(getByDisplayValue('Taylor')).toBeTruthy();
@@ -116,7 +116,7 @@ describe('ProfileScreen', () => {
     });
 
     jest.mocked(useAuth).mockReturnValue(authValue('refreshed-access-token'));
-    rerenderProfile();
+    await rerenderProfile();
 
     await act(async () => {
       queryClient.setQueryData(
