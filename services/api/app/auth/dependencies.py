@@ -17,6 +17,7 @@ from app.auth.jwt_verifier import (
     AuthenticationError,
     AuthorizationError,
     JwksCache,
+    JwksProviderUnavailableError,
     SupabaseJwtVerifier,
 )
 from app.config import Settings
@@ -63,6 +64,11 @@ def get_authenticated_principal(
         )
     try:
         return get_jwt_verifier(request).verify(credentials.credentials)
+    except JwksProviderUnavailableError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="authentication is temporarily unavailable",
+        ) from exc
     except AuthenticationError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
