@@ -30,7 +30,7 @@ function authError() {
   );
 }
 
-function renderProfileScreen() {
+async function renderProfileScreen() {
   const queryClient = new QueryClient({
     defaultOptions: {
       mutations: { retry: false },
@@ -66,7 +66,7 @@ describe('ProfileScreen protected API authentication recovery', () => {
       .mockRejectedValueOnce(authError())
       .mockResolvedValueOnce(currentProfile);
 
-    const { findByDisplayValue } = renderProfileScreen();
+    const { findByDisplayValue } = await renderProfileScreen();
 
     expect(await findByDisplayValue('Taylor')).toBeTruthy();
     expect(refreshSession).toHaveBeenCalledTimes(1);
@@ -88,7 +88,7 @@ describe('ProfileScreen protected API authentication recovery', () => {
     } as unknown as ReturnType<typeof useAuth>);
     jest.mocked(getCurrentProfile).mockRejectedValue(authError());
 
-    renderProfileScreen();
+    await renderProfileScreen();
 
     await waitFor(() => {
       expect(invalidateSession).toHaveBeenCalledTimes(1);
@@ -112,7 +112,7 @@ describe('ProfileScreen protected API authentication recovery', () => {
     } as unknown as ReturnType<typeof useAuth>);
     jest.mocked(getCurrentProfile).mockRejectedValueOnce(authError());
 
-    const { findByText } = renderProfileScreen();
+    const { findByText } = await renderProfileScreen();
 
     expect(
       await findByText(
@@ -135,7 +135,7 @@ describe('ProfileScreen protected API authentication recovery', () => {
     } as unknown as ReturnType<typeof useAuth>);
     jest.mocked(getCurrentProfile).mockRejectedValueOnce(authError());
 
-    const { findByText } = renderProfileScreen();
+    const { findByText } = await renderProfileScreen();
 
     expect(
       await findByText('Your session has ended. Please sign in again.'),
