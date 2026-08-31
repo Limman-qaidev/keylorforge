@@ -146,6 +146,18 @@ function AuthProbe() {
         <Text>consume confirmation</Text>
       </Pressable>
       <Pressable
+        onPress={() => {
+          void consumeConfirmationCallback(
+            'keylorfit://auth/confirm#access_token=access-token&refresh_token=refresh-token',
+          );
+          void consumeConfirmationCallback(
+            'keylorfit://auth/confirm#access_token=access-token&refresh_token=refresh-token',
+          );
+        }}
+      >
+        <Text>consume confirmation twice</Text>
+      </Pressable>
+      <Pressable
         onPress={() =>
           void consumeConfirmationCallback('keylorfit://auth/confirm').then(
             (result) => setCallbackResult(result.error ?? 'success'),
@@ -287,6 +299,55 @@ describe('AuthProvider', () => {
     await expectPhase(getByTestId, 'signedIn');
     expect(auth.client.auth.getUser).toHaveBeenCalledWith('access-token');
     expect(auth.client.auth.setSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a persisted-only confirmation callback single-flight', async () => {
+    await AsyncStorage.setItem(
+      '@keylorfit/auth/pending-confirmation-email',
+      'person@example.com',
+    );
+    const auth = createClient();
+    const { getByText, getByTestId } = await render(
+      <AuthProvider client={auth.client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedOut');
+    await act(async () => {
+      auth.emit('SIGNED_OUT', null);
+    });
+    await act(async () => {
+      fireEvent.press(getByText('consume confirmation twice'));
+    });
+
+    await expectPhase(getByTestId, 'signedIn');
+    expect(auth.client.auth.getUser).toHaveBeenCalledTimes(1);
+    expect(auth.client.auth.setSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails safely when persisted confirmation lookup rejects', async () => {
+    const { client } = createClient();
+    const { getByText, getByTestId } = await render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedOut');
+    jest
+      .mocked(AsyncStorage.getItem)
+      .mockRejectedValueOnce(new Error('sensitive storage detail'));
+    await act(async () => {
+      fireEvent.press(getByText('consume confirmation'));
+    });
+
+    expect(getByTestId('phase').props.children).toBe('signedOut');
+    expect(getByTestId('callback-result').props.children).toBe(
+      'This confirmation link is no longer valid. Request a new confirmation email and try again.',
+    );
+    expect(client.auth.getUser).not.toHaveBeenCalled();
+    expect(client.auth.setSession).not.toHaveBeenCalled();
   });
 
   it('consumes a valid confirmation callback without rendering its credentials', async () => {

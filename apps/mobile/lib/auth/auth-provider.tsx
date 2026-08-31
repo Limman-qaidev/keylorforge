@@ -380,19 +380,19 @@ export function AuthProvider({
         };
       }
 
-      const confirmationEmail =
-        stateRef.current.confirmationEmail ??
-        (await AsyncStorage.getItem(pendingConfirmationEmailKey));
-      if (!confirmationEmail) {
-        return {
-          error:
-            'We could not confirm this link. Request a new confirmation email and try again.',
-        };
-      }
-
       isConsumingConfirmation.current = true;
       sessionOperationVersion.current += 1;
       try {
+        const confirmationEmail =
+          stateRef.current.confirmationEmail ??
+          (await AsyncStorage.getItem(pendingConfirmationEmailKey));
+        if (!confirmationEmail) {
+          return {
+            error:
+              'We could not confirm this link. Request a new confirmation email and try again.',
+          };
+        }
+
         const { data: userData, error: userError } = await client.auth.getUser(
           callback.accessToken,
         );
