@@ -13,7 +13,7 @@ export default function ConfirmationCallbackRoute() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!callbackUrl || phase === 'signedIn') {
+    if (!callbackUrl || phase === 'restoring' || phase === 'signedIn') {
       return;
     }
 

@@ -11,7 +11,7 @@ type AuthListener = (
   session: Session | null,
 ) => void;
 
-function session(): Session {
+function session(email = 'person@example.com'): Session {
   return {
     access_token: 'access-token',
     expires_at: 1_999_999_999,
@@ -22,6 +22,7 @@ function session(): Session {
       app_metadata: {},
       aud: 'authenticated',
       created_at: '2026-08-30T00:00:00.000Z',
+      email,
       id: '9d5c5d95-3f76-4b9f-90c5-1cc6c3990ae2',
       user_metadata: {},
     },
@@ -30,7 +31,9 @@ function session(): Session {
 
 function createClient({
   initialSession = null,
+  confirmationSessionEmail = 'person@example.com',
   restoreError = null,
+  setSessionException = null,
   setSessionError = null,
   signInError = null,
   signUpSession = null,
@@ -38,7 +41,9 @@ function createClient({
   signOutError = null,
 }: {
   initialSession?: Session | null;
+  confirmationSessionEmail?: string;
   restoreError?: Error | null;
+  setSessionException?: Error | null;
   setSessionError?: Error | null;
   signInError?: Error | null;
   signUpError?: Error | null;
@@ -56,10 +61,16 @@ function createClient({
         listener = callback;
         return { data: { subscription: { unsubscribe: jest.fn() } } };
       }),
-      setSession: jest.fn().mockResolvedValue({
-        data: { session: setSessionError ? null : session() },
-        error: setSessionError,
-      }),
+      setSession: setSessionException
+        ? jest.fn().mockRejectedValue(setSessionException)
+        : jest.fn().mockResolvedValue({
+            data: {
+              session: setSessionError
+                ? null
+                : session(confirmationSessionEmail),
+            },
+            error: setSessionError,
+          }),
       signInWithPassword: jest.fn().mockResolvedValue({
         data: { session: signInError ? null : session() },
         error: signInError,
@@ -217,6 +228,9 @@ describe('AuthProvider', () => {
 
     await expectPhase(getByTestId, 'signedOut');
     await act(async () => {
+      fireEvent.press(getByText('sign up'));
+    });
+    await act(async () => {
       fireEvent.press(getByText('consume confirmation'));
     });
 
@@ -260,6 +274,9 @@ describe('AuthProvider', () => {
 
     await expectPhase(getByTestId, 'signedOut');
     await act(async () => {
+      fireEvent.press(getByText('sign up'));
+    });
+    await act(async () => {
       fireEvent.press(getByText('consume confirmation'));
     });
 
@@ -268,6 +285,56 @@ describe('AuthProvider', () => {
       'This confirmation link is no longer valid. Request a new confirmation email and try again.',
     );
     expect(queryByText(/access-token|token has expired/i)).toBeNull();
+  });
+
+  it('fails safely when confirmation session storage throws', async () => {
+    const { client } = createClient({
+      setSessionException: new Error('sensitive provider detail: access-token'),
+    });
+    const { getByText, getByTestId, queryByText } = await render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedOut');
+    await act(async () => {
+      fireEvent.press(getByText('sign up'));
+    });
+    await act(async () => {
+      fireEvent.press(getByText('consume confirmation'));
+    });
+
+    expect(getByTestId('phase').props.children).toBe('signedOut');
+    expect(getByTestId('callback-result').props.children).toBe(
+      'This confirmation link is no longer valid. Request a new confirmation email and try again.',
+    );
+    expect(queryByText(/sensitive provider detail|access-token/i)).toBeNull();
+  });
+
+  it('rejects a callback for an account other than the pending registration', async () => {
+    const { client } = createClient({
+      confirmationSessionEmail: 'attacker@example.com',
+    });
+    const { getByText, getByTestId } = await render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedOut');
+    await act(async () => {
+      fireEvent.press(getByText('sign up'));
+    });
+    await act(async () => {
+      fireEvent.press(getByText('consume confirmation'));
+    });
+
+    expect(getByTestId('phase').props.children).toBe('signedOut');
+    expect(client.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    expect(getByTestId('callback-result').props.children).toBe(
+      'This confirmation link is no longer valid. Request a new confirmation email and try again.',
+    );
   });
 
   it('does not exchange a duplicate confirmation after session establishment', async () => {
@@ -279,6 +346,9 @@ describe('AuthProvider', () => {
     );
 
     await expectPhase(getByTestId, 'signedOut');
+    await act(async () => {
+      fireEvent.press(getByText('sign up'));
+    });
     await act(async () => {
       fireEvent.press(getByText('consume confirmation'));
     });
