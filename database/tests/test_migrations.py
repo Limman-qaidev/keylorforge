@@ -99,6 +99,26 @@ def test_upgrade_clean_database_records_head(test_database_url: str) -> None:
     assert direct_grants == []
 
 
+def test_display_name_migration_refuses_destructive_downgrade(
+    test_database_url: str,
+) -> None:
+    """The profile migration must not silently drop persisted display names."""
+    config = Config("alembic.ini")
+
+    with pytest.raises(NotImplementedError, match="stores profile data"):
+        command.downgrade(config, "20260829_0001")
+
+    engine = create_engine(test_database_url)
+    try:
+        with engine.connect() as connection:
+            revision = connection.execute(
+                text("SELECT version_num FROM alembic_version")
+            ).scalar_one()
+        assert revision == "20260831_0001"
+    finally:
+        engine.dispose()
+
+
 def test_provisioning_is_idempotent_and_creates_profile(test_database_url: str) -> None:
     """Repeated first access maps one external subject to one active profile."""
     engine = create_engine(test_database_url)

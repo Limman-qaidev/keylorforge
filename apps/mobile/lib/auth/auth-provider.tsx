@@ -43,6 +43,7 @@ type RegistrationResult = AuthActionResult & {
 type AuthContextValue = AuthState & {
   clearConfirmation: () => void;
   invalidateSession: () => Promise<void>;
+  refreshSession: () => Promise<string | null>;
   signIn: (email: string, password: string) => Promise<AuthActionResult>;
   signOut: () => Promise<AuthActionResult>;
   signUp: (email: string, password: string) => Promise<RegistrationResult>;
@@ -144,6 +145,18 @@ export function AuthProvider({
     setAuthState(nextState);
   }, []);
 
+  const setTerminalSignedOutState = useCallback(() => {
+    updateAuthState({
+      confirmationEmail: null,
+      feedback: {
+        kind: 'terminal',
+        message: 'Your session has ended. Please sign in again.',
+      },
+      phase: 'signedOut',
+      session: null,
+    });
+  }, [updateAuthState]);
+
   const restoreSession = useCallback(async () => {
     if (!clientResult.client) {
       updateAuthState({
@@ -165,15 +178,7 @@ export function AuthProvider({
     }
 
     if (isTerminalSessionFailure(error)) {
-      updateAuthState({
-        confirmationEmail: null,
-        feedback: {
-          kind: 'terminal',
-          message: 'Your session has ended. Please sign in again.',
-        },
-        phase: 'signedOut',
-        session: null,
-      });
+      setTerminalSignedOutState();
       return;
     }
 
@@ -184,7 +189,12 @@ export function AuthProvider({
       phase: currentSession ? 'signedIn' : 'signedOut',
       session: currentSession,
     });
-  }, [clientResult.client, clientResult.error, updateAuthState]);
+  }, [
+    clientResult.client,
+    clientResult.error,
+    setTerminalSignedOutState,
+    updateAuthState,
+  ]);
 
   useEffect(() => {
     const client = clientResult.client;
@@ -208,15 +218,7 @@ export function AuthProvider({
         }
 
         if (event === 'TOKEN_REFRESHED' && !session) {
-          updateAuthState({
-            confirmationEmail: null,
-            feedback: {
-              kind: 'terminal',
-              message: 'Your session has ended. Please sign in again.',
-            },
-            phase: 'signedOut',
-            session: null,
-          });
+          setTerminalSignedOutState();
           return;
         }
 
@@ -250,7 +252,12 @@ export function AuthProvider({
       client.auth.stopAutoRefresh();
       data.subscription.unsubscribe();
     };
-  }, [clientResult.client, restoreSession, updateAuthState]);
+  }, [
+    clientResult.client,
+    restoreSession,
+    setTerminalSignedOutState,
+    updateAuthState,
+  ]);
 
   const signIn = useCallback(
     async (email: string, password: string): Promise<AuthActionResult> => {
@@ -315,6 +322,50 @@ export function AuthProvider({
     [clientResult.client, clientResult.error, updateAuthState],
   );
 
+  /**
+   * Refreshes the Supabase session for a protected API retry.
+   *
+   * A terminal refresh failure signs the app out and returns null. Transient
+   * provider/network failures leave the current session intact and reject so the
+   * caller can surface a retryable error without destroying valid credentials.
+   */
+  const refreshSession = useCallback(async (): Promise<string | null> => {
+    const client = clientResult.client;
+    if (!client) {
+      setTerminalSignedOutState();
+      return null;
+    }
+
+    let response: Awaited<ReturnType<typeof client.auth.refreshSession>>;
+    try {
+      response = await client.auth.refreshSession();
+    } catch (error) {
+      const refreshError =
+        error instanceof Error ? error : new Error('session refresh failed');
+      if (isTerminalSessionFailure(refreshError)) {
+        setTerminalSignedOutState();
+        return null;
+      }
+      throw new Error(readableAuthError(refreshError));
+    }
+
+    if (response.error) {
+      if (isTerminalSessionFailure(response.error)) {
+        setTerminalSignedOutState();
+        return null;
+      }
+      throw new Error(readableAuthError(response.error));
+    }
+
+    if (!response.data.session) {
+      setTerminalSignedOutState();
+      return null;
+    }
+
+    updateAuthState(stateForSession(response.data.session));
+    return response.data.session.access_token;
+  }, [clientResult.client, setTerminalSignedOutState, updateAuthState]);
+
   const signOut = useCallback(async (): Promise<AuthActionResult> => {
     const client = clientResult.client;
     if (!client) {
@@ -339,17 +390,9 @@ export function AuthProvider({
     try {
       await clientResult.client?.auth.signOut({ scope: 'local' });
     } finally {
-      updateAuthState({
-        confirmationEmail: null,
-        feedback: {
-          kind: 'terminal',
-          message: 'Your session has ended. Please sign in again.',
-        },
-        phase: 'signedOut',
-        session: null,
-      });
+      setTerminalSignedOutState();
     }
-  }, [clientResult.client, updateAuthState]);
+  }, [clientResult.client, setTerminalSignedOutState]);
 
   const clearConfirmation = useCallback(() => {
     updateAuthState({ ...stateForSession(null), confirmationEmail: null });
@@ -360,11 +403,20 @@ export function AuthProvider({
       ...authState,
       clearConfirmation,
       invalidateSession,
+      refreshSession,
       signIn,
       signOut,
       signUp,
     }),
-    [authState, clearConfirmation, invalidateSession, signIn, signOut, signUp],
+    [
+      authState,
+      clearConfirmation,
+      invalidateSession,
+      refreshSession,
+      signIn,
+      signOut,
+      signUp,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,6 +1,6 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
-import { Pressable, Text } from 'react-native';
 import type { Session } from '@supabase/supabase-js';
+import { Pressable, Text } from 'react-native';
 
 import { AuthProvider, useAuth, type AuthPhase } from '../auth-provider';
 import type { MobileSupabaseClient } from '../supabase';
@@ -10,9 +10,9 @@ type AuthListener = (
   session: Session | null,
 ) => void;
 
-function session(): Session {
+function session(accessToken = 'access-token'): Session {
   return {
-    access_token: 'access-token',
+    access_token: accessToken,
     expires_at: 1_999_999_999,
     expires_in: 3600,
     refresh_token: 'refresh-token',
@@ -29,6 +29,8 @@ function session(): Session {
 
 function createClient({
   initialSession = null,
+  refreshSessionValue = session('refreshed-access-token'),
+  refreshSessionError = null,
   restoreError = null,
   signInError = null,
   signUpSession = null,
@@ -36,6 +38,8 @@ function createClient({
   signOutError = null,
 }: {
   initialSession?: Session | null;
+  refreshSessionValue?: Session | null;
+  refreshSessionError?: Error | null;
   restoreError?: Error | null;
   signInError?: Error | null;
   signUpError?: Error | null;
@@ -52,6 +56,10 @@ function createClient({
       onAuthStateChange: jest.fn((callback: AuthListener) => {
         listener = callback;
         return { data: { subscription: { unsubscribe: jest.fn() } } };
+      }),
+      refreshSession: jest.fn().mockResolvedValue({
+        data: { session: refreshSessionError ? null : refreshSessionValue },
+        error: refreshSessionError,
       }),
       signInWithPassword: jest.fn().mockResolvedValue({
         data: { session: signInError ? null : session() },
@@ -84,6 +92,8 @@ function AuthProbe() {
     feedback,
     invalidateSession,
     phase,
+    refreshSession,
+    session: currentSession,
     signIn,
     signOut,
     signUp,
@@ -94,6 +104,7 @@ function AuthProbe() {
       <Text testID="phase">{phase}</Text>
       <Text testID="confirmation">{confirmationEmail ?? ''}</Text>
       <Text testID="feedback">{feedback?.message ?? ''}</Text>
+      <Text testID="access-token">{currentSession?.access_token ?? ''}</Text>
       <Pressable
         onPress={() => void signIn('person@example.com', 'password123')}
       >
@@ -109,6 +120,9 @@ function AuthProbe() {
       </Pressable>
       <Pressable onPress={() => void invalidateSession()}>
         <Text>invalidate session</Text>
+      </Pressable>
+      <Pressable onPress={() => void refreshSession()}>
+        <Text>refresh session</Text>
       </Pressable>
     </>
   );
@@ -212,6 +226,53 @@ describe('AuthProvider', () => {
 
     await expectPhase(getByTestId, 'signedOut');
     expect(client.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    expect(getByTestId('feedback').props.children).toBe(
+      'Your session has ended. Please sign in again.',
+    );
+  });
+
+  it('refreshes an expired access token without ending a valid session', async () => {
+    const { client } = createClient({
+      initialSession: session('expired-access-token'),
+      refreshSessionValue: session('fresh-access-token'),
+    });
+    const { getByText, getByTestId } = await render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedIn');
+    await act(async () => {
+      fireEvent.press(getByText('refresh session'));
+    });
+
+    await waitFor(() => {
+      expect(getByTestId('access-token').props.children).toBe(
+        'fresh-access-token',
+      );
+    });
+    expect(getByTestId('phase').props.children).toBe('signedIn');
+    expect(client.auth.refreshSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails closed when an explicit refresh finds revoked credentials', async () => {
+    const { client } = createClient({
+      initialSession: session(),
+      refreshSessionError: new Error('Invalid refresh token: session revoked'),
+    });
+    const { getByText, getByTestId } = await render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedIn');
+    await act(async () => {
+      fireEvent.press(getByText('refresh session'));
+    });
+
+    await expectPhase(getByTestId, 'signedOut');
     expect(getByTestId('feedback').props.children).toBe(
       'Your session has ended. Please sign in again.',
     );

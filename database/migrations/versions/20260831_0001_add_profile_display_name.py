@@ -45,9 +45,12 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Remove the additive column while retaining restrictive table controls.
+    """Refuse a rollback that would discard persisted profile data.
 
-    Prior grants cannot be safely reconstructed, so a separate reviewed
-    migration is required if an environment must restore direct table access.
+    Once display names have been written, dropping the column would silently
+    destroy user data. Roll back this revision with a reviewed forward migration
+    that explicitly preserves or transforms those values instead.
     """
-    op.drop_column("application_user_profiles", "display_name")
+    raise NotImplementedError(
+        "20260831_0001 stores profile data and must be rolled forward, not dropped"
+    )

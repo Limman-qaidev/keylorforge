@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useCallback, useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
@@ -11,12 +12,14 @@ import {
 } from 'react-native';
 import { z } from 'zod';
 
+import { useAuth } from '@/lib/auth/auth-provider';
 import {
   getCurrentProfile,
+  type CurrentProfile,
   ProfileApiError,
+  type ProfileResponse,
   updateCurrentProfile,
 } from '@/lib/profile/profile-api';
-import { useAuth } from '@/lib/auth/auth-provider';
 
 const displayNameSchema = z.object({
   displayName: z
@@ -28,6 +31,16 @@ const displayNameSchema = z.object({
 
 type DisplayNameValues = z.infer<typeof displayNameSchema>;
 
+type AuthenticatedRequestContext = {
+  accessToken: string;
+  invalidateSession: () => Promise<void>;
+  refreshSession: () => Promise<string | null>;
+};
+
+function profileQueryKey(userId: string) {
+  return ['current-profile', userId] as const;
+}
+
 function feedbackFor(error: unknown): string {
   if (error instanceof ProfileApiError) {
     return error.message;
@@ -36,15 +49,53 @@ function feedbackFor(error: unknown): string {
   return 'Your profile could not be loaded. Please try again.';
 }
 
+async function runWithAuthRetry<T>(
+  operation: (accessToken: string) => Promise<T>,
+  context: AuthenticatedRequestContext,
+): Promise<T> {
+  try {
+    return await operation(context.accessToken);
+  } catch (error) {
+    if (!(error instanceof ProfileApiError) || error.kind !== 'auth') {
+      throw error;
+    }
+
+    let refreshedAccessToken: string | null;
+    try {
+      refreshedAccessToken = await context.refreshSession();
+    } catch {
+      throw new ProfileApiError(
+        'network',
+        'We could not refresh your session. Check your connection and try again.',
+      );
+    }
+
+    if (!refreshedAccessToken) {
+      throw error;
+    }
+
+    try {
+      return await operation(refreshedAccessToken);
+    } catch (retryError) {
+      if (
+        retryError instanceof ProfileApiError &&
+        retryError.kind === 'auth'
+      ) {
+        await context.invalidateSession();
+      }
+      throw retryError;
+    }
+  }
+}
+
 export function ProfileScreen() {
-  const { invalidateSession, session } = useAuth();
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const { invalidateSession, refreshSession, session } = useAuth();
+  const queryClient = useQueryClient();
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const {
     control,
-    formState: { errors, isSubmitting },
+    formState: { errors, isDirty, isSubmitting },
     handleSubmit,
     reset,
   } = useForm<DisplayNameValues>({
@@ -52,102 +103,89 @@ export function ProfileScreen() {
     resolver: zodResolver(displayNameSchema),
   });
 
-  const handleAuthFailure = useCallback(
-    async (error: ProfileApiError): Promise<void> => {
-      if (error.kind === 'auth') {
-        await invalidateSession();
+  const accessToken = session?.access_token ?? null;
+  const userId = session?.user.id ?? null;
+  const queryKey = profileQueryKey(userId ?? 'signed-out');
+
+  const profileQuery = useQuery<CurrentProfile, ProfileApiError>({
+    enabled: Boolean(accessToken && userId),
+    queryKey,
+    queryFn: async () => {
+      if (!accessToken) {
+        throw new ProfileApiError(
+          'auth',
+          'Your session has ended. Please sign in again.',
+        );
       }
+
+      return runWithAuthRetry(getCurrentProfile, {
+        accessToken,
+        invalidateSession,
+        refreshSession,
+      });
     },
-    [invalidateSession],
-  );
+    retry: false,
+  });
 
-  const loadProfile = useCallback(async () => {
-    const accessToken = session?.access_token;
-    if (!accessToken) {
-      return;
-    }
-
-    setIsLoading(true);
-    setLoadError(null);
-    setSubmissionError(null);
-    setSuccessMessage(null);
-
-    try {
-      const currentProfile = await getCurrentProfile(accessToken);
-      reset({ displayName: currentProfile.profile.display_name ?? '' });
-    } catch (error) {
-      if (error instanceof ProfileApiError) {
-        await handleAuthFailure(error);
+  const profileMutation = useMutation<ProfileResponse, ProfileApiError, string>({
+    mutationFn: async (displayName) => {
+      if (!accessToken) {
+        throw new ProfileApiError(
+          'auth',
+          'Your session has ended. Please sign in again.',
+        );
       }
-      setLoadError(feedbackFor(error));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [handleAuthFailure, reset, session?.access_token]);
+
+      return runWithAuthRetry(
+        (token) => updateCurrentProfile(token, displayName),
+        {
+          accessToken,
+          invalidateSession,
+          refreshSession,
+        },
+      );
+    },
+    retry: false,
+  });
 
   useEffect(() => {
-    let isCurrent = true;
-    const accessToken = session?.access_token;
-
-    const loadInitialProfile = async () => {
-      if (!accessToken) {
-        return;
-      }
-
-      try {
-        const currentProfile = await getCurrentProfile(accessToken);
-        if (isCurrent) {
-          reset({ displayName: currentProfile.profile.display_name ?? '' });
-        }
-      } catch (error) {
-        if (!isCurrent) {
-          return;
-        }
-
-        if (error instanceof ProfileApiError) {
-          await handleAuthFailure(error);
-        }
-        if (isCurrent) {
-          setLoadError(feedbackFor(error));
-        }
-      } finally {
-        if (isCurrent) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    void loadInitialProfile();
-
-    return () => {
-      isCurrent = false;
-    };
-  }, [handleAuthFailure, reset, session?.access_token]);
+    if (profileQuery.data && !isDirty) {
+      reset({
+        displayName: profileQuery.data.profile.display_name ?? '',
+      });
+    }
+  }, [isDirty, profileQuery.data, reset]);
 
   const saveProfile = async ({ displayName }: DisplayNameValues) => {
-    const accessToken = session?.access_token;
-    if (!accessToken) {
-      setSubmissionError('Your session has ended. Please sign in again.');
-      return;
-    }
-
     setSubmissionError(null);
     setSuccessMessage(null);
 
     try {
-      await updateCurrentProfile(accessToken, displayName);
-      const persistedProfile = await getCurrentProfile(accessToken);
-      reset({ displayName: persistedProfile.profile.display_name ?? '' });
+      const persistedProfile = await profileMutation.mutateAsync(displayName);
+      queryClient.setQueryData<CurrentProfile>(queryKey, (currentProfile) => {
+        if (!currentProfile) {
+          return currentProfile;
+        }
+        return { ...currentProfile, profile: persistedProfile };
+      });
+      reset({ displayName: persistedProfile.display_name ?? '' });
       setSuccessMessage('Profile saved.');
     } catch (error) {
-      if (error instanceof ProfileApiError) {
-        await handleAuthFailure(error);
-      }
       setSubmissionError(feedbackFor(error));
     }
   };
 
-  if (isLoading) {
+  if (!accessToken || !userId) {
+    return (
+      <View style={styles.centered}>
+        <Text accessibilityLiveRegion="polite" style={styles.error}>
+          Your session has ended. Please sign in again.
+        </Text>
+      </View>
+    );
+  }
+
+  if (profileQuery.isPending) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator accessibilityLabel="Loading profile" />
@@ -156,25 +194,34 @@ export function ProfileScreen() {
     );
   }
 
-  if (loadError) {
+  if (profileQuery.isError && !profileQuery.data) {
     return (
       <View style={styles.centered}>
         <Text accessibilityRole="header" style={styles.title}>
           Profile
         </Text>
         <Text accessibilityLiveRegion="polite" style={styles.error}>
-          {loadError}
+          {feedbackFor(profileQuery.error)}
         </Text>
         <Pressable
           accessibilityRole="button"
-          onPress={() => void loadProfile()}
+          disabled={profileQuery.isFetching}
+          onPress={() => {
+            setSubmissionError(null);
+            setSuccessMessage(null);
+            void profileQuery.refetch();
+          }}
           style={styles.button}
         >
-          <Text style={styles.buttonText}>Try again</Text>
+          <Text style={styles.buttonText}>
+            {profileQuery.isFetching ? 'Retrying…' : 'Try again'}
+          </Text>
         </Pressable>
       </View>
     );
   }
+
+  const isSaving = isSubmitting || profileMutation.isPending;
 
   return (
     <View style={styles.container}>
@@ -196,7 +243,11 @@ export function ProfileScreen() {
             autoComplete="name"
             maxLength={80}
             onBlur={onBlur}
-            onChangeText={onChange}
+            onChangeText={(nextValue) => {
+              setSubmissionError(null);
+              setSuccessMessage(null);
+              onChange(nextValue);
+            }}
             returnKeyType="done"
             style={styles.input}
             textContentType="name"
@@ -222,13 +273,13 @@ export function ProfileScreen() {
 
       <Pressable
         accessibilityRole="button"
-        accessibilityState={{ busy: isSubmitting, disabled: isSubmitting }}
-        disabled={isSubmitting}
+        accessibilityState={{ busy: isSaving, disabled: isSaving }}
+        disabled={isSaving}
         onPress={handleSubmit(saveProfile)}
         style={styles.button}
       >
         <Text style={styles.buttonText}>
-          {isSubmitting ? 'Saving…' : 'Save profile'}
+          {isSaving ? 'Saving…' : 'Save profile'}
         </Text>
       </Pressable>
     </View>

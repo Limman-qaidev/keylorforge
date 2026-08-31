@@ -28,6 +28,8 @@ class UpdateProfileRequest(BaseModel):
         normalized = value.strip()
         if not normalized:
             raise ValueError("display_name must not be empty")
+        if "\x00" in normalized:
+            raise ValueError("display_name must not contain NUL characters")
         if len(normalized) > 80:
             raise ValueError("display_name must be at most 80 characters")
         return normalized

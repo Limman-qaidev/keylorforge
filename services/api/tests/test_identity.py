@@ -148,6 +148,7 @@ def test_patch_my_profile_uses_only_the_authenticated_principal(
     [
         {"display_name": "   "},
         {"display_name": "a" * 81},
+        {"display_name": "A\u0000B"},
         {"display_name": "Jonathan", "user_id": str(uuid4())},
     ],
 )

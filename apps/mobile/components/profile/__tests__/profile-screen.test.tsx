@@ -1,4 +1,13 @@
-import { act, fireEvent, render } from '@testing-library/react-native';
+import {
+  QueryClient,
+  QueryClientProvider,
+} from '@tanstack/react-query';
+import {
+  act,
+  fireEvent,
+  render,
+  waitFor,
+} from '@testing-library/react-native';
 
 import { ProfileScreen } from '@/components/profile/profile-screen';
 import { useAuth } from '@/lib/auth/auth-provider';
@@ -26,36 +35,64 @@ const profile = (displayName: string | null) => ({
   },
 });
 
-describe('ProfileScreen', () => {
-  const signOut = jest.fn().mockResolvedValue({});
+function createTestQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      mutations: { retry: false },
+      queries: { gcTime: Infinity, retry: false },
+    },
+  });
+}
 
+function renderProfileScreen() {
+  const queryClient = createTestQueryClient();
+  const ui = () => (
+    <QueryClientProvider client={queryClient}>
+      <ProfileScreen />
+    </QueryClientProvider>
+  );
+  const result = render(ui());
+
+  return {
+    ...result,
+    queryClient,
+    rerenderProfile: () => result.rerender(ui()),
+  };
+}
+
+function authValue(accessToken = 'current-token') {
+  return {
+    invalidateSession: jest.fn().mockResolvedValue(undefined),
+    refreshSession: jest.fn().mockResolvedValue('refreshed-token'),
+    session: {
+      access_token: accessToken,
+      user: { id: 'user-1' },
+    },
+  } as unknown as ReturnType<typeof useAuth>;
+}
+
+describe('ProfileScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.mocked(useAuth).mockReturnValue({
-      session: { access_token: 'current-token' },
-      signOut,
-    } as unknown as ReturnType<typeof useAuth>);
+    jest.mocked(useAuth).mockReturnValue(authValue());
   });
 
   it('loads the server-backed display name using the current access token', async () => {
     jest.mocked(getCurrentProfile).mockResolvedValue(profile('Taylor'));
 
-    const { findByDisplayValue } = await render(<ProfileScreen />);
+    const { findByDisplayValue } = renderProfileScreen();
 
     expect(await findByDisplayValue('Taylor')).toBeTruthy();
     expect(getCurrentProfile).toHaveBeenCalledWith('current-token');
   });
 
-  it('saves then reloads the persisted server value before confirming success', async () => {
-    jest
-      .mocked(getCurrentProfile)
-      .mockResolvedValueOnce(profile('Taylor'))
-      .mockResolvedValueOnce(profile('Jordan Server'));
+  it('uses the persisted PATCH response to confirm a save without a second GET', async () => {
+    jest.mocked(getCurrentProfile).mockResolvedValue(profile('Taylor'));
     jest.mocked(updateCurrentProfile).mockResolvedValue({
-      ...profile('Jordan').profile,
+      ...profile('Jordan Server').profile,
     });
     const { findByDisplayValue, findByText, getByLabelText, getByText } =
-      await render(<ProfileScreen />);
+      renderProfileScreen();
 
     await findByDisplayValue('Taylor');
     await act(async () => {
@@ -71,6 +108,38 @@ describe('ProfileScreen', () => {
       'current-token',
       'Jordan',
     );
-    expect(getCurrentProfile).toHaveBeenCalledTimes(2);
+    expect(getCurrentProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves dirty input when the access token rotates or cached server data refreshes', async () => {
+    jest.mocked(getCurrentProfile).mockResolvedValue(profile('Taylor'));
+    const {
+      getByLabelText,
+      getByDisplayValue,
+      queryClient,
+      rerenderProfile,
+    } = renderProfileScreen();
+
+    await waitFor(() => {
+      expect(getByDisplayValue('Taylor')).toBeTruthy();
+    });
+    await act(async () => {
+      fireEvent.changeText(getByLabelText('Display name'), 'Unsaved Name');
+    });
+
+    jest.mocked(useAuth).mockReturnValue(authValue('refreshed-access-token'));
+    rerenderProfile();
+
+    await act(async () => {
+      queryClient.setQueryData(
+        ['current-profile', 'user-1'],
+        profile('Server Refreshed'),
+      );
+    });
+
+    await waitFor(() => {
+      expect(getByDisplayValue('Unsaved Name')).toBeTruthy();
+    });
+    expect(getCurrentProfile).toHaveBeenCalledTimes(1);
   });
 });
