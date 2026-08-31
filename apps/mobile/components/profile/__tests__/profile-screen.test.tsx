@@ -1,13 +1,5 @@
-import {
-  QueryClient,
-  QueryClientProvider,
-} from '@tanstack/react-query';
-import {
-  act,
-  fireEvent,
-  render,
-  waitFor,
-} from '@testing-library/react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 
 import { ProfileScreen } from '@/components/profile/profile-screen';
 import { useAuth } from '@/lib/auth/auth-provider';
@@ -113,12 +105,8 @@ describe('ProfileScreen', () => {
 
   it('preserves dirty input when the access token rotates or cached server data refreshes', async () => {
     jest.mocked(getCurrentProfile).mockResolvedValue(profile('Taylor'));
-    const {
-      getByLabelText,
-      getByDisplayValue,
-      queryClient,
-      rerenderProfile,
-    } = renderProfileScreen();
+    const { getByLabelText, getByDisplayValue, queryClient, rerenderProfile } =
+      renderProfileScreen();
 
     await waitFor(() => {
       expect(getByDisplayValue('Taylor')).toBeTruthy();

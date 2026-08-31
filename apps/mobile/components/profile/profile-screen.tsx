@@ -77,10 +77,7 @@ async function runWithAuthRetry<T>(
     try {
       return await operation(refreshedAccessToken);
     } catch (retryError) {
-      if (
-        retryError instanceof ProfileApiError &&
-        retryError.kind === 'auth'
-      ) {
+      if (retryError instanceof ProfileApiError && retryError.kind === 'auth') {
         await context.invalidateSession();
       }
       throw retryError;
@@ -127,26 +124,28 @@ export function ProfileScreen() {
     retry: false,
   });
 
-  const profileMutation = useMutation<ProfileResponse, ProfileApiError, string>({
-    mutationFn: async (displayName) => {
-      if (!accessToken) {
-        throw new ProfileApiError(
-          'auth',
-          'Your session has ended. Please sign in again.',
-        );
-      }
+  const profileMutation = useMutation<ProfileResponse, ProfileApiError, string>(
+    {
+      mutationFn: async (displayName) => {
+        if (!accessToken) {
+          throw new ProfileApiError(
+            'auth',
+            'Your session has ended. Please sign in again.',
+          );
+        }
 
-      return runWithAuthRetry(
-        (token) => updateCurrentProfile(token, displayName),
-        {
-          accessToken,
-          invalidateSession,
-          refreshSession,
-        },
-      );
+        return runWithAuthRetry(
+          (token) => updateCurrentProfile(token, displayName),
+          {
+            accessToken,
+            invalidateSession,
+            refreshSession,
+          },
+        );
+      },
+      retry: false,
     },
-    retry: false,
-  });
+  );
 
   useEffect(() => {
     if (profileQuery.data && !isDirty) {
