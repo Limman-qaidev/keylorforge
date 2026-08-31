@@ -4,22 +4,26 @@ import { Button } from '@/components/ui/button';
 import { ErrorMessage, FieldLabel, FormInput } from '@/components/ui/form';
 import { colors, touchTarget } from '@/components/ui/tokens';
 
-function relativeLuminance(hex: string): number {
-  const channels = [1, 3, 5].map(
-    (start) => Number.parseInt(hex.slice(start, start + 2), 16) / 255,
-  );
-  const linear = channels.map((channel) =>
-    channel <= 0.04045
-      ? channel / 12.92
-      : ((channel + 0.055) / 1.055) ** 2.4,
-  );
+function linearChannel(hex: string, start: number): number {
+  const encoded = Number.parseInt(hex.slice(start, start + 2), 16) / 255;
 
-  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+  return encoded <= 0.04045
+    ? encoded / 12.92
+    : ((encoded + 0.055) / 1.055) ** 2.4;
+}
+
+function relativeLuminance(hex: string): number {
+  const red = linearChannel(hex, 1);
+  const green = linearChannel(hex, 3);
+  const blue = linearChannel(hex, 5);
+
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
 }
 
 function contrastRatio(first: string, second: string): number {
   const lighter = Math.max(relativeLuminance(first), relativeLuminance(second));
   const darker = Math.min(relativeLuminance(first), relativeLuminance(second));
+
   return (lighter + 0.05) / (darker + 0.05);
 }
 
