@@ -1,6 +1,7 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { Pressable, Text } from 'react-native';
 import type { Session } from '@supabase/supabase-js';
+import { useState } from 'react';
 
 import { AuthProvider, useAuth, type AuthPhase } from '../auth-provider';
 import type { MobileSupabaseClient } from '../supabase';
@@ -30,6 +31,7 @@ function session(): Session {
 function createClient({
   initialSession = null,
   restoreError = null,
+  setSessionError = null,
   signInError = null,
   signUpSession = null,
   signUpError = null,
@@ -37,6 +39,7 @@ function createClient({
 }: {
   initialSession?: Session | null;
   restoreError?: Error | null;
+  setSessionError?: Error | null;
   signInError?: Error | null;
   signUpError?: Error | null;
   signUpSession?: Session | null;
@@ -52,6 +55,10 @@ function createClient({
       onAuthStateChange: jest.fn((callback: AuthListener) => {
         listener = callback;
         return { data: { subscription: { unsubscribe: jest.fn() } } };
+      }),
+      setSession: jest.fn().mockResolvedValue({
+        data: { session: setSessionError ? null : session() },
+        error: setSessionError,
       }),
       signInWithPassword: jest.fn().mockResolvedValue({
         data: { session: signInError ? null : session() },
@@ -79,14 +86,23 @@ function createClient({
 }
 
 function AuthProbe() {
-  const { confirmationEmail, feedback, phase, signIn, signOut, signUp } =
-    useAuth();
+  const {
+    confirmationEmail,
+    consumeConfirmationCallback,
+    feedback,
+    phase,
+    signIn,
+    signOut,
+    signUp,
+  } = useAuth();
+  const [callbackResult, setCallbackResult] = useState('');
 
   return (
     <>
       <Text testID="phase">{phase}</Text>
       <Text testID="confirmation">{confirmationEmail ?? ''}</Text>
       <Text testID="feedback">{feedback?.message ?? ''}</Text>
+      <Text testID="callback-result">{callbackResult}</Text>
       <Pressable
         onPress={() => void signIn('person@example.com', 'password123')}
       >
@@ -96,6 +112,24 @@ function AuthProbe() {
         onPress={() => void signUp('person@example.com', 'password123')}
       >
         <Text>sign up</Text>
+      </Pressable>
+      <Pressable
+        onPress={() =>
+          void consumeConfirmationCallback(
+            'keylorfit://auth/confirm#access_token=access-token&refresh_token=refresh-token',
+          ).then((result) => setCallbackResult(result.error ?? 'success'))
+        }
+      >
+        <Text>consume confirmation</Text>
+      </Pressable>
+      <Pressable
+        onPress={() =>
+          void consumeConfirmationCallback('keylorfit://auth/confirm').then(
+            (result) => setCallbackResult(result.error ?? 'success'),
+          )
+        }
+      >
+        <Text>consume malformed confirmation</Text>
       </Pressable>
       <Pressable onPress={() => void signOut()}>
         <Text>sign out</Text>
@@ -166,6 +200,95 @@ describe('AuthProvider', () => {
       );
       expect(getByTestId('phase').props.children).toBe('signedOut');
     });
+    expect(client.auth.signUp).toHaveBeenCalledWith({
+      email: 'person@example.com',
+      password: 'password123',
+      options: { emailRedirectTo: 'keylorfit://auth/confirm' },
+    });
+  });
+
+  it('consumes a valid confirmation callback without rendering its credentials', async () => {
+    const { client } = createClient();
+    const { getByText, getByTestId, queryByText } = await render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedOut');
+    await act(async () => {
+      fireEvent.press(getByText('consume confirmation'));
+    });
+
+    await expectPhase(getByTestId, 'signedIn');
+    expect(client.auth.setSession).toHaveBeenCalledWith({
+      access_token: 'access-token',
+      refresh_token: 'refresh-token',
+    });
+    expect(getByTestId('callback-result').props.children).toBe('success');
+    expect(queryByText(/access-token|refresh-token/)).toBeNull();
+  });
+
+  it('rejects a malformed confirmation callback without mutating the session', async () => {
+    const { client } = createClient();
+    const { getByText, getByTestId } = await render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedOut');
+    await act(async () => {
+      fireEvent.press(getByText('consume malformed confirmation'));
+    });
+
+    expect(client.auth.setSession).not.toHaveBeenCalled();
+    expect(getByTestId('callback-result').props.children).toBe(
+      'We could not confirm this link. Request a new confirmation email and try again.',
+    );
+  });
+
+  it('fails safely when Supabase rejects an expired confirmation callback', async () => {
+    const { client } = createClient({
+      setSessionError: new Error('Token has expired: access-token'),
+    });
+    const { getByText, getByTestId, queryByText } = await render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedOut');
+    await act(async () => {
+      fireEvent.press(getByText('consume confirmation'));
+    });
+
+    expect(getByTestId('phase').props.children).toBe('signedOut');
+    expect(getByTestId('callback-result').props.children).toBe(
+      'This confirmation link is no longer valid. Request a new confirmation email and try again.',
+    );
+    expect(queryByText(/access-token|token has expired/i)).toBeNull();
+  });
+
+  it('does not exchange a duplicate confirmation after session establishment', async () => {
+    const { client } = createClient();
+    const { getByText, getByTestId } = await render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedOut');
+    await act(async () => {
+      fireEvent.press(getByText('consume confirmation'));
+    });
+    await expectPhase(getByTestId, 'signedIn');
+    await act(async () => {
+      fireEvent.press(getByText('consume confirmation'));
+    });
+
+    expect(client.auth.setSession).toHaveBeenCalledTimes(1);
+    expect(getByTestId('phase').props.children).toBe('signedIn');
   });
 
   it('clears the local authenticated state after logout', async () => {

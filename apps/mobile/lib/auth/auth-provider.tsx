@@ -19,6 +19,10 @@ import {
   getSupabaseClient,
   type MobileSupabaseClient,
 } from '@/lib/auth/supabase';
+import {
+  CONFIRMATION_CALLBACK_URL,
+  parseConfirmationCallback,
+} from '@/lib/auth/confirmation-callback';
 
 export type AuthPhase = 'restoring' | 'signedOut' | 'signedIn';
 
@@ -42,6 +46,7 @@ type RegistrationResult = AuthActionResult & {
 
 type AuthContextValue = AuthState & {
   clearConfirmation: () => void;
+  consumeConfirmationCallback: (url: string) => Promise<AuthActionResult>;
   signIn: (email: string, password: string) => Promise<AuthActionResult>;
   signOut: () => Promise<AuthActionResult>;
   signUp: (email: string, password: string) => Promise<RegistrationResult>;
@@ -137,6 +142,8 @@ export function AuthProvider({
     };
   });
   const stateRef = useRef(authState);
+  const isConsumingConfirmation = useRef(false);
+  const sessionOperationVersion = useRef(0);
 
   const updateAuthState = useCallback((nextState: AuthState) => {
     stateRef.current = nextState;
@@ -157,7 +164,11 @@ export function AuthProvider({
       return;
     }
 
+    const operationVersion = sessionOperationVersion.current;
     const { data, error } = await clientResult.client.auth.getSession();
+    if (operationVersion !== sessionOperationVersion.current) {
+      return;
+    }
     if (!error) {
       updateAuthState(stateForSession(data.session));
       return;
@@ -286,7 +297,11 @@ export function AuthProvider({
         return { error: clientResult.error ?? 'Supabase is unavailable.' };
       }
 
-      const { data, error } = await client.auth.signUp({ email, password });
+      const { data, error } = await client.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: CONFIRMATION_CALLBACK_URL },
+      });
       if (error) {
         const message = readableAuthError(error);
         updateAuthState({
@@ -310,6 +325,58 @@ export function AuthProvider({
         session: null,
       });
       return { confirmationRequired: true };
+    },
+    [clientResult.client, clientResult.error, updateAuthState],
+  );
+
+  const consumeConfirmationCallback = useCallback(
+    async (url: string): Promise<AuthActionResult> => {
+      const client = clientResult.client;
+      if (!client) {
+        return { error: clientResult.error ?? 'Supabase is unavailable.' };
+      }
+
+      if (
+        isConsumingConfirmation.current ||
+        stateRef.current.phase === 'signedIn'
+      ) {
+        return {};
+      }
+
+      const callback = parseConfirmationCallback(url);
+      if (callback.kind === 'providerError') {
+        return {
+          error:
+            'This confirmation link is no longer valid. Request a new confirmation email and try again.',
+        };
+      }
+
+      if (callback.kind === 'invalid') {
+        return {
+          error:
+            'We could not confirm this link. Request a new confirmation email and try again.',
+        };
+      }
+
+      isConsumingConfirmation.current = true;
+      sessionOperationVersion.current += 1;
+      try {
+        const { data, error } = await client.auth.setSession({
+          access_token: callback.accessToken,
+          refresh_token: callback.refreshToken,
+        });
+        if (error || !data.session) {
+          return {
+            error:
+              'This confirmation link is no longer valid. Request a new confirmation email and try again.',
+          };
+        }
+
+        updateAuthState(stateForSession(data.session));
+        return {};
+      } finally {
+        isConsumingConfirmation.current = false;
+      }
     },
     [clientResult.client, clientResult.error, updateAuthState],
   );
@@ -338,11 +405,19 @@ export function AuthProvider({
     () => ({
       ...authState,
       clearConfirmation,
+      consumeConfirmationCallback,
       signIn,
       signOut,
       signUp,
     }),
-    [authState, clearConfirmation, signIn, signOut, signUp],
+    [
+      authState,
+      clearConfirmation,
+      consumeConfirmationCallback,
+      signIn,
+      signOut,
+      signUp,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
