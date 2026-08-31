@@ -262,6 +262,33 @@ describe('AuthProvider', () => {
     });
   });
 
+  it('consumes a valid callback after cold-start restoration leaves the pending email only in storage', async () => {
+    await AsyncStorage.setItem(
+      '@keylorfit/auth/pending-confirmation-email',
+      'person@example.com',
+    );
+    const auth = createClient();
+    const { getByText, getByTestId } = await render(
+      <AuthProvider client={auth.client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedOut');
+    await act(async () => {
+      auth.emit('SIGNED_OUT', null);
+    });
+    expect(getByTestId('confirmation').props.children).toBe('');
+
+    await act(async () => {
+      fireEvent.press(getByText('consume confirmation'));
+    });
+
+    await expectPhase(getByTestId, 'signedIn');
+    expect(auth.client.auth.getUser).toHaveBeenCalledWith('access-token');
+    expect(auth.client.auth.setSession).toHaveBeenCalledTimes(1);
+  });
+
   it('consumes a valid confirmation callback without rendering its credentials', async () => {
     const { client } = createClient();
     const { getByText, getByTestId, queryByText } = await render(

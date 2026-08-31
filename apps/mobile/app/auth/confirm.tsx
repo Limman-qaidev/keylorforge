@@ -1,5 +1,5 @@
 import { Redirect, useRouter } from 'expo-router';
-import { useURL } from 'expo-linking';
+import { useLinkingURL } from 'expo-linking';
 import { useEffect, useRef, useState } from 'react';
 import { Text } from 'react-native';
 
@@ -7,7 +7,7 @@ import { AuthScreen, authScreenStyles } from '@/components/auth/auth-screen';
 import { useAuth } from '@/lib/auth/auth-provider';
 
 export default function ConfirmationCallbackRoute() {
-  const callbackUrl = useURL();
+  const callbackUrl = useLinkingURL();
   const router = useRouter();
   const { clearConfirmation, consumeConfirmationCallback, phase } = useAuth();
   const [error, setError] = useState<string | null>(null);

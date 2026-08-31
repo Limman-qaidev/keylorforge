@@ -380,7 +380,9 @@ export function AuthProvider({
         };
       }
 
-      const confirmationEmail = stateRef.current.confirmationEmail;
+      const confirmationEmail =
+        stateRef.current.confirmationEmail ??
+        (await AsyncStorage.getItem(pendingConfirmationEmailKey));
       if (!confirmationEmail) {
         return {
           error:

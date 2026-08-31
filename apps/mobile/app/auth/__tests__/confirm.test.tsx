@@ -2,15 +2,15 @@ import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 
 import ConfirmationCallbackRoute from '../confirm';
 import { useAuth } from '@/lib/auth/auth-provider';
-import { useURL } from 'expo-linking';
+import { useLinkingURL } from 'expo-linking';
 
 const mockReplace = jest.fn();
 const consumeConfirmationCallback = jest.fn();
 const clearConfirmation = jest.fn();
 const mockedUseAuth = jest.mocked(useAuth);
-const mockedUseURL = jest.mocked(useURL);
+const mockedUseLinkingURL = jest.mocked(useLinkingURL);
 
-jest.mock('expo-linking', () => ({ useURL: jest.fn() }));
+jest.mock('expo-linking', () => ({ useLinkingURL: jest.fn() }));
 
 jest.mock('expo-router', () => ({
   Redirect: ({ href }: { href: string }) => {
@@ -35,7 +35,7 @@ function deferredResult() {
 describe('ConfirmationCallbackRoute', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockedUseURL.mockReturnValue(
+    mockedUseLinkingURL.mockReturnValue(
       'keylorfit://auth/confirm#access_token=access-token&refresh_token=refresh-token',
     );
     clearConfirmation.mockResolvedValue(undefined);
@@ -84,5 +84,31 @@ describe('ConfirmationCallbackRoute', () => {
       expect(mockReplace).toHaveBeenCalledWith('/sign-in');
     });
     expect(view.queryByTestId('redirect')).toBeNull();
+  });
+
+  it('consumes a callback delivered while the app is already open', async () => {
+    let phase: 'signedOut' = 'signedOut';
+    mockedUseLinkingURL.mockReturnValue(null);
+    consumeConfirmationCallback.mockResolvedValue({});
+    mockedUseAuth.mockImplementation(
+      () =>
+        ({
+          clearConfirmation,
+          consumeConfirmationCallback,
+          phase,
+        }) as unknown as ReturnType<typeof useAuth>,
+    );
+
+    const view = await render(<ConfirmationCallbackRoute />);
+    expect(consumeConfirmationCallback).not.toHaveBeenCalled();
+
+    mockedUseLinkingURL.mockReturnValue(
+      'keylorfit://auth/confirm#access_token=access-token&refresh_token=refresh-token',
+    );
+    await view.rerender(<ConfirmationCallbackRoute />);
+
+    await waitFor(() => {
+      expect(consumeConfirmationCallback).toHaveBeenCalledTimes(1);
+    });
   });
 });
