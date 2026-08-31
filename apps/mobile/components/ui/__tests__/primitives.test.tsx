@@ -52,11 +52,10 @@ describe('visual foundation primitives', () => {
   });
 
   it('keeps accent text and controls at WCAG AA contrast', () => {
-    expect(
-      contrastRatio(colors.accent, colors.onAccent),
-    ).toBeGreaterThanOrEqual(4.5);
-    expect(
-      contrastRatio(colors.accent, colors.background),
-    ).toBeGreaterThanOrEqual(4.5);
+    const controlContrast = contrastRatio(colors.accent, colors.onAccent);
+    const textContrast = contrastRatio(colors.accent, colors.background);
+
+    expect(controlContrast).toBeGreaterThanOrEqual(4.5);
+    expect(textContrast).toBeGreaterThanOrEqual(4.5);
   });
 });
