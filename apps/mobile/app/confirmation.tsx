@@ -10,7 +10,7 @@ function ConfirmationScreen() {
 
   return (
     <AuthScreen title="Check your email">
-      <Text style={authScreenStyles.link}>
+      <Text style={authScreenStyles.helper}>
         {confirmationEmail
           ? `We sent a confirmation link to ${confirmationEmail}. Confirm your email, then sign in.`
           : 'Confirm your email, then sign in.'}
