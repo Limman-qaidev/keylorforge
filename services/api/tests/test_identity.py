@@ -6,7 +6,7 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 
 from app.auth.dependencies import get_database_session
-from app.auth.jwt_verifier import AuthenticatedPrincipal
+from app.auth.jwt_verifier import AuthenticatedPrincipal, JwksProviderUnavailableError
 from app.config import Settings
 from app.identity import router as identity_router
 from app.identity.schemas import MeResponse, ProfileFoundationResponse
@@ -20,6 +20,11 @@ class _Verifier:
     def verify(self, token: str) -> AuthenticatedPrincipal:
         assert token == "valid-token"
         return self._principal
+
+
+class _UnavailableVerifier:
+    def verify(self, token: str) -> AuthenticatedPrincipal:
+        raise JwksProviderUnavailableError("provider timed out")
 
 
 def test_me_rejects_a_missing_bearer_token() -> None:
@@ -38,6 +43,17 @@ def test_me_rejects_a_malformed_bearer_header() -> None:
 
     assert response.status_code == 401
     assert response.headers["www-authenticate"] == "Bearer"
+
+
+def test_me_reports_jwks_provider_outage_as_retryable() -> None:
+    app = create_app(Settings(supabase_project_url="https://example.supabase.co"))
+    app.state.jwt_verifier = _UnavailableVerifier()
+    client = TestClient(app)
+
+    response = client.get("/me", headers={"Authorization": "Bearer valid-token"})
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "authentication is temporarily unavailable"}
 
 
 def test_me_uses_the_authenticated_principal_not_a_client_identifier(

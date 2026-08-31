@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta
+from threading import Event, Thread
 from uuid import uuid4
 
 import jwt
@@ -14,6 +15,7 @@ from app.auth.jwt_verifier import (
     AuthenticationError,
     AuthorizationError,
     JwksCache,
+    JwksProviderUnavailableError,
     SupabaseJwtVerifier,
 )
 
@@ -104,9 +106,110 @@ def test_refreshes_jwks_when_unknown_key_id_appears() -> None:
         jwks=JwksCache("https://example.invalid/jwks", 300, fetcher=fetcher),
     )
 
+    verifier.verify(_token(old_key, key_id="old"))
     verifier.verify(_token(new_key, key_id="new"))
 
     assert fetch_count == 2
+
+
+def test_bounds_unknown_key_refreshes_for_a_cache_generation() -> None:
+    trusted_key = ec.generate_private_key(ec.SECP256R1())
+    attacker_key = ec.generate_private_key(ec.SECP256R1())
+    fetch_count = 0
+
+    def fetcher(_: str) -> dict[str, object]:
+        nonlocal fetch_count
+        fetch_count += 1
+        return _jwks(trusted_key, "trusted")
+
+    verifier = SupabaseJwtVerifier(
+        issuer=ISSUER,
+        jwks=JwksCache("https://example.invalid/jwks", 300, fetcher=fetcher),
+    )
+    verifier.verify(_token(trusted_key, key_id="trusted"))
+
+    for key_id in ("forged-one", "forged-two", "forged-one"):
+        with pytest.raises(AuthenticationError):
+            verifier.verify(_token(attacker_key, key_id=key_id))
+
+    assert fetch_count == 2
+
+
+def test_bounds_a_cold_unknown_key_to_one_provider_fetch() -> None:
+    trusted_key = ec.generate_private_key(ec.SECP256R1())
+    attacker_key = ec.generate_private_key(ec.SECP256R1())
+    fetch_count = 0
+
+    def fetcher(_: str) -> dict[str, object]:
+        nonlocal fetch_count
+        fetch_count += 1
+        return _jwks(trusted_key, "trusted")
+
+    verifier = SupabaseJwtVerifier(
+        issuer=ISSUER,
+        jwks=JwksCache("https://example.invalid/jwks", 300, fetcher=fetcher),
+    )
+
+    with pytest.raises(AuthenticationError):
+        verifier.verify(_token(attacker_key, key_id="forged"))
+
+    assert fetch_count == 1
+
+
+def test_keeps_cached_keys_available_while_an_unknown_key_refreshes() -> None:
+    trusted_key = ec.generate_private_key(ec.SECP256R1())
+    attacker_key = ec.generate_private_key(ec.SECP256R1())
+    refresh_started = Event()
+    allow_refresh = Event()
+    fetch_count = 0
+
+    def fetcher(_: str) -> dict[str, object]:
+        nonlocal fetch_count
+        fetch_count += 1
+        if fetch_count == 2:
+            refresh_started.set()
+            assert allow_refresh.wait(timeout=1)
+        return _jwks(trusted_key, "trusted")
+
+    cache = JwksCache("https://example.invalid/jwks", 300, fetcher=fetcher)
+    verifier = SupabaseJwtVerifier(issuer=ISSUER, jwks=cache)
+    verifier.verify(_token(trusted_key, key_id="trusted"))
+
+    worker = Thread(
+        target=lambda: _verify_unknown_key(verifier, attacker_key), daemon=True
+    )
+    worker.start()
+    assert refresh_started.wait(timeout=1)
+
+    assert cache.get_key("trusted") is not None
+
+    allow_refresh.set()
+    worker.join(timeout=1)
+    assert not worker.is_alive()
+
+
+def _verify_unknown_key(
+    verifier: SupabaseJwtVerifier, attacker_key: ec.EllipticCurvePrivateKey
+) -> None:
+    with pytest.raises(AuthenticationError):
+        verifier.verify(_token(attacker_key, key_id="forged"))
+
+
+def test_provider_outage_is_distinct_from_invalid_credentials() -> None:
+    private_key = ec.generate_private_key(ec.SECP256R1())
+
+    def unavailable_fetcher(_: str) -> dict[str, object]:
+        raise TimeoutError("provider timed out")
+
+    verifier = SupabaseJwtVerifier(
+        issuer=ISSUER,
+        jwks=JwksCache(
+            "https://example.invalid/jwks", 300, fetcher=unavailable_fetcher
+        ),
+    )
+
+    with pytest.raises(JwksProviderUnavailableError):
+        verifier.verify(_token(private_key, key_id="trusted"))
 
 
 def test_refreshes_jwks_when_a_key_rotates_with_the_same_id() -> None:
