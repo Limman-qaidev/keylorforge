@@ -1,4 +1,5 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Pressable, Text } from 'react-native';
 import type { Session } from '@supabase/supabase-js';
 import { useState } from 'react';
@@ -31,7 +32,9 @@ function session(email = 'person@example.com'): Session {
 
 function createClient({
   initialSession = null,
-  confirmationSessionEmail = 'person@example.com',
+  verifiedUserEmail = 'person@example.com',
+  getUserError = null,
+  getUserException = null,
   restoreError = null,
   setSessionException = null,
   setSessionError = null,
@@ -41,7 +44,9 @@ function createClient({
   signOutError = null,
 }: {
   initialSession?: Session | null;
-  confirmationSessionEmail?: string;
+  verifiedUserEmail?: string;
+  getUserError?: Error | null;
+  getUserException?: Error | null;
   restoreError?: Error | null;
   setSessionException?: Error | null;
   setSessionError?: Error | null;
@@ -57,6 +62,14 @@ function createClient({
         data: { session: initialSession },
         error: restoreError,
       }),
+      getUser: getUserException
+        ? jest.fn().mockRejectedValue(getUserException)
+        : jest.fn().mockResolvedValue({
+            data: {
+              user: getUserError ? null : session(verifiedUserEmail).user,
+            },
+            error: getUserError,
+          }),
       onAuthStateChange: jest.fn((callback: AuthListener) => {
         listener = callback;
         return { data: { subscription: { unsubscribe: jest.fn() } } };
@@ -65,9 +78,7 @@ function createClient({
         ? jest.fn().mockRejectedValue(setSessionException)
         : jest.fn().mockResolvedValue({
             data: {
-              session: setSessionError
-                ? null
-                : session(confirmationSessionEmail),
+              session: setSessionError ? null : session(verifiedUserEmail),
             },
             error: setSessionError,
           }),
@@ -98,6 +109,7 @@ function createClient({
 
 function AuthProbe() {
   const {
+    clearConfirmation,
     confirmationEmail,
     consumeConfirmationCallback,
     feedback,
@@ -141,6 +153,9 @@ function AuthProbe() {
         }
       >
         <Text>consume malformed confirmation</Text>
+      </Pressable>
+      <Pressable onPress={() => void clearConfirmation()}>
+        <Text>clear confirmation</Text>
       </Pressable>
       <Pressable onPress={() => void signOut()}>
         <Text>sign out</Text>
@@ -218,6 +233,35 @@ describe('AuthProvider', () => {
     });
   });
 
+  it('clears the pending confirmation from memory and storage', async () => {
+    const { client } = createClient();
+    const { getByText, getByTestId } = await render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedOut');
+    await act(async () => {
+      fireEvent.press(getByText('sign up'));
+    });
+    await waitFor(() => {
+      expect(getByTestId('confirmation').props.children).toBe(
+        'person@example.com',
+      );
+    });
+
+    await act(async () => {
+      fireEvent.press(getByText('clear confirmation'));
+    });
+    await waitFor(() => {
+      expect(getByTestId('confirmation').props.children).toBe('');
+      expect(AsyncStorage.removeItem).toHaveBeenCalledWith(
+        '@keylorfit/auth/pending-confirmation-email',
+      );
+    });
+  });
+
   it('consumes a valid confirmation callback without rendering its credentials', async () => {
     const { client } = createClient();
     const { getByText, getByTestId, queryByText } = await render(
@@ -235,6 +279,7 @@ describe('AuthProvider', () => {
     });
 
     await expectPhase(getByTestId, 'signedIn');
+    expect(client.auth.getUser).toHaveBeenCalledWith('access-token');
     expect(client.auth.setSession).toHaveBeenCalledWith({
       access_token: 'access-token',
       refresh_token: 'refresh-token',
@@ -264,7 +309,7 @@ describe('AuthProvider', () => {
 
   it('fails safely when Supabase rejects an expired confirmation callback', async () => {
     const { client } = createClient({
-      setSessionError: new Error('Token has expired: access-token'),
+      getUserError: new Error('Token has expired: access-token'),
     });
     const { getByText, getByTestId, queryByText } = await render(
       <AuthProvider client={client}>
@@ -284,12 +329,13 @@ describe('AuthProvider', () => {
     expect(getByTestId('callback-result').props.children).toBe(
       'This confirmation link is no longer valid. Request a new confirmation email and try again.',
     );
+    expect(client.auth.setSession).not.toHaveBeenCalled();
     expect(queryByText(/access-token|token has expired/i)).toBeNull();
   });
 
-  it('fails safely when confirmation session storage throws', async () => {
+  it('fails safely when provider validation throws', async () => {
     const { client } = createClient({
-      setSessionException: new Error('sensitive provider detail: access-token'),
+      getUserException: new Error('sensitive provider detail: access-token'),
     });
     const { getByText, getByTestId, queryByText } = await render(
       <AuthProvider client={client}>
@@ -309,12 +355,13 @@ describe('AuthProvider', () => {
     expect(getByTestId('callback-result').props.children).toBe(
       'This confirmation link is no longer valid. Request a new confirmation email and try again.',
     );
+    expect(client.auth.setSession).not.toHaveBeenCalled();
     expect(queryByText(/sensitive provider detail|access-token/i)).toBeNull();
   });
 
-  it('rejects a callback for an account other than the pending registration', async () => {
+  it('rejects a callback for an account other than the pending registration before setting a session', async () => {
     const { client } = createClient({
-      confirmationSessionEmail: 'attacker@example.com',
+      verifiedUserEmail: 'attacker@example.com',
     });
     const { getByText, getByTestId } = await render(
       <AuthProvider client={client}>
@@ -331,7 +378,7 @@ describe('AuthProvider', () => {
     });
 
     expect(getByTestId('phase').props.children).toBe('signedOut');
-    expect(client.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    expect(client.auth.setSession).not.toHaveBeenCalled();
     expect(getByTestId('callback-result').props.children).toBe(
       'This confirmation link is no longer valid. Request a new confirmation email and try again.',
     );

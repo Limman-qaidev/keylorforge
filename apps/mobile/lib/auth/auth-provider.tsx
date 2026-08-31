@@ -46,7 +46,7 @@ type RegistrationResult = AuthActionResult & {
 };
 
 type AuthContextValue = AuthState & {
-  clearConfirmation: () => void;
+  clearConfirmation: () => Promise<void>;
   consumeConfirmationCallback: (url: string) => Promise<AuthActionResult>;
   signIn: (email: string, password: string) => Promise<AuthActionResult>;
   signOut: () => Promise<AuthActionResult>;
@@ -391,18 +391,25 @@ export function AuthProvider({
       isConsumingConfirmation.current = true;
       sessionOperationVersion.current += 1;
       try {
+        const { data: userData, error: userError } = await client.auth.getUser(
+          callback.accessToken,
+        );
+        if (
+          userError ||
+          !userData.user ||
+          !emailsMatch(userData.user.email, confirmationEmail)
+        ) {
+          return {
+            error:
+              'This confirmation link is no longer valid. Request a new confirmation email and try again.',
+          };
+        }
+
         const { data, error } = await client.auth.setSession({
           access_token: callback.accessToken,
           refresh_token: callback.refreshToken,
         });
-        if (
-          error ||
-          !data.session ||
-          !emailsMatch(data.session.user.email, confirmationEmail)
-        ) {
-          if (data.session) {
-            await client.auth.signOut({ scope: 'local' });
-          }
+        if (error || !data.session) {
           return {
             error:
               'This confirmation link is no longer valid. Request a new confirmation email and try again.',
@@ -441,9 +448,13 @@ export function AuthProvider({
     return {};
   }, [clientResult.client, updateAuthState]);
 
-  const clearConfirmation = useCallback(() => {
+  const clearConfirmation = useCallback(async () => {
     updateAuthState({ ...stateForSession(null), confirmationEmail: null });
-    void AsyncStorage.removeItem(pendingConfirmationEmailKey);
+    try {
+      await AsyncStorage.removeItem(pendingConfirmationEmailKey);
+    } catch {
+      // The in-memory state is already cleared; navigation must remain usable.
+    }
   }, [updateAuthState]);
 
   const value = useMemo<AuthContextValue>(
