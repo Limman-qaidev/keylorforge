@@ -79,8 +79,15 @@ function createClient({
 }
 
 function AuthProbe() {
-  const { confirmationEmail, feedback, phase, signIn, signOut, signUp } =
-    useAuth();
+  const {
+    confirmationEmail,
+    feedback,
+    invalidateSession,
+    phase,
+    signIn,
+    signOut,
+    signUp,
+  } = useAuth();
 
   return (
     <>
@@ -99,6 +106,9 @@ function AuthProbe() {
       </Pressable>
       <Pressable onPress={() => void signOut()}>
         <Text>sign out</Text>
+      </Pressable>
+      <Pressable onPress={() => void invalidateSession()}>
+        <Text>invalidate session</Text>
       </Pressable>
     </>
   );
@@ -181,6 +191,30 @@ describe('AuthProvider', () => {
       fireEvent.press(getByText('sign out'));
     });
     await expectPhase(getByTestId, 'signedOut');
+  });
+
+  it('fails closed locally when terminal API auth invalidation cannot revoke remotely', async () => {
+    const remoteFailure = new Error('network failed');
+    const { client } = createClient({
+      initialSession: session(),
+      signOutError: remoteFailure,
+    });
+    const { getByText, getByTestId } = await render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedIn');
+    await act(async () => {
+      fireEvent.press(getByText('invalidate session'));
+    });
+
+    await expectPhase(getByTestId, 'signedOut');
+    expect(client.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    expect(getByTestId('feedback').props.children).toBe(
+      'Your session has ended. Please sign in again.',
+    );
   });
 
   it('keeps the shell signed in after a successful token refresh', async () => {

@@ -28,12 +28,16 @@ def test_upgrade_clean_database_records_head(test_database_url: str) -> None:
     """A clean PostgreSQL database upgrades to the baseline revision."""
     engine = create_engine(test_database_url)
     with engine.connect() as connection:
-        tables = connection.execute(
-            text(
-                "SELECT table_name FROM information_schema.tables "
-                "WHERE table_schema = 'public' ORDER BY table_name"
+        tables = (
+            connection.execute(
+                text(
+                    "SELECT table_name FROM information_schema.tables "
+                    "WHERE table_schema = 'public' ORDER BY table_name"
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
     assert tables == [], "migration test requires a clean PostgreSQL test database"
 
@@ -41,9 +45,58 @@ def test_upgrade_clean_database_records_head(test_database_url: str) -> None:
     command.upgrade(config, "head")
 
     with engine.connect() as connection:
-        revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
+        revision = connection.execute(
+            text("SELECT version_num FROM alembic_version")
+        ).scalar_one()
 
-    assert revision == "20260829_0001"
+    assert revision == "20260831_0001"
+
+    with engine.connect() as connection:
+        display_name = connection.execute(
+            text(
+                "SELECT is_nullable, character_maximum_length "
+                "FROM information_schema.columns "
+                "WHERE table_schema = 'public' "
+                "AND table_name = 'application_user_profiles' "
+                "AND column_name = 'display_name'"
+            )
+        ).one()
+
+    assert display_name == ("YES", 80)
+
+    with engine.connect() as connection:
+        rls = connection.execute(
+            text(
+                "SELECT relation.relname, relation.relrowsecurity "
+                "FROM pg_class AS relation "
+                "JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace "
+                "WHERE namespace.nspname = 'public' "
+                "AND relation.relname IN ("
+                "'application_users', "
+                "'application_user_identities', "
+                "'application_user_profiles'"
+                ") ORDER BY relation.relname"
+            )
+        ).all()
+        direct_grants = connection.execute(
+            text(
+                "SELECT table_name, grantee, privilege_type "
+                "FROM information_schema.table_privileges "
+                "WHERE table_schema = 'public' "
+                "AND table_name IN ("
+                "'application_users', "
+                "'application_user_identities', "
+                "'application_user_profiles'"
+                ") AND grantee IN ('anon', 'authenticated', 'service_role')"
+            )
+        ).all()
+
+    assert rls == [
+        ("application_user_identities", True),
+        ("application_user_profiles", True),
+        ("application_users", True),
+    ]
+    assert direct_grants == []
 
 
 def test_provisioning_is_idempotent_and_creates_profile(test_database_url: str) -> None:
@@ -67,6 +120,36 @@ def test_provisioning_is_idempotent_and_creates_profile(test_database_url: str) 
             assert second.id == first_id
             assert second.profile is not None
             session.commit()
+    finally:
+        engine.dispose()
+
+
+def test_display_name_is_initially_null_and_persists_across_sessions(
+    test_database_url: str,
+) -> None:
+    """A profile starts empty and keeps a repository update after commit."""
+    engine = create_engine(test_database_url)
+    subject = uuid4()
+    try:
+        with Session(engine) as session:
+            repository = ApplicationUserRepository(session)
+            user = repository.get_or_provision_active_user(
+                auth_provider=AuthProvider.SUPABASE, external_subject=subject
+            )
+            assert user.profile is not None
+            assert user.profile.display_name is None
+
+            repository.set_profile_display_name(user=user, display_name="Jonathan")
+            session.commit()
+
+        with Session(engine) as session:
+            persisted_user = ApplicationUserRepository(
+                session
+            ).get_or_provision_active_user(
+                auth_provider=AuthProvider.SUPABASE, external_subject=subject
+            )
+            assert persisted_user.profile is not None
+            assert persisted_user.profile.display_name == "Jonathan"
     finally:
         engine.dispose()
 

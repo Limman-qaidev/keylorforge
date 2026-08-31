@@ -1,3 +1,4 @@
+import { Link } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -20,6 +21,9 @@ function HomeScreen() {
         Your training home
       </Text>
       <Text style={styles.message}>You are signed in to KeylorFit.</Text>
+      <Link accessibilityRole="link" href="/profile" style={styles.profileLink}>
+        Profile
+      </Link>
       {error ? (
         <Text accessibilityLiveRegion="polite" style={styles.error}>
           {error}
@@ -61,5 +65,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 24 },
   error: { color: '#b42318', marginTop: 12 },
   message: { color: '#4d5d74', fontSize: 16, marginTop: 12 },
+  profileLink: {
+    color: '#1d4f91',
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 24,
+  },
   title: { color: '#101b2d', fontSize: 30, fontWeight: '700' },
 });

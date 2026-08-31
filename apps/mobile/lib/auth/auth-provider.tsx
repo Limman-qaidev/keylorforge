@@ -42,6 +42,7 @@ type RegistrationResult = AuthActionResult & {
 
 type AuthContextValue = AuthState & {
   clearConfirmation: () => void;
+  invalidateSession: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<AuthActionResult>;
   signOut: () => Promise<AuthActionResult>;
   signUp: (email: string, password: string) => Promise<RegistrationResult>;
@@ -330,6 +331,26 @@ export function AuthProvider({
     return {};
   }, [clientResult.client, updateAuthState]);
 
+  /**
+   * Ends this device's session after a terminal protected-API authentication
+   * failure. Local state is cleared even when Supabase cannot revoke remotely.
+   */
+  const invalidateSession = useCallback(async (): Promise<void> => {
+    try {
+      await clientResult.client?.auth.signOut({ scope: 'local' });
+    } finally {
+      updateAuthState({
+        confirmationEmail: null,
+        feedback: {
+          kind: 'terminal',
+          message: 'Your session has ended. Please sign in again.',
+        },
+        phase: 'signedOut',
+        session: null,
+      });
+    }
+  }, [clientResult.client, updateAuthState]);
+
   const clearConfirmation = useCallback(() => {
     updateAuthState({ ...stateForSession(null), confirmationEmail: null });
   }, [updateAuthState]);
@@ -338,11 +359,12 @@ export function AuthProvider({
     () => ({
       ...authState,
       clearConfirmation,
+      invalidateSession,
       signIn,
       signOut,
       signUp,
     }),
-    [authState, clearConfirmation, signIn, signOut, signUp],
+    [authState, clearConfirmation, invalidateSession, signIn, signOut, signUp],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

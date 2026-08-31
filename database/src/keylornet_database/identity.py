@@ -63,6 +63,30 @@ class ApplicationUserRepository:
 
         return user
 
+    def set_profile_display_name(
+        self, *, user: ApplicationUser, display_name: str
+    ) -> ApplicationUserProfile:
+        """Persist a display name for an active application's own profile.
+
+        The caller supplies the application user resolved from its authenticated
+        principal. This method flushes and reloads within the caller-owned
+        transaction, so the write is rolled back if the surrounding request
+        fails.
+        """
+        if user.lifecycle_state is not ApplicationUserLifecycle.ACTIVE:
+            raise TerminalIdentityError(
+                "the external identity has a terminal KeylorFit lifecycle state"
+            )
+
+        profile = user.profile
+        if profile is None:
+            raise RuntimeError("active application user is missing its profile foundation")
+
+        profile.display_name = display_name
+        self._session.flush()
+        self._session.refresh(profile)
+        return profile
+
     def _find_identity(
         self, auth_provider: AuthProvider, external_subject: UUID
     ) -> ApplicationUserIdentity | None:
