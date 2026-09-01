@@ -7,7 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ErrorMessage } from '@/components/ui/form';
 import { Screen } from '@/components/ui/screen';
-import { colors, spacing, typography } from '@/components/ui/tokens';
+import {
+  colors,
+  spacing,
+  touchTarget,
+  typography,
+} from '@/components/ui/tokens';
 import { useAuth } from '@/lib/auth/auth-provider';
 
 function HomeScreen() {
@@ -84,6 +89,8 @@ const styles = StyleSheet.create({
     fontSize: typography.label.fontSize,
     fontWeight: '700',
     marginTop: spacing.lg,
+    minHeight: touchTarget,
+    paddingVertical: spacing.md,
   },
   signOut: { marginTop: spacing.xl },
   title: {
