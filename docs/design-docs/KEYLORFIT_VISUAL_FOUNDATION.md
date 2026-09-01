@@ -6,11 +6,17 @@ Issue: #51 (`UX-001 — Establish KeylorFit mobile visual design foundation`)
 
 This document is the implementation contract for KeylorFit's visual foundation. It exists so implementation agents do not invent product/UI direction while coding.
 
-The approved visual reference is committed at:
+The approved broader product-direction reference is committed at:
 
 `docs/design-docs/keylorfit-ui-reference/keylorfit-ui-foundation-v1.jpg`
 
-The image is a **directional visual reference**, not a pixel-perfect screenshot specification and not a commitment that every future feature shown in the concept exists in the current milestone. Where generated mockup text or data conflicts with product/domain contracts, the product/domain contracts win.
+The approved **current M1 / UX-001 implementation reference** is committed at:
+
+`docs/design-docs/keylorfit-ui-reference/keylorfit-m1-reference-v1.jpg`
+
+Both images are **directional visual references**, not pixel-perfect screenshot specifications and not commitments that every future feature shown in a concept exists in the current milestone. Where generated mockup text or data conflicts with product/domain contracts, the product/domain contracts win.
+
+For #51 specifically, implementation agents must inspect both images before coding. The broad board defines the product language; the M1 board is the closer visual target for Welcome, Sign in, Sign up, current authenticated Home, Profile and representative loading/error states.
 
 ## 1. Product personality
 
@@ -83,6 +89,8 @@ The approved reference establishes direction for these surfaces:
 - progress teaser is visible
 - weekly friends ranking teaser is visible but compact
 - Home is not a social feed and is not dominated by ranking content
+
+For the current M1 implementation, do **not** fabricate unavailable workout, ranking or progress data just to mimic the future board. Preserve the visual hierarchy and product character using only data/functionality that really exists.
 
 ### Active workout
 
@@ -218,29 +226,33 @@ Components should expose intent/semantic variants rather than screen-specific co
 
 ## 8. Current UX-001 implementation scope
 
-UX-001 is a **foundation issue**, not permission to implement every surface visible in the concept board.
+UX-001 is a **foundation issue**, not permission to implement every surface visible in either concept board.
 
-For the current repository state, the implementation should:
+The Product Owner-approved M1 board is the direct visual reference for the screens that already exist. For the current repository state, the implementation should:
 
 1. introduce the approved token/component foundation
-2. upgrade existing Welcome/Auth surfaces to the approved language
-3. upgrade authenticated Home while preserving existing M1 behavior
+2. upgrade existing Welcome/Auth surfaces to the approved M1 language
+3. upgrade authenticated Home while preserving existing M1 behavior and without faking future data
 4. upgrade Profile while preserving the server-backed M1 profile behavior
 5. establish the navigation/shell direction needed for future M2 surfaces without inventing unfinished M2 features
-6. document how future screens consume the foundation
-7. pass accessibility and physical Android smoke
+6. implement coherent loading, skeleton and error-state treatments based on the M1 reference where those states already exist or are naturally reusable primitives
+7. document how future screens consume the foundation
+8. pass accessibility and physical Android smoke
 
-Do not fake unavailable domain data or ship non-functional future menu items merely because they appear in the concept reference.
+Do not ship non-functional menu items or fake unavailable domain data merely because they appear in a concept reference.
+
+The M1 mockup may show illustrative items that are **not** current requirements (for example third-party sign-in buttons, richer profile statistics, notification counts, rankings or future navigation destinations). Such items must not be implemented unless they are supported by the current product/domain scope.
 
 ## 9. Reference-image usage during implementation
 
 For every visual implementation PR touching this foundation:
 
-- open the approved reference image before coding
-- compare the rendered phone UI against the relevant region of the reference
+- open `keylorfit-ui-foundation-v1.jpg` before coding
+- open `keylorfit-m1-reference-v1.jpg` before coding when implementing #51/current M1 surfaces
+- compare the rendered phone UI against the relevant region of the M1 reference during implementation
 - preserve hierarchy, density, imagery treatment, navigation character and mode distinction
-- do not blindly reproduce generated text, fake data or impossible details
-- attach/update device screenshots in PR evidence when practical
+- do not blindly reproduce generated text, fake data, unsupported auth providers or impossible details
+- attach/update physical-device screenshots in PR evidence when practical
 
 A visual difference is acceptable when required by accessibility, platform behavior, real product requirements or existing domain contracts. Material visual-direction changes require Product Owner approval.
 
@@ -262,6 +274,8 @@ UX-001 does not require:
 - marketing site design
 - full animation/motion system
 - implementation of workout engine, exercise catalog, rankings, social feed, plans or events ahead of their domain milestones
+- third-party Google/Apple authentication merely because it appears in the M1 concept image
+- fake workout/progress/social data used only to make Home resemble a mockup
 - adoption of a large UI framework
 
 The active-workout dark mode is a purposeful product mode and is distinct from implementing a universal app-wide dark theme.
@@ -270,10 +284,10 @@ The active-workout dark mode is a purposeful product mode and is distinct from i
 
 UX-001 is complete only when:
 
-- the approved visual reference is committed alongside this contract
+- both approved visual references are committed alongside this contract
 - visual tokens and reusable primitives are implemented
 - existing M1 user-facing screens no longer look like engineering scaffolding
-- implementation matches the approved visual direction at product level
+- implementation matches the approved M1 visual direction at product level
 - accessibility basics pass
 - tests/CI pass
 - Product Owner visually reviews the implementation on a physical Android device and approves it
