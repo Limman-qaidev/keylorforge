@@ -6,7 +6,7 @@ This directory stores Product Owner-approved visual references used while implem
 
 Canonical file:
 
-`keylorfit-ui-foundation-v1.jpg`
+`keylorfit-ui-foundation-v1.png`
 
 This is the approved concept board covering the broader KeylorFit visual language for Home, active workout, Progress, Training Hub, Social/Ranking and representative future product surfaces.
 
@@ -14,7 +14,7 @@ This is the approved concept board covering the broader KeylorFit visual languag
 
 Canonical file:
 
-`keylorfit-m1-reference-v1.jpg`
+`keylorfit-m1-reference-v1.png`
 
 This board is the Product Owner-approved implementation reference for the current UX-001 scope. It covers:
 

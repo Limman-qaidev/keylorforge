@@ -1,33 +1,20 @@
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { LoadingState } from '@/components/ui/feedback';
+import { colors, spacing, typography } from '@/components/ui/tokens';
 
 export function SessionRestoring() {
   return (
     <View style={styles.container} testID="session-restoring">
-      <ActivityIndicator
-        accessibilityLabel="Restoring your session"
-        size="large"
-      />
-      <Text style={styles.title}>KeylorFit</Text>
-      <Text accessibilityLiveRegion="polite" style={styles.message}>
-        Restoring your session…
+      <Text style={styles.brand}>
+        ⚡ KEYLOR<Text style={styles.brandAccent}>FIT</Text>
       </Text>
+      <LoadingState label="Restoring your session…" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    backgroundColor: '#101b2d',
-    flex: 1,
-    justifyContent: 'center',
-    padding: 24,
-  },
-  message: { color: '#d9e4f7', fontSize: 16, marginTop: 12 },
-  title: {
-    color: '#ffffff',
-    fontSize: 32,
-    fontWeight: '700',
-    marginTop: 20,
-  },
+  brand: { color: colors.text, ...typography.section },
+  brandAccent: { color: colors.progress },
+  container: { backgroundColor: colors.canvas, flex: 1, padding: spacing.xl },
 });

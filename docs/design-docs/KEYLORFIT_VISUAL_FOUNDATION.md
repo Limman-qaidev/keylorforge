@@ -8,11 +8,11 @@ This document is the implementation contract for KeylorFit's visual foundation. 
 
 The approved broader product-direction reference is committed at:
 
-`docs/design-docs/keylorfit-ui-reference/keylorfit-ui-foundation-v1.jpg`
+`docs/design-docs/keylorfit-ui-reference/keylorfit-ui-foundation-v1.png`
 
 The approved **current M1 / UX-001 implementation reference** is committed at:
 
-`docs/design-docs/keylorfit-ui-reference/keylorfit-m1-reference-v1.jpg`
+`docs/design-docs/keylorfit-ui-reference/keylorfit-m1-reference-v1.png`
 
 Both images are **directional visual references**, not pixel-perfect screenshot specifications and not commitments that every future feature shown in a concept exists in the current milestone. Where generated mockup text or data conflicts with product/domain contracts, the product/domain contracts win.
 
@@ -247,8 +247,8 @@ The M1 mockup may show illustrative items that are **not** current requirements 
 
 For every visual implementation PR touching this foundation:
 
-- open `keylorfit-ui-foundation-v1.jpg` before coding
-- open `keylorfit-m1-reference-v1.jpg` before coding when implementing #51/current M1 surfaces
+- open `keylorfit-ui-foundation-v1.png` before coding
+- open `keylorfit-m1-reference-v1.png` before coding when implementing #51/current M1 surfaces
 - compare the rendered phone UI against the relevant region of the M1 reference during implementation
 - preserve hierarchy, density, imagery treatment, navigation character and mode distinction
 - do not blindly reproduce generated text, fake data, unsupported auth providers or impossible details

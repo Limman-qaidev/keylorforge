@@ -2,17 +2,17 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
 
 import { useAuth } from '@/lib/auth/auth-provider';
+import { Avatar } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { LoadingState } from '@/components/ui/feedback';
+import { ErrorMessage, FieldLabel, FormInput } from '@/components/ui/form';
+import { Screen } from '@/components/ui/screen';
+import { colors, spacing, typography } from '@/components/ui/tokens';
 import {
   getCurrentProfile,
   type CurrentProfile,
@@ -176,147 +176,128 @@ export function ProfileScreen() {
 
   if (!accessToken || !userId) {
     return (
-      <View style={styles.centered}>
-        <Text accessibilityLiveRegion="polite" style={styles.error}>
-          Your session has ended. Please sign in again.
-        </Text>
-      </View>
+      <Screen>
+        <View style={styles.centered}>
+          <ErrorMessage>
+            Your session has ended. Please sign in again.
+          </ErrorMessage>
+        </View>
+      </Screen>
     );
   }
 
   if (profileQuery.isPending) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator accessibilityLabel="Loading profile" />
-        <Text style={styles.loadingText}>Loading profile…</Text>
-      </View>
+      <Screen>
+        <LoadingState label="Loading profile…" />
+      </Screen>
     );
   }
 
   if (profileQuery.isError && !profileQuery.data) {
     return (
-      <View style={styles.centered}>
-        <Text accessibilityRole="header" style={styles.title}>
-          Profile
-        </Text>
-        <Text accessibilityLiveRegion="polite" style={styles.error}>
-          {feedbackFor(profileQuery.error)}
-        </Text>
-        <Pressable
-          accessibilityRole="button"
-          disabled={profileQuery.isFetching}
-          onPress={() => {
-            setSubmissionError(null);
-            setSuccessMessage(null);
-            void profileQuery.refetch();
-          }}
-          style={styles.button}
-        >
-          <Text style={styles.buttonText}>
-            {profileQuery.isFetching ? 'Retrying…' : 'Try again'}
+      <Screen>
+        <View style={styles.centered}>
+          <Text accessibilityRole="header" style={styles.title}>
+            Profile
           </Text>
-        </Pressable>
-      </View>
+          <ErrorMessage>{feedbackFor(profileQuery.error)}</ErrorMessage>
+          <View style={styles.button}>
+            <Button
+              loading={profileQuery.isFetching}
+              onPress={() => {
+                setSubmissionError(null);
+                setSuccessMessage(null);
+                void profileQuery.refetch();
+              }}
+            >
+              Try again
+            </Button>
+          </View>
+        </View>
+      </Screen>
     );
   }
 
   const isSaving = isSubmitting || profileMutation.isPending;
 
   return (
-    <View style={styles.container}>
-      <Text accessibilityRole="header" style={styles.title}>
-        Profile
-      </Text>
-      <Text style={styles.subtitle}>
-        Choose the name shown with your KeylorFit account.
-      </Text>
+    <Screen scroll>
+      <View style={styles.header}>
+        <Avatar name={profileQuery.data?.profile.display_name} size={64} />
+        <View>
+          <Text accessibilityRole="header" style={styles.title}>
+            Profile
+          </Text>
+          <Text style={styles.subtitle}>
+            Choose the name shown with your KeylorFit account.
+          </Text>
+        </View>
+      </View>
 
-      <Text style={styles.inputLabel}>Display name</Text>
-      <Controller
-        control={control}
-        name="displayName"
-        render={({ field: { onBlur, onChange, value } }) => (
-          <TextInput
-            accessibilityLabel="Display name"
-            autoCapitalize="words"
-            autoComplete="name"
-            maxLength={80}
-            onBlur={onBlur}
-            onChangeText={(nextValue) => {
-              setSubmissionError(null);
-              setSuccessMessage(null);
-              onChange(nextValue);
-            }}
-            returnKeyType="done"
-            style={styles.input}
-            textContentType="name"
-            value={value}
-          />
-        )}
-      />
-      {errors.displayName ? (
-        <Text accessibilityLiveRegion="polite" style={styles.error}>
-          {errors.displayName.message}
-        </Text>
-      ) : null}
-      {submissionError ? (
-        <Text accessibilityLiveRegion="polite" style={styles.error}>
-          {submissionError}
-        </Text>
-      ) : null}
-      {successMessage ? (
-        <Text accessibilityLiveRegion="polite" style={styles.success}>
-          {successMessage}
-        </Text>
-      ) : null}
+      <Card>
+        <FieldLabel>Display name</FieldLabel>
+        <Controller
+          control={control}
+          name="displayName"
+          render={({ field: { onBlur, onChange, value } }) => (
+            <FormInput
+              accessibilityLabel="Display name"
+              autoCapitalize="words"
+              autoComplete="name"
+              maxLength={80}
+              onBlur={onBlur}
+              onChangeText={(nextValue) => {
+                setSubmissionError(null);
+                setSuccessMessage(null);
+                onChange(nextValue);
+              }}
+              returnKeyType="done"
+              textContentType="name"
+              value={value}
+            />
+          )}
+        />
+        {errors.displayName ? (
+          <ErrorMessage>{errors.displayName.message}</ErrorMessage>
+        ) : null}
+        {submissionError ? (
+          <ErrorMessage>{submissionError}</ErrorMessage>
+        ) : null}
+        {successMessage ? (
+          <Text accessibilityLiveRegion="polite" style={styles.success}>
+            {successMessage}
+          </Text>
+        ) : null}
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ busy: isSaving, disabled: isSaving }}
-        disabled={isSaving}
-        onPress={handleSubmit(saveProfile)}
-        style={styles.button}
-      >
-        <Text style={styles.buttonText}>
-          {isSaving ? 'Saving…' : 'Save profile'}
-        </Text>
-      </Pressable>
-    </View>
+        <View style={styles.button}>
+          <Button loading={isSaving} onPress={handleSubmit(saveProfile)}>
+            Save profile
+          </Button>
+        </View>
+      </Card>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  button: {
+  button: { marginTop: spacing.xl },
+  centered: { flex: 1, justifyContent: 'center' },
+  header: {
     alignItems: 'center',
-    backgroundColor: '#275dad',
-    borderRadius: 8,
-    justifyContent: 'center',
-    marginTop: 24,
-    minHeight: 48,
-    paddingHorizontal: 16,
+    flexDirection: 'row',
+    gap: spacing.lg,
+    marginBottom: spacing.xl,
   },
-  buttonText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
-  centered: { flex: 1, justifyContent: 'center', padding: 24 },
-  container: { backgroundColor: '#f7f9fc', flex: 1, padding: 24 },
-  error: { color: '#b42318', fontSize: 14, marginTop: 8 },
-  input: {
-    backgroundColor: '#ffffff',
-    borderColor: '#8b9ab2',
-    borderRadius: 8,
-    borderWidth: 1,
-    fontSize: 16,
-    marginTop: 8,
-    minHeight: 48,
-    paddingHorizontal: 12,
+  subtitle: {
+    color: colors.textMuted,
+    marginTop: spacing.xs,
+    ...typography.caption,
   },
-  inputLabel: {
-    color: '#24344d',
-    fontSize: 15,
-    fontWeight: '600',
-    marginTop: 28,
+  success: {
+    color: colors.progress,
+    marginTop: spacing.sm,
+    ...typography.caption,
   },
-  loadingText: { color: '#4d5d74', fontSize: 16, marginTop: 12 },
-  subtitle: { color: '#4d5d74', fontSize: 16, lineHeight: 23, marginTop: 8 },
-  success: { color: '#067647', fontSize: 14, marginTop: 8 },
-  title: { color: '#101b2d', fontSize: 30, fontWeight: '700' },
+  title: { color: colors.text, ...typography.title },
 });

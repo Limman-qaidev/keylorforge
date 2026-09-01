@@ -1,13 +1,25 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { RequireAuthenticated } from '@/components/auth/auth-guards';
+import { Avatar } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { ErrorMessage } from '@/components/ui/form';
+import { Screen } from '@/components/ui/screen';
+import { SectionHeading } from '@/components/ui/section-heading';
+import { colors, spacing, typography } from '@/components/ui/tokens';
 import { useAuth } from '@/lib/auth/auth-provider';
 
 function HomeScreen() {
-  const { signOut } = useAuth();
+  const { session, signOut } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const email = session?.user.email ?? 'athlete';
+  const name =
+    session?.user.user_metadata.display_name ??
+    email.split('@')[0] ??
+    'Athlete';
 
   const onSignOut = async () => {
     setError(null);
@@ -16,27 +28,51 @@ function HomeScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text accessibilityRole="header" style={styles.title}>
-        Your training home
+    <Screen scroll>
+      <View style={styles.topRow}>
+        <View>
+          <Text style={styles.eyebrow}>KEYLORFIT</Text>
+          <Text accessibilityRole="header" style={styles.title}>
+            Ready to train?
+          </Text>
+        </View>
+        <Avatar name={name} />
+      </View>
+      <Text style={styles.subtitle}>
+        Your training home is ready when you are.
       </Text>
-      <Text style={styles.message}>You are signed in to KeylorFit.</Text>
-      <Link accessibilityRole="link" href="/profile" style={styles.profileLink}>
-        Profile
-      </Link>
-      {error ? (
-        <Text accessibilityLiveRegion="polite" style={styles.error}>
-          {error}
-        </Text>
-      ) : null}
-      <Pressable
-        accessibilityRole="button"
-        onPress={onSignOut}
-        style={styles.button}
-      >
-        <Text style={styles.buttonText}>Sign out</Text>
-      </Pressable>
-    </View>
+      <View style={styles.section}>
+        <SectionHeading title="Your account" />
+        <Card>
+          <Link
+            accessibilityRole="link"
+            href="/profile"
+            style={styles.profileLink}
+          >
+            <View>
+              <Text style={styles.cardTitle}>{name}</Text>
+              <Text style={styles.cardMeta}>{email}</Text>
+            </View>
+            <Text style={styles.arrow}>›</Text>
+          </Link>
+        </Card>
+      </View>
+      <View style={styles.section}>
+        <SectionHeading title="Training" />
+        <Card>
+          <Text style={styles.cardTitle}>Your next session starts here.</Text>
+          <Text style={styles.cardMeta}>
+            Workout tracking will appear here when it becomes available.
+          </Text>
+        </Card>
+      </View>
+      {error ? <ErrorMessage>{error}</ErrorMessage> : null}
+      <View style={styles.signOut}>
+        <Button variant="secondary" onPress={onSignOut}>
+          Sign out
+        </Button>
+      </View>
+    </Screen>
   );
 }
 
@@ -49,27 +85,30 @@ export default function HomeRoute() {
 }
 
 const styles = StyleSheet.create({
-  button: {
-    backgroundColor: '#275dad',
-    borderRadius: 8,
-    marginTop: 28,
-    minHeight: 48,
-    padding: 14,
+  arrow: { color: colors.training, fontSize: 28, fontWeight: '400' },
+  cardMeta: {
+    color: colors.textMuted,
+    marginTop: spacing.xs,
+    ...typography.caption,
   },
-  buttonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  container: { flex: 1, justifyContent: 'center', padding: 24 },
-  error: { color: '#b42318', marginTop: 12 },
-  message: { color: '#4d5d74', fontSize: 16, marginTop: 12 },
+  cardTitle: { color: colors.text, ...typography.label },
+  eyebrow: { color: colors.progress, ...typography.caption },
   profileLink: {
-    color: '#1d4f91',
-    fontSize: 16,
-    fontWeight: '600',
-    marginTop: 24,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
-  title: { color: '#101b2d', fontSize: 30, fontWeight: '700' },
+  section: { marginTop: spacing.xxl },
+  signOut: { marginTop: 'auto', paddingTop: spacing.xxxl },
+  subtitle: {
+    color: colors.textMuted,
+    marginTop: spacing.sm,
+    ...typography.body,
+  },
+  title: { color: colors.text, ...typography.title },
+  topRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
 });
