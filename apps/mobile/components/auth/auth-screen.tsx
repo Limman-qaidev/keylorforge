@@ -3,7 +3,12 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
 import { Screen } from '@/components/ui/screen';
-import { colors, spacing, typography } from '@/components/ui/tokens';
+import {
+  colors,
+  spacing,
+  touchTarget,
+  typography,
+} from '@/components/ui/tokens';
 
 type AuthScreenProps = PropsWithChildren<{
   subtitle?: string;
@@ -28,16 +33,21 @@ export function AuthScreen({ children, subtitle, title }: AuthScreenProps) {
 }
 
 export const authScreenStyles = StyleSheet.create({
-  error: {
-    color: colors.danger,
-    fontSize: typography.caption.fontSize,
-    marginTop: spacing.md,
+  helper: {
+    color: colors.secondary,
+    fontSize: typography.body.fontSize,
+    lineHeight: typography.body.lineHeight,
+    marginTop: spacing.lg,
   },
   link: {
     color: colors.accent,
     fontSize: typography.label.fontSize,
     fontWeight: '700',
+    lineHeight: typography.label.lineHeight,
     marginTop: spacing.lg,
+    minHeight: touchTarget,
+    minWidth: touchTarget,
+    paddingVertical: spacing.md,
   },
 });
 

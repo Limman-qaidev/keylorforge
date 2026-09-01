@@ -2,8 +2,8 @@ import { Platform } from 'react-native';
 
 /** Light-theme visual decisions for the KeylorFit mobile product. */
 export const colors = {
-  accent: '#D94F24',
-  accentPressed: '#B9401C',
+  accent: '#C2411A',
+  accentPressed: '#A93616',
   background: '#F6F6F2',
   border: '#D9DCD4',
   card: '#FFFFFF',
