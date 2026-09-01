@@ -6,9 +6,9 @@ Issue: #51 (`UX-001 — Establish KeylorFit mobile visual design foundation`)
 
 This document is the implementation contract for KeylorFit's visual foundation. It exists so implementation agents do not invent product/UI direction while coding.
 
-The approved visual reference belongs at:
+The approved visual reference is committed at:
 
-`docs/design-docs/keylorfit-ui-reference/keylorfit-ui-foundation-v1.png`
+`docs/design-docs/keylorfit-ui-reference/keylorfit-ui-foundation-v1.jpg`
 
 The image is a **directional visual reference**, not a pixel-perfect screenshot specification and not a commitment that every future feature shown in the concept exists in the current milestone. Where generated mockup text or data conflicts with product/domain contracts, the product/domain contracts win.
 
