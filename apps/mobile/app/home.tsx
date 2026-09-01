@@ -1,3 +1,4 @@
+import { Link } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -31,6 +32,13 @@ function HomeScreen() {
         <Text style={styles.cardMessage}>
           Your next training tools will appear here.
         </Text>
+        <Link
+          accessibilityRole="link"
+          href="/profile"
+          style={styles.profileLink}
+        >
+          Profile
+        </Link>
       </Card>
       {error ? <ErrorMessage>{error}</ErrorMessage> : null}
       <View style={styles.signOut}>
@@ -70,6 +78,12 @@ const styles = StyleSheet.create({
     fontSize: typography.body.fontSize,
     marginBottom: spacing.xl,
     marginTop: spacing.sm,
+  },
+  profileLink: {
+    color: colors.accent,
+    fontSize: typography.label.fontSize,
+    fontWeight: '700',
+    marginTop: spacing.lg,
   },
   signOut: { marginTop: spacing.xl },
   title: {

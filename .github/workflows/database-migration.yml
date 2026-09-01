@@ -60,5 +60,5 @@ jobs:
       - name: Verify Alembic current head
         run: |
           python -m alembic current | tee alembic-current.txt
-          grep -Eq '^20260829_0001 \(head\)$' alembic-current.txt
+          grep -Eq '^20260831_0001 \(head\)$' alembic-current.txt
           python -m alembic heads
