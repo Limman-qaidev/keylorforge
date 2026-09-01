@@ -5,13 +5,13 @@ import { Controller, useForm } from 'react-hook-form';
 import { StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
 
-import { useAuth } from '@/lib/auth/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ErrorMessage, FieldLabel, FormInput } from '@/components/ui/form';
 import { LoadingState } from '@/components/ui/loading-state';
 import { Screen } from '@/components/ui/screen';
 import { colors, spacing, typography } from '@/components/ui/tokens';
+import { useAuth } from '@/lib/auth/auth-provider';
 import {
   getCurrentProfile,
   type CurrentProfile,
@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   success: {
-    color: '#067647',
+    color: colors.success,
     fontSize: typography.caption.fontSize,
     marginTop: spacing.sm,
   },
