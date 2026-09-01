@@ -133,7 +133,7 @@ class ApplicationUserIdentity(Base):
 
 
 class ApplicationUserProfile(Base):
-    """One-to-one application-owned profile foundation without provider PII."""
+    """One-to-one application-owned profile data without provider PII."""
 
     __tablename__ = "application_user_profiles"
 
@@ -142,6 +142,7 @@ class ApplicationUserProfile(Base):
         ForeignKey("application_users.id", ondelete="RESTRICT"),
         primary_key=True,
     )
+    display_name: Mapped[str | None] = mapped_column(String(80))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
