@@ -2,7 +2,7 @@ import type { PropsWithChildren } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Screen } from '@/components/ui/screen';
-import { colors, spacing, typography } from '@/components/ui/tokens';
+import { colors, spacing, touchTarget, typography } from '@/components/ui/tokens';
 
 type AuthScreenProps = PropsWithChildren<{
   subtitle?: string;
@@ -30,7 +30,9 @@ export const authScreenStyles = StyleSheet.create({
   error: { color: colors.error, marginTop: spacing.md, ...typography.caption },
   link: {
     color: colors.training,
-    marginTop: spacing.lg,
+    marginTop: spacing.sm,
+    minHeight: touchTarget,
+    paddingVertical: spacing.md,
     textAlign: 'center',
     ...typography.label,
   },
