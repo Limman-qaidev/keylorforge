@@ -19,9 +19,11 @@ export function Button({
   variant = 'primary',
 }: ButtonProps) {
   const inactive = disabled || loading;
+  const resolvedAccessibilityLabel =
+    accessibilityLabel ?? (typeof children === 'string' ? children : undefined);
   return (
     <Pressable
-      accessibilityLabel={accessibilityLabel}
+      accessibilityLabel={resolvedAccessibilityLabel}
       accessibilityRole="button"
       accessibilityState={{ busy: loading, disabled: inactive }}
       disabled={inactive}
