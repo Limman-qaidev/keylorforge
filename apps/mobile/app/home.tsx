@@ -16,10 +16,7 @@ function HomeScreen() {
   const { session, signOut } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const email = session?.user.email ?? 'athlete';
-  const name =
-    session?.user.user_metadata.display_name ??
-    email.split('@')[0] ??
-    'Athlete';
+  const name = email.split('@')[0] || 'Athlete';
 
   const onSignOut = async () => {
     setError(null);
