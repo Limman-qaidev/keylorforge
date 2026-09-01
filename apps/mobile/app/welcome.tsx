@@ -3,7 +3,13 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { RequireSignedOut } from '@/components/auth/auth-guards';
 import { Screen } from '@/components/ui/screen';
-import { colors, radii, spacing, typography } from '@/components/ui/tokens';
+import {
+  colors,
+  radii,
+  spacing,
+  touchTarget,
+  typography,
+} from '@/components/ui/tokens';
 
 export default function WelcomeRoute() {
   return (
@@ -38,7 +44,7 @@ export default function WelcomeRoute() {
 }
 
 const styles = StyleSheet.create({
-  actions: { gap: spacing.lg },
+  actions: { gap: spacing.sm },
   brand: { color: colors.text, ...typography.section },
   brandAccent: { color: colors.progress },
   copy: { color: colors.textMuted, maxWidth: 300, ...typography.body },
@@ -58,7 +64,13 @@ const styles = StyleSheet.create({
   },
   primaryText: { color: colors.onDark, ...typography.label },
   progress: { color: colors.progress },
-  signIn: { color: colors.training, textAlign: 'center', ...typography.label },
+  signIn: {
+    color: colors.training,
+    minHeight: touchTarget,
+    paddingVertical: spacing.md,
+    textAlign: 'center',
+    ...typography.label,
+  },
   statement: { gap: spacing.xs },
   strength: { color: colors.strength },
 });
