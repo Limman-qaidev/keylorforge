@@ -17,7 +17,11 @@ const welcomeHero = require('../assets/images/welcome-hero.png');
 export default function WelcomeRoute() {
   return (
     <RequireSignedOut>
-      <ImageBackground source={welcomeHero} style={styles.hero}>
+      <ImageBackground
+        resizeMode="cover"
+        source={welcomeHero}
+        style={styles.hero}
+      >
         <StatusBar barStyle="light-content" />
         <SafeAreaView edges={['top', 'bottom']} style={styles.overlay}>
           <View style={styles.brandArea}>
@@ -46,9 +50,12 @@ export default function WelcomeRoute() {
             <Link asChild href="/sign-in">
               <Pressable
                 accessibilityRole="button"
-                style={styles.secondaryButton}
+                style={styles.signInAction}
               >
-                <Text style={styles.secondaryButtonText}>Sign in</Text>
+                <Text style={styles.signInText}>
+                  Already have an account?{' '}
+                  <Text style={styles.signInAccent}>Sign in</Text>
+                </Text>
               </Pressable>
             </Link>
           </View>
@@ -59,21 +66,26 @@ export default function WelcomeRoute() {
 }
 
 const styles = StyleSheet.create({
-  actions: { gap: 14, paddingBottom: 16 },
-  brandArea: { paddingTop: 24 },
-  content: { flex: 1, justifyContent: 'center' },
+  actions: { gap: 4, paddingBottom: 8 },
+  brandArea: { paddingTop: 18 },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingBottom: 54,
+  },
   headline: {
     color: '#ffffff',
-    fontSize: 46,
+    fontSize: 38,
     fontWeight: '900',
-    letterSpacing: -1.8,
-    lineHeight: 52,
+    letterSpacing: -1.2,
+    lineHeight: 44,
+    maxWidth: 330,
   },
   headlinePurple: { color: '#8562ff' },
   headlineTeal: { color: '#24ddd1' },
   hero: { flex: 1 },
   overlay: {
-    backgroundColor: 'rgba(3, 10, 20, 0.22)',
+    backgroundColor: 'rgba(3, 10, 20, 0.28)',
     flex: 1,
     paddingHorizontal: 24,
   },
@@ -85,21 +97,24 @@ const styles = StyleSheet.create({
     minHeight: 56,
   },
   primaryButtonText: { color: '#ffffff', fontSize: 17, fontWeight: '800' },
-  secondaryButton: {
+  signInAccent: { color: '#2de1d2', fontWeight: '800' },
+  signInAction: {
     alignItems: 'center',
-    backgroundColor: 'rgba(3, 10, 20, 0.55)',
-    borderColor: 'rgba(255, 255, 255, 0.65)',
-    borderRadius: 12,
-    borderWidth: 1,
     justifyContent: 'center',
-    minHeight: 56,
+    minHeight: 48,
+    paddingHorizontal: 12,
   },
-  secondaryButtonText: { color: '#ffffff', fontSize: 17, fontWeight: '800' },
+  signInText: {
+    color: 'rgba(255, 255, 255, 0.84)',
+    fontSize: 15,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
   supportingText: {
     color: '#ffffff',
-    fontSize: 18,
-    lineHeight: 26,
-    marginTop: 18,
-    maxWidth: 250,
+    fontSize: 16,
+    lineHeight: 23,
+    marginTop: 14,
+    maxWidth: 260,
   },
 });
