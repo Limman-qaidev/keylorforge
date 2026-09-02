@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { KeylorFitBrand } from '@/components/brand/keylorfit-brand';
+
 type AuthScreenProps = PropsWithChildren<{
   backHref?: '/welcome';
   subtitle?: string;
@@ -27,6 +29,7 @@ export function AuthScreen({
       <StatusBar barStyle="light-content" />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
+        keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>
@@ -45,7 +48,7 @@ export function AuthScreen({
             ) : (
               <View style={styles.backButtonPlaceholder} />
             )}
-            <AuthBrand compact />
+            <KeylorFitBrand compact variant="auth" />
             <View style={styles.backButtonPlaceholder} />
           </View>
           <View style={styles.heading}>
@@ -61,63 +64,55 @@ export function AuthScreen({
   );
 }
 
-export function AuthBrand({ compact = false }: { compact?: boolean }) {
-  return (
-    <View style={[styles.brand, compact ? styles.compactBrand : undefined]}>
-      <Text accessibilityElementsHidden style={styles.brandBolt}>
-        ⚡
-      </Text>
-      <Text accessibilityRole="header" style={styles.brandKeylor}>
-        KEYLOR
-      </Text>
-      <Text accessibilityRole="header" style={styles.brandFit}>
-        FIT
-      </Text>
-    </View>
-  );
-}
-
 export const authScreenStyles = StyleSheet.create({
   button: {
     alignItems: 'center',
     backgroundColor: '#1769ff',
     borderRadius: 12,
     justifyContent: 'center',
-    minHeight: 56,
+    minHeight: 54,
     paddingHorizontal: 16,
   },
   buttonText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
-  error: { color: '#ff9b9b', fontSize: 14, lineHeight: 20, marginTop: 12 },
+  error: { color: '#ff9b9b', fontSize: 14, lineHeight: 20, marginTop: 10 },
+  footerAccent: { color: '#2de1d2', fontWeight: '800' },
+  footerAction: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    minHeight: 48,
+    paddingHorizontal: 12,
+  },
+  footerText: {
+    color: '#aeb9c9',
+    fontSize: 15,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
   input: {
     color: '#f8fbff',
     flex: 1,
     fontSize: 16,
-    minHeight: 54,
+    minHeight: 52,
     paddingHorizontal: 16,
+    paddingVertical: 0,
   },
   inputContainer: {
     alignItems: 'center',
-    backgroundColor: '#121b28',
-    borderColor: '#4c5868',
+    backgroundColor: '#111b28',
+    borderColor: '#3f4c5d',
     borderRadius: 12,
     borderWidth: 1,
+    flexDirection: 'row',
     marginTop: 8,
-    minHeight: 56,
+    minHeight: 54,
+    overflow: 'hidden',
   },
   inputLabel: {
     color: '#f8fbff',
     fontSize: 14,
-    fontWeight: '600',
-    marginTop: 22,
-  },
-  link: {
-    color: '#2c82ff',
-    fontSize: 15,
     fontWeight: '700',
-    marginTop: 20,
-    minHeight: 48,
-    paddingVertical: 14,
-    textAlign: 'center',
+    marginTop: 18,
   },
 });
 
@@ -131,56 +126,38 @@ const styles = StyleSheet.create({
   backButtonPlaceholder: { height: 48, width: 48 },
   backButtonText: {
     color: '#ffffff',
-    fontSize: 42,
+    fontSize: 38,
     fontWeight: '300',
-    lineHeight: 42,
+    lineHeight: 38,
   },
-  brand: {
-    alignItems: 'baseline',
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  brandBolt: {
-    color: '#ffbf2f',
-    fontSize: 29,
-    fontWeight: '800',
-    lineHeight: 34,
-    marginRight: 5,
-  },
-  brandFit: {
-    color: '#2de1d2',
-    fontSize: 23,
-    fontStyle: 'italic',
-    fontWeight: '800',
-    letterSpacing: -1,
-  },
-  brandKeylor: {
-    color: '#ffffff',
-    fontSize: 23,
-    fontWeight: '800',
-    letterSpacing: -1,
-  },
-  compactBrand: { flex: 1 },
   container: {
     backgroundColor: '#050b14',
     flex: 1,
   },
-  content: { maxWidth: 480, width: '100%' },
-  heading: { marginTop: 56 },
+  content: {
+    alignSelf: 'center',
+    maxWidth: 480,
+    width: '100%',
+  },
+  heading: { marginTop: 34 },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
-    paddingBottom: 16,
+    paddingBottom: 28,
     paddingHorizontal: 24,
-    paddingTop: 16,
+    paddingTop: 18,
   },
-  subtitle: { color: '#c1c9d5', fontSize: 17, lineHeight: 24, marginTop: 8 },
+  subtitle: {
+    color: '#aeb9c9',
+    fontSize: 16,
+    lineHeight: 23,
+    marginTop: 6,
+  },
   title: {
     color: '#ffffff',
-    fontSize: 36,
+    fontSize: 32,
     fontWeight: '800',
-    letterSpacing: -1.1,
-    lineHeight: 42,
+    letterSpacing: -0.8,
+    lineHeight: 38,
   },
   topRow: {
     alignItems: 'center',

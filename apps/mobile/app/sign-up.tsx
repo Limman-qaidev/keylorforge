@@ -1,5 +1,5 @@
 import { Link } from 'expo-router';
-import { Text } from 'react-native';
+import { Pressable, Text } from 'react-native';
 
 import { AuthScreen, authScreenStyles } from '@/components/auth/auth-screen';
 import { RequireSignedOut } from '@/components/auth/auth-guards';
@@ -19,12 +19,16 @@ function SignUpScreen() {
         actionLabel="Create account"
         onSubmit={({ email, password }) => signUp(email, password)}
       />
-      <Link
-        accessibilityRole="link"
-        href="/sign-in"
-        style={authScreenStyles.link}
-      >
-        <Text>Already have an account? Sign in</Text>
+      <Link asChild href="/sign-in">
+        <Pressable
+          accessibilityRole="link"
+          style={authScreenStyles.footerAction}
+        >
+          <Text style={authScreenStyles.footerText}>
+            Already have an account?{' '}
+            <Text style={authScreenStyles.footerAccent}>Sign in</Text>
+          </Text>
+        </Pressable>
       </Link>
     </AuthScreen>
   );

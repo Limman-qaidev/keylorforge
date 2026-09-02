@@ -55,7 +55,8 @@ export function EmailPasswordForm({
               onBlur={onBlur}
               onChangeText={onChange}
               placeholder="you@email.com"
-              placeholderTextColor="#8b96a7"
+              placeholderTextColor="#7f8b9d"
+              returnKeyType="next"
               style={authScreenStyles.input}
               textContentType="emailAddress"
               value={value}
@@ -79,7 +80,8 @@ export function EmailPasswordForm({
               onBlur={onBlur}
               onChangeText={onChange}
               placeholder="Enter your password"
-              placeholderTextColor="#8b96a7"
+              placeholderTextColor="#7f8b9d"
+              returnKeyType="done"
               secureTextEntry={!isPasswordVisible}
               style={authScreenStyles.input}
               textContentType="password"
@@ -126,13 +128,14 @@ export function EmailPasswordForm({
 }
 
 const styles = StyleSheet.create({
-  button: { marginTop: 24 },
+  button: { marginTop: 22 },
   fieldError: { color: '#ff9b9b', fontSize: 14, lineHeight: 20, marginTop: 6 },
   visibilityButton: {
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,
-    paddingHorizontal: 14,
+    minWidth: 58,
+    paddingHorizontal: 12,
   },
   visibilityButtonText: { color: '#aeb9c9', fontSize: 14, fontWeight: '700' },
 });
