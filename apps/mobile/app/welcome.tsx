@@ -1,5 +1,12 @@
 import { Link } from 'expo-router';
-import { ImageBackground, Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
+import {
+  ImageBackground,
+  Pressable,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthBrand } from '@/components/auth/auth-screen';
