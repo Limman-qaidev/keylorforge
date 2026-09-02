@@ -1,6 +1,13 @@
 import type { PropsWithChildren } from 'react';
 import { Link } from 'expo-router';
-import { Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type AuthScreenProps = PropsWithChildren<{
