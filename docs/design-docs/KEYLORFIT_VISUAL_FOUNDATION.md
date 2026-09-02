@@ -8,15 +8,19 @@ This document is the implementation contract for KeylorFit's visual foundation. 
 
 The approved broader product-direction reference is committed at:
 
-`docs/design-docs/keylorfit-ui-reference/keylorfit-ui-foundation-v1.jpg`
+`docs/design-docs/keylorfit-ui-reference/keylorfit-ui-foundation-v1.png`
 
-The approved **current M1 / UX-001 implementation reference** is committed at:
+The approved broader M1/product-shell reference is committed at:
 
-`docs/design-docs/keylorfit-ui-reference/keylorfit-m1-reference-v1.jpg`
+`docs/design-docs/keylorfit-ui-reference/keylorfit-m1-reference-v1.png`
 
-Both images are **directional visual references**, not pixel-perfect screenshot specifications and not commitments that every future feature shown in a concept exists in the current milestone. Where generated mockup text or data conflicts with product/domain contracts, the product/domain contracts win.
+The approved **Welcome/Auth close visual target** is committed at:
 
-For #51 specifically, implementation agents must inspect both images before coding. The broad board defines the product language; the M1 board is the closer visual target for Welcome, Sign in, Sign up, current authenticated Home, Profile and representative loading/error states.
+`docs/design-docs/keylorfit-ui-reference/keylorfit-auth-reference-v1.png`
+
+The reference boards are visual specifications, not sources of domain truth. Where generated mockup text/data or controls conflict with product/domain contracts, current product/domain contracts win. A control shown in a board must not be made fake merely for screenshot parity.
+
+For Welcome, Sign in and Sign up specifically, `keylorfit-auth-reference-v1.png` is the closest visual target and should be matched closely in composition, energy, imagery, hierarchy, density, spacing and control treatment, subject to platform/accessibility constraints and real product behavior.
 
 ## 1. Product personality
 
@@ -49,11 +53,13 @@ Approved primary navigation concept:
 
 The bottom navigation must remain compact and usable with one hand. Navigation labels should be explicit; do not rely on ambiguous icons alone.
 
+Implementation ownership for the authenticated five-destination shell is tracked in #67. UX-001 may define/reuse the visual language, but must not invent future Progress/Workout/Social domain data merely to populate the shell.
+
 ## 4. Surface modes
 
 ### 4.1 Standard application mode
 
-Home, Progress, Training Hub, Social, Profile, Auth and configuration surfaces use the fresh light visual language:
+Home, Progress, Training Hub, Social, Profile and configuration surfaces use the fresh light visual language:
 
 - bright/clean surfaces
 - compact information density
@@ -61,6 +67,8 @@ Home, Progress, Training Hub, Social, Profile, Auth and configuration surfaces u
 - imagery where it increases motivation or recognition
 - strong hierarchy without oversized explanatory copy
 - cards only when they group meaningful information; avoid card-everything UI
+
+Auth uses the approved treatment shown in `keylorfit-auth-reference-v1.png`; this includes a high-energy dark photographic Welcome and dark, refined authentication surfaces rather than generic white scaffold forms.
 
 ### 4.2 Active workout mode
 
@@ -79,7 +87,28 @@ Do not bury the active set behind analytics, social content or navigation comple
 
 ## 5. Approved representative surfaces
 
-The approved reference establishes direction for these surfaces:
+### Welcome / Auth
+
+The Welcome/Auth triptych is a close target, not merely loose inspiration.
+
+Welcome should preserve:
+
+- strong athlete/gym imagery
+- dark/navy visual field
+- high contrast
+- KeylorFit branding integrated into the composition
+- white + teal/blue/purple hierarchy
+- strong, compact motivational copy
+- a prominent lower CTA area
+
+Sign in and Sign up should preserve the triptych's density, spacing, hierarchy, input treatment and visual refinement.
+
+Functional ownership remains separate where appropriate:
+
+- password recovery belongs to #41
+- Google/Apple provider authentication belongs to #66
+
+Do not ship dead recovery/social-auth controls to mimic the image. Integrate their approved visual treatment once the owning issue supplies real behavior.
 
 ### Home
 
@@ -203,56 +232,59 @@ Do not use oversized marketing-style headings on routine operational screens.
 
 The implementation should provide a small composable foundation rather than a large third-party UI framework.
 
-At minimum:
+At minimum, reusable primitives should be introduced when required by real implemented screens rather than speculatively building a large component library. Likely reusable roles include:
 
 - application screen/safe-area shell
-- active-workout dark shell
-- bottom navigation shell / item treatment
 - section heading
 - card/section surface
-- primary button
-- secondary button
-- destructive button
+- primary/secondary/destructive buttons
 - compact icon action
-- text input
-- numeric/set input treatment
+- text input / password treatment
 - validation/error message
 - loading state
 - empty state
 - avatar treatment
-- progress/delta indicator primitives where genuinely reusable
+- progress/delta indicators where genuinely reusable
 
 Components should expose intent/semantic variants rather than screen-specific colors.
 
-## 8. Current UX-001 implementation scope
+## 8. UX-001 scope and issue boundaries
 
-UX-001 is a **foundation issue**, not permission to implement every surface visible in either concept board.
+UX-001 is a **foundation issue**, not permission to implement every surface visible in a concept board.
 
-The Product Owner-approved M1 board is the direct visual reference for the screens that already exist. For the current repository state, the implementation should:
+The accepted implementation is allowed to land in bounded slices. #51 remains open while dependent/adjacent issues provide real behavior required by the final visual experience.
 
-1. introduce the approved token/component foundation
-2. upgrade existing Welcome/Auth surfaces to the approved M1 language
-3. upgrade authenticated Home while preserving existing M1 behavior and without faking future data
-4. upgrade Profile while preserving the server-backed M1 profile behavior
-5. establish the navigation/shell direction needed for future M2 surfaces without inventing unfinished M2 features
-6. implement coherent loading, skeleton and error-state treatments based on the M1 reference where those states already exist or are naturally reusable primitives
-7. document how future screens consume the foundation
-8. pass accessibility and physical Android smoke
+Ownership boundaries:
 
-Do not ship non-functional menu items or fake unavailable domain data merely because they appear in a concept reference.
+- #51 owns the visual foundation and visual composition of Welcome/Auth and other accepted M1 surfaces.
+- #41 owns real password recovery behavior.
+- #66 owns real Google/Apple provider authentication.
+- #67 owns the authenticated five-destination app shell.
+- later domain milestones own Progress analytics, workout functionality, rankings and social content.
 
-The M1 mockup may show illustrative items that are **not** current requirements (for example third-party sign-in buttons, richer profile statistics, notification counts, rankings or future navigation destinations). Such items must not be implemented unless they are supported by the current product/domain scope.
+### Current implementation slice
+
+The next bounded #51 implementation pass is intentionally limited to:
+
+1. Welcome visual parity
+2. Sign in visual parity using existing email/password behavior
+3. Sign up visual parity using existing email/password behavior
+4. only the tokens/primitives required by those surfaces
+5. preservation of existing authentication/session behavior
+6. accessibility and physical Android visual smoke
+
+Do **not** modify Home, Profile, the authenticated five-destination shell, password-recovery behavior, provider-auth behavior, backend, database or Supabase contracts in this slice.
 
 ## 9. Reference-image usage during implementation
 
 For every visual implementation PR touching this foundation:
 
-- open `keylorfit-ui-foundation-v1.jpg` before coding
-- open `keylorfit-m1-reference-v1.jpg` before coding when implementing #51/current M1 surfaces
-- compare the rendered phone UI against the relevant region of the M1 reference during implementation
+- inspect `keylorfit-ui-foundation-v1.png` for the broader product language
+- inspect `keylorfit-m1-reference-v1.png` for broader M1 composition
+- when touching Welcome/Auth, inspect `keylorfit-auth-reference-v1.png` and treat it as the closest visual target
+- compare rendered physical-device screenshots side-by-side against the relevant reference before acceptance
 - preserve hierarchy, density, imagery treatment, navigation character and mode distinction
-- do not blindly reproduce generated text, fake data, unsupported auth providers or impossible details
-- attach/update physical-device screenshots in PR evidence when practical
+- do not blindly reproduce generated text, fake data, unsupported provider behavior or impossible details
 
 A visual difference is acceptable when required by accessibility, platform behavior, real product requirements or existing domain contracts. Material visual-direction changes require Product Owner approval.
 
@@ -274,8 +306,8 @@ UX-001 does not require:
 - marketing site design
 - full animation/motion system
 - implementation of workout engine, exercise catalog, rankings, social feed, plans or events ahead of their domain milestones
-- third-party Google/Apple authentication merely because it appears in the M1 concept image
-- fake workout/progress/social data used only to make Home resemble a mockup
+- fake Google/Apple authentication
+- fake workout/progress/social data used only to make a screen resemble a mockup
 - adoption of a large UI framework
 
 The active-workout dark mode is a purposeful product mode and is distinct from implementing a universal app-wide dark theme.
@@ -284,10 +316,12 @@ The active-workout dark mode is a purposeful product mode and is distinct from i
 
 UX-001 is complete only when:
 
-- both approved visual references are committed alongside this contract
-- visual tokens and reusable primitives are implemented
-- existing M1 user-facing screens no longer look like engineering scaffolding
-- implementation matches the approved M1 visual direction at product level
+- the approved visual references are versioned alongside this contract
+- visual tokens/primitives required by implemented surfaces are reusable and coherent
+- existing M1 user-facing surfaces no longer look like engineering scaffolding
+- Welcome/Auth closely match the Product Owner-approved auth triptych
+- the authenticated shell is integrated from #67 where required for final M1 presentation
+- real password-recovery/provider controls are integrated from their owning identity issues rather than faked
 - accessibility basics pass
 - tests/CI pass
 - Product Owner visually reviews the implementation on a physical Android device and approves it
