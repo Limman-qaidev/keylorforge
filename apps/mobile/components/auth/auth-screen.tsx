@@ -65,7 +65,7 @@ export function AuthBrand({ compact = false }: { compact?: boolean }) {
   return (
     <View style={[styles.brand, compact ? styles.compactBrand : undefined]}>
       <Text accessibilityElementsHidden style={styles.brandBolt}>
-        ϟ
+        ⚡
       </Text>
       <Text accessibilityRole="header" style={styles.brandKeylor}>
         KEYLOR
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
   },
   brandBolt: {
     color: '#ffbf2f',
-    fontSize: 31,
+    fontSize: 29,
     fontWeight: '800',
     lineHeight: 34,
     marginRight: 5,
