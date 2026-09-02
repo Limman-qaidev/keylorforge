@@ -1,13 +1,7 @@
 import type { PropsWithChildren } from 'react';
 import { Link } from 'expo-router';
-import {
-  Pressable,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type AuthScreenProps = PropsWithChildren<{
   backHref?: '/welcome';
@@ -22,7 +16,7 @@ export function AuthScreen({
   title,
 }: AuthScreenProps) {
   return (
-    <View style={styles.container}>
+    <SafeAreaView edges={['top', 'bottom']} style={styles.container}>
       <StatusBar barStyle="light-content" />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -56,7 +50,7 @@ export function AuthScreen({
           {children}
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -113,7 +107,9 @@ export const authScreenStyles = StyleSheet.create({
     color: '#2c82ff',
     fontSize: 15,
     fontWeight: '700',
-    marginTop: 28,
+    marginTop: 20,
+    minHeight: 48,
+    paddingVertical: 14,
     textAlign: 'center',
   },
 });
@@ -167,9 +163,9 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingBottom: 32,
+    paddingBottom: 16,
     paddingHorizontal: 24,
-    paddingTop: (StatusBar.currentHeight ?? 0) + 16,
+    paddingTop: 16,
   },
   subtitle: { color: '#c1c9d5', fontSize: 17, lineHeight: 24, marginTop: 8 },
   title: {
