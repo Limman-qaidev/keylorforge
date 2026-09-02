@@ -1,24 +1,77 @@
 import type { PropsWithChildren } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Link } from 'expo-router';
+import {
+  Pressable,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 type AuthScreenProps = PropsWithChildren<{
+  backHref?: '/welcome';
   subtitle?: string;
   title: string;
 }>;
 
-export function AuthScreen({ children, subtitle, title }: AuthScreenProps) {
+export function AuthScreen({
+  backHref,
+  children,
+  subtitle,
+  title,
+}: AuthScreenProps) {
   return (
     <View style={styles.container}>
-      <View style={styles.content}>
-        <Text accessibilityRole="header" style={styles.brand}>
-          KeylorFit
-        </Text>
-        <Text accessibilityRole="header" style={styles.title}>
-          {title}
-        </Text>
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-        {children}
-      </View>
+      <StatusBar barStyle="light-content" />
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.content}>
+          <View style={styles.topRow}>
+            {backHref ? (
+              <Link asChild href={backHref}>
+                <Pressable
+                  accessibilityLabel="Back to welcome"
+                  accessibilityRole="button"
+                  hitSlop={8}
+                  style={styles.backButton}
+                >
+                  <Text style={styles.backButtonText}>‹</Text>
+                </Pressable>
+              </Link>
+            ) : (
+              <View style={styles.backButtonPlaceholder} />
+            )}
+            <AuthBrand compact />
+            <View style={styles.backButtonPlaceholder} />
+          </View>
+          <View style={styles.heading}>
+            <Text accessibilityRole="header" style={styles.title}>
+              {title}
+            </Text>
+            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+          </View>
+          {children}
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+export function AuthBrand({ compact = false }: { compact?: boolean }) {
+  return (
+    <View style={[styles.brand, compact ? styles.compactBrand : undefined]}>
+      <Text accessibilityElementsHidden style={styles.brandBolt}>
+        ϟ
+      </Text>
+      <Text accessibilityRole="header" style={styles.brandKeylor}>
+        KEYLOR
+      </Text>
+      <Text accessibilityRole="header" style={styles.brandFit}>
+        FIT
+      </Text>
     </View>
   );
 }
@@ -26,46 +79,109 @@ export function AuthScreen({ children, subtitle, title }: AuthScreenProps) {
 export const authScreenStyles = StyleSheet.create({
   button: {
     alignItems: 'center',
-    backgroundColor: '#275dad',
-    borderRadius: 8,
+    backgroundColor: '#1769ff',
+    borderRadius: 12,
     justifyContent: 'center',
-    minHeight: 48,
+    minHeight: 56,
     paddingHorizontal: 16,
   },
   buttonText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
-  error: { color: '#b42318', fontSize: 14, marginTop: 12 },
+  error: { color: '#ff9b9b', fontSize: 14, lineHeight: 20, marginTop: 12 },
   input: {
-    borderColor: '#8b9ab2',
-    borderRadius: 8,
-    borderWidth: 1,
+    color: '#f8fbff',
+    flex: 1,
     fontSize: 16,
+    minHeight: 54,
+    paddingHorizontal: 16,
+  },
+  inputContainer: {
+    alignItems: 'center',
+    backgroundColor: '#121b28',
+    borderColor: '#4c5868',
+    borderRadius: 12,
+    borderWidth: 1,
     marginTop: 8,
-    minHeight: 48,
-    paddingHorizontal: 12,
+    minHeight: 56,
   },
   inputLabel: {
-    color: '#24344d',
-    fontSize: 15,
+    color: '#f8fbff',
+    fontSize: 14,
     fontWeight: '600',
-    marginTop: 16,
+    marginTop: 22,
   },
-  link: { color: '#1d4f91', fontSize: 16, fontWeight: '600', marginTop: 20 },
+  link: {
+    color: '#2c82ff',
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: 28,
+    textAlign: 'center',
+  },
 });
 
 const styles = StyleSheet.create({
-  brand: {
-    color: '#275dad',
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 28,
-  },
-  container: {
-    backgroundColor: '#f7f9fc',
-    flex: 1,
+  backButton: {
+    alignItems: 'center',
+    height: 48,
     justifyContent: 'center',
-    padding: 24,
+    width: 48,
   },
-  content: { width: '100%' },
-  subtitle: { color: '#4d5d74', fontSize: 16, lineHeight: 23, marginTop: 8 },
-  title: { color: '#101b2d', fontSize: 30, fontWeight: '700' },
+  backButtonPlaceholder: { height: 48, width: 48 },
+  backButtonText: {
+    color: '#ffffff',
+    fontSize: 42,
+    fontWeight: '300',
+    lineHeight: 42,
+  },
+  brand: {
+    alignItems: 'baseline',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  brandBolt: {
+    color: '#ffbf2f',
+    fontSize: 31,
+    fontWeight: '800',
+    lineHeight: 34,
+    marginRight: 5,
+  },
+  brandFit: {
+    color: '#2de1d2',
+    fontSize: 23,
+    fontStyle: 'italic',
+    fontWeight: '800',
+    letterSpacing: -1,
+  },
+  brandKeylor: {
+    color: '#ffffff',
+    fontSize: 23,
+    fontWeight: '800',
+    letterSpacing: -1,
+  },
+  compactBrand: { flex: 1 },
+  container: {
+    backgroundColor: '#050b14',
+    flex: 1,
+  },
+  content: { maxWidth: 480, width: '100%' },
+  heading: { marginTop: 56 },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingBottom: 32,
+    paddingHorizontal: 24,
+    paddingTop: (StatusBar.currentHeight ?? 0) + 16,
+  },
+  subtitle: { color: '#c1c9d5', fontSize: 17, lineHeight: 24, marginTop: 8 },
+  title: {
+    color: '#ffffff',
+    fontSize: 36,
+    fontWeight: '800',
+    letterSpacing: -1.1,
+    lineHeight: 42,
+  },
+  topRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
 });

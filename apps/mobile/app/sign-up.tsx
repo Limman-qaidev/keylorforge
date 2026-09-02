@@ -11,7 +11,8 @@ function SignUpScreen() {
 
   return (
     <AuthScreen
-      subtitle="Create a KeylorFit account with an email address and password."
+      backHref="/welcome"
+      subtitle="Join KeylorFit."
       title="Create your account"
     >
       <EmailPasswordForm

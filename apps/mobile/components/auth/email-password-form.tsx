@@ -23,6 +23,7 @@ export function EmailPasswordForm({
   onSubmit,
 }: EmailPasswordFormProps) {
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [isPasswordVisible, setPasswordVisible] = useState(false);
   const {
     control,
     formState: { errors, isSubmitting },
@@ -45,17 +46,21 @@ export function EmailPasswordForm({
         control={control}
         name="email"
         render={({ field: { onBlur, onChange, value } }) => (
-          <TextInput
-            accessibilityLabel="Email"
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            onBlur={onBlur}
-            onChangeText={onChange}
-            style={authScreenStyles.input}
-            textContentType="emailAddress"
-            value={value}
-          />
+          <View style={authScreenStyles.inputContainer}>
+            <TextInput
+              accessibilityLabel="Email"
+              autoCapitalize="none"
+              autoComplete="email"
+              keyboardType="email-address"
+              onBlur={onBlur}
+              onChangeText={onChange}
+              placeholder="you@email.com"
+              placeholderTextColor="#8b96a7"
+              style={authScreenStyles.input}
+              textContentType="emailAddress"
+              value={value}
+            />
+          </View>
         )}
       />
       {errors.email ? (
@@ -67,16 +72,33 @@ export function EmailPasswordForm({
         control={control}
         name="password"
         render={({ field: { onBlur, onChange, value } }) => (
-          <TextInput
-            accessibilityLabel="Password"
-            autoComplete="password"
-            onBlur={onBlur}
-            onChangeText={onChange}
-            secureTextEntry
-            style={authScreenStyles.input}
-            textContentType="password"
-            value={value}
-          />
+          <View style={authScreenStyles.inputContainer}>
+            <TextInput
+              accessibilityLabel="Password"
+              autoComplete="password"
+              onBlur={onBlur}
+              onChangeText={onChange}
+              placeholder="Enter your password"
+              placeholderTextColor="#8b96a7"
+              secureTextEntry={!isPasswordVisible}
+              style={authScreenStyles.input}
+              textContentType="password"
+              value={value}
+            />
+            <Pressable
+              accessibilityLabel={
+                isPasswordVisible ? 'Hide password' : 'Show password'
+              }
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={() => setPasswordVisible((visible) => !visible)}
+              style={styles.visibilityButton}
+            >
+              <Text style={styles.visibilityButtonText}>
+                {isPasswordVisible ? 'Hide' : 'Show'}
+              </Text>
+            </Pressable>
+          </View>
         )}
       />
       {errors.password ? (
@@ -105,5 +127,12 @@ export function EmailPasswordForm({
 
 const styles = StyleSheet.create({
   button: { marginTop: 24 },
-  fieldError: { color: '#b42318', fontSize: 14, marginTop: 6 },
+  fieldError: { color: '#ff9b9b', fontSize: 14, lineHeight: 20, marginTop: 6 },
+  visibilityButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+    paddingHorizontal: 14,
+  },
+  visibilityButtonText: { color: '#aeb9c9', fontSize: 14, fontWeight: '700' },
 });

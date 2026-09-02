@@ -10,10 +10,7 @@ function SignInScreen() {
   const { feedback, signIn } = useAuth();
 
   return (
-    <AuthScreen
-      subtitle="Use your KeylorFit email and password."
-      title="Sign in"
-    >
+    <AuthScreen backHref="/welcome" subtitle="Welcome back." title="Sign in">
       {feedback ? (
         <Text style={authScreenStyles.error}>{feedback.message}</Text>
       ) : null}
