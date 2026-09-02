@@ -1,12 +1,6 @@
 import { Link } from 'expo-router';
-import {
-  ImageBackground,
-  Pressable,
-  StatusBar,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ImageBackground, Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AuthBrand } from '@/components/auth/auth-screen';
 import { RequireSignedOut } from '@/components/auth/auth-guards';
@@ -18,7 +12,7 @@ export default function WelcomeRoute() {
     <RequireSignedOut>
       <ImageBackground source={welcomeHero} style={styles.hero}>
         <StatusBar barStyle="light-content" />
-        <View style={styles.overlay}>
+        <SafeAreaView edges={['top', 'bottom']} style={styles.overlay}>
           <View style={styles.brandArea}>
             <AuthBrand />
           </View>
@@ -51,15 +45,15 @@ export default function WelcomeRoute() {
               </Pressable>
             </Link>
           </View>
-        </View>
+        </SafeAreaView>
       </ImageBackground>
     </RequireSignedOut>
   );
 }
 
 const styles = StyleSheet.create({
-  actions: { gap: 14, paddingBottom: 32 },
-  brandArea: { paddingTop: (StatusBar.currentHeight ?? 0) + 24 },
+  actions: { gap: 14, paddingBottom: 16 },
+  brandArea: { paddingTop: 24 },
   content: { flex: 1, justifyContent: 'center' },
   headline: {
     color: '#ffffff',
