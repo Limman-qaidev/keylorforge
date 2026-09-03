@@ -11,6 +11,15 @@ describe('recovery callback parsing', () => {
         'keylorforge://auth/confirm#access_token=access-token&refresh_token=refresh-token',
       ),
     ).toEqual({ kind: 'invalid' });
+    expect(
+      parseRecoveryCallback(
+        'keylorforge://auth/recovery#access_token=access-token&refresh_token=refresh-token&type=recovery',
+      ),
+    ).toEqual({
+      accessToken: 'access-token',
+      kind: 'session',
+      refreshToken: 'refresh-token',
+    });
   });
 
   it('does not surface provider callback error details', () => {
@@ -23,7 +32,22 @@ describe('recovery callback parsing', () => {
 
   it('requires both credentials from the callback fragment', () => {
     expect(
-      parseRecoveryCallback('keylorforge://auth/recovery#access_token=token'),
+      parseRecoveryCallback(
+        'keylorforge://auth/recovery#access_token=token&type=recovery',
+      ),
     ).toEqual({ kind: 'invalid' });
   });
+
+  it.each(['confirm', 'magiclink', null])(
+    'rejects a tokenized non-recovery callback type: %s',
+    (type) => {
+      const typeParameter = type ? `&type=${type}` : '';
+
+      expect(
+        parseRecoveryCallback(
+          `keylorforge://auth/recovery#access_token=access-token&refresh_token=refresh-token${typeParameter}`,
+        ),
+      ).toEqual({ kind: 'invalid' });
+    },
+  );
 });

@@ -369,17 +369,24 @@ export function AuthProvider({
         return { error: clientResult.error ?? 'Supabase is unavailable.' };
       }
 
-      const { error } = await client.auth.resetPasswordForEmail(email, {
-        redirectTo: RECOVERY_CALLBACK_URL,
-      });
-      if (error) {
+      try {
+        const { error } = await client.auth.resetPasswordForEmail(email, {
+          redirectTo: RECOVERY_CALLBACK_URL,
+        });
+        if (!error) {
+          return {};
+        }
+
+        return {
+          error:
+            'We could not send the recovery email. Check your connection and try again.',
+        };
+      } catch {
         return {
           error:
             'We could not send the recovery email. Check your connection and try again.',
         };
       }
-
-      return {};
     },
     [clientResult.client, clientResult.error],
   );
@@ -502,10 +509,14 @@ export function AuthProvider({
         return { error: clientResult.error ?? 'Supabase is unavailable.' };
       }
 
-      if (
-        isConsumingRecovery.current ||
-        stateRef.current.phase === 'recovery'
-      ) {
+      if (isConsumingRecovery.current) {
+        return {
+          error:
+            'A recovery link is already being validated. Wait for it to finish or request a new recovery email.',
+        };
+      }
+
+      if (stateRef.current.phase === 'recovery') {
         return {};
       }
 
@@ -611,15 +622,35 @@ export function AuthProvider({
           };
         }
 
+        let signOutError: Error | null;
         try {
-          await client.auth.signOut({ scope: 'local' });
-        } finally {
-          try {
-            await AsyncStorage.removeItem(recoveryActiveKey);
-          } finally {
-            updateAuthState(stateForSession(null));
-          }
+          ({ error: signOutError } = await client.auth.signOut({
+            scope: 'local',
+          }));
+        } catch {
+          return {
+            error:
+              'We could not finish this recovery safely. Request a new recovery email and try again.',
+          };
         }
+
+        if (signOutError) {
+          return {
+            error:
+              'We could not finish this recovery safely. Request a new recovery email and try again.',
+          };
+        }
+
+        try {
+          await AsyncStorage.removeItem(recoveryActiveKey);
+        } catch {
+          return {
+            error:
+              'We could not finish this recovery safely. Request a new recovery email and try again.',
+          };
+        }
+
+        updateAuthState(stateForSession(null));
 
         return {};
       } finally {

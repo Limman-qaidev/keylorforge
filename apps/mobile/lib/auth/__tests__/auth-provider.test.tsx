@@ -48,6 +48,7 @@ function createClient({
   signUpError = null,
   signOutError = null,
   recoveryRequestError = null,
+  recoveryRequestException = null,
   updateUserError = null,
 }: {
   initialSession?: Session | null;
@@ -64,6 +65,7 @@ function createClient({
   signUpSession?: Session | null;
   signOutError?: Error | null;
   recoveryRequestError?: Error | null;
+  recoveryRequestException?: Error | null;
   updateUserError?: Error | null;
 } = {}) {
   let listener: AuthListener | undefined;
@@ -101,10 +103,12 @@ function createClient({
         data: { session: refreshSessionError ? null : refreshSessionValue },
         error: refreshSessionError,
       }),
-      resetPasswordForEmail: jest.fn().mockResolvedValue({
-        data: {},
-        error: recoveryRequestError,
-      }),
+      resetPasswordForEmail: recoveryRequestException
+        ? jest.fn().mockRejectedValue(recoveryRequestException)
+        : jest.fn().mockResolvedValue({
+            data: {},
+            error: recoveryRequestError,
+          }),
       signInWithPassword: jest.fn().mockResolvedValue({
         data: { session: signInError ? null : session() },
         error: signInError,
@@ -132,6 +136,15 @@ function createClient({
       listener?.(event, nextSession);
     },
   };
+}
+
+function deferred<Value>() {
+  let resolve: (value: Value) => void;
+  const promise = new Promise<Value>((nextResolve) => {
+    resolve = nextResolve;
+  });
+
+  return { promise, resolve: resolve! };
 }
 
 function AuthProbe() {
@@ -167,6 +180,15 @@ function AuthProbe() {
       </Pressable>
       <Pressable
         onPress={() =>
+          void consumeRecoveryCallback(
+            'keylorforge://auth/recovery#access_token=second-recovery-access-token&refresh_token=second-recovery-refresh-token&type=recovery',
+          ).then((result) => setCallbackResult(result.error ?? 'success'))
+        }
+      >
+        <Text>consume second recovery</Text>
+      </Pressable>
+      <Pressable
+        onPress={() =>
           void requestPasswordRecovery('person@example.com').then((result) =>
             setCallbackResult(result.error ?? 'success'),
           )
@@ -177,7 +199,7 @@ function AuthProbe() {
       <Pressable
         onPress={() =>
           void consumeRecoveryCallback(
-            'keylorforge://auth/recovery#access_token=recovery-access-token&refresh_token=recovery-refresh-token',
+            'keylorforge://auth/recovery#access_token=recovery-access-token&refresh_token=recovery-refresh-token&type=recovery',
           ).then((result) => setCallbackResult(result.error ?? 'success'))
         }
       >
@@ -341,6 +363,29 @@ describe('AuthProvider', () => {
     expect(getByTestId('callback-result').props.children).toBe('success');
   });
 
+  it('maps a rejected recovery request to the same safe error', async () => {
+    const { client } = createClient({
+      recoveryRequestException: new Error(
+        'provider detail: person@example.com',
+      ),
+    });
+    const { getByText, getByTestId, queryByText } = await render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedOut');
+    await act(async () => {
+      fireEvent.press(getByText('request recovery'));
+    });
+
+    expect(getByTestId('callback-result').props.children).toBe(
+      'We could not send the recovery email. Check your connection and try again.',
+    );
+    expect(queryByText(/provider detail/i)).toBeNull();
+  });
+
   it('keeps a recovery callback out of the signed-in shell until the password is updated', async () => {
     const { client } = createClient();
     const { getByText, getByTestId } = await render(
@@ -383,6 +428,43 @@ describe('AuthProvider', () => {
     await expectPhase(getByTestId, 'recovery');
   });
 
+  it('keeps the first recovery callback active when another callback arrives', async () => {
+    const pendingSession = deferred<{
+      data: { session: Session };
+      error: null;
+    }>();
+    const { client } = createClient();
+    const setSession = client.auth.setSession as unknown as jest.Mock;
+    setSession.mockReturnValue(pendingSession.promise);
+    const { getByText, getByTestId } = await render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedOut');
+    fireEvent.press(getByText('consume recovery'));
+    await waitFor(() => {
+      expect(setSession).toHaveBeenCalledTimes(1);
+    });
+    await act(async () => {
+      fireEvent.press(getByText('consume second recovery'));
+    });
+
+    await waitFor(() => {
+      expect(getByTestId('callback-result').props.children).toBe(
+        'A recovery link is already being validated. Wait for it to finish or request a new recovery email.',
+      );
+    });
+    expect(getByTestId('phase').props.children).toBe('signedOut');
+    expect(setSession).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      pendingSession.resolve({ data: { session: session() }, error: null });
+    });
+    await expectPhase(getByTestId, 'recovery');
+  });
+
   it('fails closed and removes recovery state when session setup fails', async () => {
     const { client } = createClient({
       setSessionError: new Error('provider detail: recovery-access-token'),
@@ -403,6 +485,44 @@ describe('AuthProvider', () => {
     expect(AsyncStorage.removeItem).toHaveBeenCalledWith(
       '@keylorforge/auth/recovery-active',
     );
+  });
+
+  it('does not report success when local recovery sign-out fails', async () => {
+    const { client } = createClient({
+      signOutError: new Error('local storage detail'),
+    });
+    const { getByText, getByTestId } = await render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedOut');
+    await act(async () => {
+      fireEvent.press(getByText('consume recovery'));
+    });
+    await expectPhase(getByTestId, 'recovery');
+    const cleanupCallsBeforeUpdate = jest
+      .mocked(AsyncStorage.removeItem)
+      .mock.calls.filter(
+        ([key]) => key === '@keylorforge/auth/recovery-active',
+      ).length;
+
+    await act(async () => {
+      fireEvent.press(getByText('update recovery password'));
+    });
+
+    expect(getByTestId('phase').props.children).toBe('recovery');
+    expect(getByTestId('callback-result').props.children).toBe(
+      'We could not finish this recovery safely. Request a new recovery email and try again.',
+    );
+    expect(
+      jest
+        .mocked(AsyncStorage.removeItem)
+        .mock.calls.filter(
+          ([key]) => key === '@keylorforge/auth/recovery-active',
+        ).length,
+    ).toBe(cleanupCallsBeforeUpdate);
   });
 
   it('rejects malformed recovery callbacks without mutating session state', async () => {

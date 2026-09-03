@@ -31,6 +31,10 @@ export function parseRecoveryCallback(url: string): RecoveryCallback {
       return { kind: 'providerError' };
     }
 
+    if (parameters.get('type') !== 'recovery') {
+      return { kind: 'invalid' };
+    }
+
     const accessToken = parameters.get('access_token');
     const refreshToken = parameters.get('refresh_token');
     if (!accessToken || !refreshToken) {
