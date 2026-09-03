@@ -1,18 +1,17 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
+import { useLocalSearchParams } from 'expo-router';
 
 import RecoveryCallbackRoute from '../recovery';
 import { useAuth } from '@/lib/auth/auth-provider';
-import { useLinkingURL } from 'expo-linking';
 
 const mockReplace = jest.fn();
 const consumeRecoveryCallback = jest.fn();
 const updateRecoveryPassword = jest.fn();
 const mockedUseAuth = jest.mocked(useAuth);
-const mockedUseLinkingURL = jest.mocked(useLinkingURL);
-
-jest.mock('expo-linking', () => ({ useLinkingURL: jest.fn() }));
+const mockedUseLocalSearchParams = jest.mocked(useLocalSearchParams);
 
 jest.mock('expo-router', () => ({
+  useLocalSearchParams: jest.fn(),
   useRouter: () => ({ replace: mockReplace }),
 }));
 
@@ -21,9 +20,9 @@ jest.mock('@/lib/auth/auth-provider', () => ({ useAuth: jest.fn() }));
 describe('RecoveryCallbackRoute', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockedUseLinkingURL.mockReturnValue(
-      'keylorforge://auth/recovery#access_token=access-token&refresh_token=refresh-token&type=recovery',
-    );
+    mockedUseLocalSearchParams.mockReturnValue({
+      '#': 'access_token=access-token&refresh_token=refresh-token&type=recovery',
+    });
     updateRecoveryPassword.mockResolvedValue({});
   });
 
@@ -40,6 +39,35 @@ describe('RecoveryCallbackRoute', () => {
     await waitFor(() => {
       expect(consumeRecoveryCallback).toHaveBeenCalledWith(
         'keylorforge://auth/recovery#access_token=access-token&refresh_token=refresh-token&type=recovery',
+      );
+    });
+  });
+
+  it('consumes a second recovery link from the current route hash', async () => {
+    consumeRecoveryCallback.mockResolvedValue({});
+    mockedUseAuth.mockReturnValue({
+      consumeRecoveryCallback,
+      phase: 'signedOut',
+      updateRecoveryPassword,
+    } as unknown as ReturnType<typeof useAuth>);
+
+    const view = await render(<RecoveryCallbackRoute />);
+
+    await waitFor(() => {
+      expect(consumeRecoveryCallback).toHaveBeenCalledWith(
+        'keylorforge://auth/recovery#access_token=access-token&refresh_token=refresh-token&type=recovery',
+      );
+    });
+
+    mockedUseLocalSearchParams.mockReturnValue({
+      '#': 'access_token=second-access-token&refresh_token=second-refresh-token&type=recovery',
+    });
+    await view.rerender(<RecoveryCallbackRoute />);
+
+    await waitFor(() => {
+      expect(consumeRecoveryCallback).toHaveBeenCalledTimes(2);
+      expect(consumeRecoveryCallback).toHaveBeenLastCalledWith(
+        'keylorforge://auth/recovery#access_token=second-access-token&refresh_token=second-refresh-token&type=recovery',
       );
     });
   });
