@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { authScreenStyles } from '@/components/auth/auth-screen';
 
 const recoveryCodeSchema = z.object({
-  code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code from your email.'),
+  code: z.string().regex(/^\d{8}$/, 'Enter the 8-digit code from your email.'),
 });
 
 type RecoveryCodeValues = z.infer<typeof recoveryCodeSchema>;
@@ -45,10 +45,10 @@ export function RecoveryCodeForm({ onSubmit }: RecoveryCodeFormProps) {
               accessibilityLabel="Recovery code"
               autoComplete="one-time-code"
               keyboardType="number-pad"
-              maxLength={6}
+              maxLength={8}
               onBlur={onBlur}
               onChangeText={onChange}
-              placeholder="123456"
+              placeholder="12345678"
               placeholderTextColor="#7f8b9d"
               returnKeyType="done"
               style={authScreenStyles.input}
