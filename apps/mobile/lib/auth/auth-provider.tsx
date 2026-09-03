@@ -24,8 +24,12 @@ import {
   CONFIRMATION_CALLBACK_URL,
   parseConfirmationCallback,
 } from '@/lib/auth/confirmation-callback';
+import {
+  parseRecoveryCallback,
+  RECOVERY_CALLBACK_URL,
+} from '@/lib/auth/recovery-callback';
 
-export type AuthPhase = 'restoring' | 'signedOut' | 'signedIn';
+export type AuthPhase = 'recovery' | 'restoring' | 'signedOut' | 'signedIn';
 
 type AuthFeedback = {
   kind: 'terminal' | 'transient';
@@ -48,11 +52,14 @@ type RegistrationResult = AuthActionResult & {
 type AuthContextValue = AuthState & {
   clearConfirmation: () => Promise<void>;
   consumeConfirmationCallback: (url: string) => Promise<AuthActionResult>;
+  consumeRecoveryCallback: (url: string) => Promise<AuthActionResult>;
   invalidateSession: () => Promise<void>;
   refreshSession: () => Promise<string | null>;
+  requestPasswordRecovery: (email: string) => Promise<AuthActionResult>;
   signIn: (email: string, password: string) => Promise<AuthActionResult>;
   signOut: () => Promise<AuthActionResult>;
   signUp: (email: string, password: string) => Promise<RegistrationResult>;
+  updateRecoveryPassword: (password: string) => Promise<AuthActionResult>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -66,6 +73,7 @@ const restoringState: AuthState = {
 
 const pendingConfirmationEmailKey =
   '@keylorforge/auth/pending-confirmation-email';
+const recoveryActiveKey = '@keylorforge/auth/recovery-active';
 
 function readableAuthError(error: AuthError | Error | null): string {
   if (!error) {
@@ -107,10 +115,24 @@ function stateForSession(session: Session | null): AuthState {
   };
 }
 
+function stateForRecovery(session: Session): AuthState {
+  return {
+    confirmationEmail: null,
+    feedback: null,
+    phase: 'recovery',
+    session,
+  };
+}
+
 function stateForRestoredSession(
   session: Session | null,
   confirmationEmail: string | null,
+  recoveryActive: boolean,
 ): AuthState {
+  if (session && recoveryActive) {
+    return stateForRecovery(session);
+  }
+
   return {
     ...stateForSession(session),
     confirmationEmail: session ? null : confirmationEmail,
@@ -163,6 +185,8 @@ export function AuthProvider({
   });
   const stateRef = useRef(authState);
   const isConsumingConfirmation = useRef(false);
+  const isConsumingRecovery = useRef(false);
+  const isUpdatingRecoveryPassword = useRef(false);
   const sessionOperationVersion = useRef(0);
 
   const updateAuthState = useCallback((nextState: AuthState) => {
@@ -171,6 +195,7 @@ export function AuthProvider({
   }, []);
 
   const setTerminalSignedOutState = useCallback(() => {
+    void AsyncStorage.removeItem(recoveryActiveKey);
     updateAuthState({
       confirmationEmail: null,
       feedback: {
@@ -197,15 +222,23 @@ export function AuthProvider({
     }
 
     const operationVersion = sessionOperationVersion.current;
-    const [{ data, error }, confirmationEmail] = await Promise.all([
-      clientResult.client.auth.getSession(),
-      AsyncStorage.getItem(pendingConfirmationEmailKey),
-    ]);
+    const [{ data, error }, confirmationEmail, recoveryActive] =
+      await Promise.all([
+        clientResult.client.auth.getSession(),
+        AsyncStorage.getItem(pendingConfirmationEmailKey),
+        AsyncStorage.getItem(recoveryActiveKey),
+      ]);
     if (operationVersion !== sessionOperationVersion.current) {
       return;
     }
     if (!error) {
-      updateAuthState(stateForRestoredSession(data.session, confirmationEmail));
+      updateAuthState(
+        stateForRestoredSession(
+          data.session,
+          confirmationEmail,
+          recoveryActive === 'true',
+        ),
+      );
       return;
     }
 
@@ -245,6 +278,7 @@ export function AuthProvider({
         }
 
         if (event === 'SIGNED_OUT') {
+          void AsyncStorage.removeItem(recoveryActiveKey);
           updateAuthState(stateForSession(null));
           return;
         }
@@ -255,6 +289,14 @@ export function AuthProvider({
         }
 
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          if (
+            session &&
+            (isConsumingRecovery.current ||
+              stateRef.current.phase === 'recovery')
+          ) {
+            updateAuthState(stateForRecovery(session));
+            return;
+          }
           updateAuthState(stateForSession(session));
         }
       },
@@ -314,9 +356,32 @@ export function AuthProvider({
       }
 
       updateAuthState(stateForSession(data.session));
+      void AsyncStorage.removeItem(recoveryActiveKey);
       return {};
     },
     [clientResult.client, clientResult.error, updateAuthState],
+  );
+
+  const requestPasswordRecovery = useCallback(
+    async (email: string): Promise<AuthActionResult> => {
+      const client = clientResult.client;
+      if (!client) {
+        return { error: clientResult.error ?? 'Supabase is unavailable.' };
+      }
+
+      const { error } = await client.auth.resetPasswordForEmail(email, {
+        redirectTo: RECOVERY_CALLBACK_URL,
+      });
+      if (error) {
+        return {
+          error:
+            'We could not send the recovery email. Check your connection and try again.',
+        };
+      }
+
+      return {};
+    },
+    [clientResult.client, clientResult.error],
   );
 
   const signUp = useCallback(
@@ -430,6 +495,140 @@ export function AuthProvider({
     [clientResult.client, clientResult.error, updateAuthState],
   );
 
+  const consumeRecoveryCallback = useCallback(
+    async (url: string): Promise<AuthActionResult> => {
+      const client = clientResult.client;
+      if (!client) {
+        return { error: clientResult.error ?? 'Supabase is unavailable.' };
+      }
+
+      if (
+        isConsumingRecovery.current ||
+        stateRef.current.phase === 'recovery'
+      ) {
+        return {};
+      }
+
+      if (stateRef.current.phase === 'signedIn') {
+        return {
+          error:
+            'This recovery link cannot be used while you are signed in. Sign out and request a new link.',
+        };
+      }
+
+      const callback = parseRecoveryCallback(url);
+      if (callback.kind === 'providerError') {
+        return {
+          error:
+            'This recovery link is no longer valid. Request a new recovery email and try again.',
+        };
+      }
+
+      if (callback.kind === 'invalid') {
+        return {
+          error:
+            'We could not use this recovery link. Request a new recovery email and try again.',
+        };
+      }
+
+      isConsumingRecovery.current = true;
+      sessionOperationVersion.current += 1;
+      try {
+        await AsyncStorage.setItem(recoveryActiveKey, 'true');
+        const { data, error } = await client.auth.setSession({
+          access_token: callback.accessToken,
+          refresh_token: callback.refreshToken,
+        });
+        if (error || !data.session) {
+          try {
+            await client.auth.signOut({ scope: 'local' });
+          } finally {
+            try {
+              await AsyncStorage.removeItem(recoveryActiveKey);
+            } catch {
+              // No recovery state is exposed after a failed callback.
+            }
+          }
+          return {
+            error:
+              'This recovery link is no longer valid. Request a new recovery email and try again.',
+          };
+        }
+
+        updateAuthState(stateForRecovery(data.session));
+        return {};
+      } catch {
+        try {
+          await client.auth.signOut({ scope: 'local' });
+        } catch {
+          // Local state is still cleared below if remote cleanup fails.
+        } finally {
+          try {
+            await AsyncStorage.removeItem(recoveryActiveKey);
+          } catch {
+            // No recovery state is exposed after a failed callback.
+          }
+        }
+        return {
+          error:
+            'This recovery link is no longer valid. Request a new recovery email and try again.',
+        };
+      } finally {
+        isConsumingRecovery.current = false;
+      }
+    },
+    [clientResult.client, clientResult.error, updateAuthState],
+  );
+
+  const updateRecoveryPassword = useCallback(
+    async (password: string): Promise<AuthActionResult> => {
+      const client = clientResult.client;
+      if (!client || stateRef.current.phase !== 'recovery') {
+        return {
+          error:
+            'This recovery session is no longer valid. Request a new recovery email and try again.',
+        };
+      }
+
+      if (isUpdatingRecoveryPassword.current) {
+        return { error: 'Your password update is already in progress.' };
+      }
+
+      isUpdatingRecoveryPassword.current = true;
+      try {
+        try {
+          const { error } = await client.auth.updateUser({ password });
+          if (error) {
+            return {
+              error:
+                'We could not update your password. Request a new recovery email and try again.',
+            };
+          }
+        } catch {
+          return {
+            error:
+              'We could not update your password. Request a new recovery email and try again.',
+          };
+        }
+
+        try {
+          await client.auth.signOut({ scope: 'local' });
+        } finally {
+          try {
+            await AsyncStorage.removeItem(recoveryActiveKey);
+          } finally {
+            updateAuthState(stateForSession(null));
+          }
+        }
+
+        return {};
+      } finally {
+        isUpdatingRecoveryPassword.current = false;
+      }
+    },
+    [clientResult.client, updateAuthState],
+  );
+
   /**
    * Refreshes the Supabase session for a protected API retry.
    *
@@ -488,6 +687,7 @@ export function AuthProvider({
 
     updateAuthState(stateForSession(null));
     await AsyncStorage.removeItem(pendingConfirmationEmailKey);
+    await AsyncStorage.removeItem(recoveryActiveKey);
     return {};
   }, [clientResult.client, updateAuthState]);
 
@@ -517,21 +717,27 @@ export function AuthProvider({
       ...authState,
       clearConfirmation,
       consumeConfirmationCallback,
+      consumeRecoveryCallback,
       invalidateSession,
       refreshSession,
+      requestPasswordRecovery,
       signIn,
       signOut,
       signUp,
+      updateRecoveryPassword,
     }),
     [
       authState,
       clearConfirmation,
       consumeConfirmationCallback,
+      consumeRecoveryCallback,
       invalidateSession,
       refreshSession,
+      requestPasswordRecovery,
       signIn,
       signOut,
       signUp,
+      updateRecoveryPassword,
     ],
   );
 

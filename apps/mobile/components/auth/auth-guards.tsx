@@ -43,6 +43,10 @@ export function RequireSignedOut({
     return <Redirect href="/home" />;
   }
 
+  if (phase === 'recovery') {
+    return <Redirect href="/auth/recovery" />;
+  }
+
   if (confirmationEmail && !allowConfirmationPending) {
     return <Redirect href="/confirmation" />;
   }

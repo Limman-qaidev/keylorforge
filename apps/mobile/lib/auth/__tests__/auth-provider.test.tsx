@@ -47,6 +47,8 @@ function createClient({
   signUpSession = null,
   signUpError = null,
   signOutError = null,
+  recoveryRequestError = null,
+  updateUserError = null,
 }: {
   initialSession?: Session | null;
   verifiedUserEmail?: string;
@@ -61,6 +63,8 @@ function createClient({
   signUpError?: Error | null;
   signUpSession?: Session | null;
   signOutError?: Error | null;
+  recoveryRequestError?: Error | null;
+  updateUserError?: Error | null;
 } = {}) {
   let listener: AuthListener | undefined;
   const client = {
@@ -97,6 +101,10 @@ function createClient({
         data: { session: refreshSessionError ? null : refreshSessionValue },
         error: refreshSessionError,
       }),
+      resetPasswordForEmail: jest.fn().mockResolvedValue({
+        data: {},
+        error: recoveryRequestError,
+      }),
       signInWithPassword: jest.fn().mockResolvedValue({
         data: { session: signInError ? null : session() },
         error: signInError,
@@ -105,6 +113,10 @@ function createClient({
       signUp: jest.fn().mockResolvedValue({
         data: { session: signUpSession },
         error: signUpError,
+      }),
+      updateUser: jest.fn().mockResolvedValue({
+        data: { user: updateUserError ? null : session().user },
+        error: updateUserError,
       }),
       startAutoRefresh: jest.fn(),
       stopAutoRefresh: jest.fn(),
@@ -127,14 +139,17 @@ function AuthProbe() {
     clearConfirmation,
     confirmationEmail,
     consumeConfirmationCallback,
+    consumeRecoveryCallback,
     feedback,
     phase,
     invalidateSession,
     refreshSession,
+    requestPasswordRecovery,
     session: currentSession,
     signIn,
     signOut,
     signUp,
+    updateRecoveryPassword,
   } = useAuth();
   const [callbackResult, setCallbackResult] = useState('');
 
@@ -149,6 +164,42 @@ function AuthProbe() {
         onPress={() => void signIn('person@example.com', 'password123')}
       >
         <Text>sign in</Text>
+      </Pressable>
+      <Pressable
+        onPress={() =>
+          void requestPasswordRecovery('person@example.com').then((result) =>
+            setCallbackResult(result.error ?? 'success'),
+          )
+        }
+      >
+        <Text>request recovery</Text>
+      </Pressable>
+      <Pressable
+        onPress={() =>
+          void consumeRecoveryCallback(
+            'keylorforge://auth/recovery#access_token=recovery-access-token&refresh_token=recovery-refresh-token',
+          ).then((result) => setCallbackResult(result.error ?? 'success'))
+        }
+      >
+        <Text>consume recovery</Text>
+      </Pressable>
+      <Pressable
+        onPress={() =>
+          void consumeRecoveryCallback('keylorforge://auth/recovery').then(
+            (result) => setCallbackResult(result.error ?? 'success'),
+          )
+        }
+      >
+        <Text>consume malformed recovery</Text>
+      </Pressable>
+      <Pressable
+        onPress={() =>
+          void updateRecoveryPassword('new-password').then((result) =>
+            setCallbackResult(result.error ?? 'success'),
+          )
+        }
+      >
+        <Text>update recovery password</Text>
       </Pressable>
       <Pressable
         onPress={() => void signUp('person@example.com', 'password123')}
@@ -268,6 +319,110 @@ describe('AuthProvider', () => {
       password: 'password123',
       options: { emailRedirectTo: 'keylorforge://auth/confirm' },
     });
+  });
+
+  it('requests recovery through the exact stable callback without exposing account existence', async () => {
+    const { client } = createClient();
+    const { getByText, getByTestId } = await render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedOut');
+    await act(async () => {
+      fireEvent.press(getByText('request recovery'));
+    });
+
+    expect(client.auth.resetPasswordForEmail).toHaveBeenCalledWith(
+      'person@example.com',
+      { redirectTo: 'keylorforge://auth/recovery' },
+    );
+    expect(getByTestId('callback-result').props.children).toBe('success');
+  });
+
+  it('keeps a recovery callback out of the signed-in shell until the password is updated', async () => {
+    const { client } = createClient();
+    const { getByText, getByTestId } = await render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedOut');
+    await act(async () => {
+      fireEvent.press(getByText('consume recovery'));
+    });
+
+    await expectPhase(getByTestId, 'recovery');
+    expect(client.auth.setSession).toHaveBeenCalledWith({
+      access_token: 'recovery-access-token',
+      refresh_token: 'recovery-refresh-token',
+    });
+
+    await act(async () => {
+      fireEvent.press(getByText('update recovery password'));
+    });
+
+    await expectPhase(getByTestId, 'signedOut');
+    expect(client.auth.updateUser).toHaveBeenCalledWith({
+      password: 'new-password',
+    });
+    expect(client.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+  });
+
+  it('restores an interrupted recovery as recovery instead of signed in', async () => {
+    await AsyncStorage.setItem('@keylorforge/auth/recovery-active', 'true');
+    const { client } = createClient({ initialSession: session() });
+    const { getByTestId } = await render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'recovery');
+  });
+
+  it('fails closed and removes recovery state when session setup fails', async () => {
+    const { client } = createClient({
+      setSessionError: new Error('provider detail: recovery-access-token'),
+    });
+    const { getByText, getByTestId } = await render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedOut');
+    await act(async () => {
+      fireEvent.press(getByText('consume recovery'));
+    });
+
+    expect(getByTestId('phase').props.children).toBe('signedOut');
+    expect(client.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith(
+      '@keylorforge/auth/recovery-active',
+    );
+  });
+
+  it('rejects malformed recovery callbacks without mutating session state', async () => {
+    const { client } = createClient();
+    const { getByText, getByTestId } = await render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedOut');
+    await act(async () => {
+      fireEvent.press(getByText('consume malformed recovery'));
+    });
+
+    expect(getByTestId('phase').props.children).toBe('signedOut');
+    expect(client.auth.setSession).not.toHaveBeenCalled();
+    expect(getByTestId('callback-result').props.children).toBe(
+      'We could not use this recovery link. Request a new recovery email and try again.',
+    );
   });
 
   it('clears the pending confirmation from memory and storage', async () => {

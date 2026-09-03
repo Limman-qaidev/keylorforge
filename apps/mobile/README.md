@@ -96,6 +96,26 @@ for this test.
 For an expired or previously used email link, KeylorForge should stay signed out,
 show a safe request-a-new-email message, and provide a route back to sign in.
 
+### Physical Android password-recovery acceptance
+
+Before testing, the Supabase development project's Auth Redirect URLs must also
+contain the exact `keylorforge://auth/recovery` callback. On an installed Android
+development build:
+
+1. Open **Forgot your password?** from sign-in and request recovery for a
+   disposable account.
+2. Tap the received recovery link. Android should open KeylorForge at
+   `keylorforge://auth/recovery` and show the new-password form, never the
+   authenticated home screen.
+3. Enter and confirm a new password, then confirm the app returns to sign-in.
+   Sign in successfully with the new password.
+4. Repeat with an expired or used link. The app must remain out of protected
+   navigation, show a safe recovery error, and let the user request another
+   email.
+
+Do not capture or share the recovery email URL, authorization code, access
+token, refresh token, or password.
+
 ## Validation
 
 ```sh
