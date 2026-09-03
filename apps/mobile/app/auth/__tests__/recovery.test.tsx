@@ -93,7 +93,7 @@ describe('RecoveryCallbackRoute', () => {
       );
     });
     await waitFor(() => {
-      expect(view.getByDisplayValue('password123')).toBeTruthy();
+      expect(view.getAllByDisplayValue('password123')).toHaveLength(2);
     });
     await act(async () => {
       fireEvent.press(view.getByText('Update password'));
