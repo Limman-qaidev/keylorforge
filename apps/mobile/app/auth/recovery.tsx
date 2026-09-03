@@ -18,7 +18,7 @@ export default function RecoveryCallbackRoute() {
   } | null>(null);
 
   useEffect(() => {
-    if (!callbackUrl || phase === 'restoring' || phase === 'recovery') {
+    if (!callbackUrl || phase === 'recovery') {
       return;
     }
 
