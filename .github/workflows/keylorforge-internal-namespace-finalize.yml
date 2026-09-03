@@ -36,13 +36,17 @@ jobs:
               (b"Keylornet", b"KeylorForge"),
               (b"keylornet", b"keylorforge"),
           )
+          excluded = {
+              Path(".github/workflows/keylorforge-internal-namespace-finalize.yml"),
+              Path(".github/workflows/database-migration.yml"),
+          }
 
           tracked = subprocess.check_output(["git", "ls-files", "-z"]).split(b"\0")
           for raw in tracked:
               if not raw:
                   continue
               path = Path(raw.decode())
-              if not path.exists() or path.name == "keylorforge-internal-namespace-finalize.yml":
+              if not path.exists() or path in excluded:
                   continue
               data = path.read_bytes()
               if b"\0" in data:
