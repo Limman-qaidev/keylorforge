@@ -17,9 +17,9 @@ The fixed-color exports are convenience variants derived from the same vector ge
 
 Use these pre-outlined SVG lockups when a complete `KEYLORFORGE` logo is required. The lettering is stored as vector paths, so rendering does not depend on fonts installed on the consuming platform.
 
-- `keylorforge-g4-lockup-horizontal-dark.svg` — yellow mark + white `KEYLOR` + teal `FIT`; default for dark auth surfaces
-- `keylorforge-g4-lockup-horizontal-photo.svg` — white mark + white `KEYLOR` + teal `FIT`; default over dark photography / Welcome
-- `keylorforge-g4-lockup-horizontal-light.svg` — black mark + black `KEYLOR` + teal `FIT`; light surfaces
+- `keylorforge-g4-lockup-horizontal-dark.svg` — yellow mark + white `KEYLOR` + teal `FORGE`; default for dark auth surfaces
+- `keylorforge-g4-lockup-horizontal-photo.svg` — white mark + white `KEYLOR` + teal `FORGE`; default over dark photography / Welcome
+- `keylorforge-g4-lockup-horizontal-light.svg` — black mark + black `KEYLOR` + teal `FORGE`; light surfaces
 - `keylorforge-g4-lockup-stacked-dark.svg` — stacked yellow/white/teal treatment for narrow dark layouts
 - `keylorforge-g4-lockup-stacked-light.svg` — stacked black/teal treatment for narrow light layouts
 
@@ -29,6 +29,7 @@ See [`PREVIEW.md`](./PREVIEW.md) for the visual review sheet rendered from the e
 
 - Yellow: `#FFC107`
 - Teal: `#00D1C1`
+- Teal on light surfaces: `#00AFA1`
 - White: `#FFFFFF`
 - Black: `#0B0B0D`
 
