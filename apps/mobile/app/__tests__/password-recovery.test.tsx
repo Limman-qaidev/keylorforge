@@ -42,7 +42,7 @@ describe('PasswordRecoveryRoute', () => {
   });
 
   it('validates the email before requesting recovery', async () => {
-    const view = render(<PasswordRecoveryRoute />);
+    const view = await render(<PasswordRecoveryRoute />);
 
     fireEvent.changeText(view.getByLabelText('Email'), 'not-an-email');
     fireEvent.press(view.getByText('Send recovery link'));
@@ -52,7 +52,7 @@ describe('PasswordRecoveryRoute', () => {
   });
 
   it('submits a valid email and shows a non-enumerating success message', async () => {
-    const view = render(<PasswordRecoveryRoute />);
+    const view = await render(<PasswordRecoveryRoute />);
 
     fireEvent.changeText(view.getByLabelText('Email'), 'person@example.com');
     fireEvent.press(view.getByText('Send recovery link'));
