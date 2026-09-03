@@ -106,7 +106,6 @@ function PasswordRecoveryScreen() {
 
   return (
     <AuthScreen
-      backHref="/sign-in"
       subtitle="We'll email a 6-digit code. No link needs to open the app."
       title="Reset your password"
     >
