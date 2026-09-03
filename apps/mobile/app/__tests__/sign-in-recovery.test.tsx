@@ -35,15 +35,13 @@ describe('SignInRoute recovery entry', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockedUseLocalSearchParams.mockReturnValue({ passwordUpdated: 'true' });
-    mockedUseAuth.mockReturnValue(
-      ({
-        confirmationEmail: null,
-        feedback: null,
-        phase: 'signedOut',
-        session: null,
-        signIn,
-      }) as unknown as ReturnType<typeof useAuth>,
-    );
+    mockedUseAuth.mockReturnValue({
+      confirmationEmail: null,
+      feedback: null,
+      phase: 'signedOut',
+      session: null,
+      signIn,
+    } as unknown as ReturnType<typeof useAuth>);
   });
 
   it('exposes password recovery and confirms a completed password update', () => {
