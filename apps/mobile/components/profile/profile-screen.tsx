@@ -318,6 +318,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginTop: 24,
+    minHeight: 44,
+    paddingVertical: 12,
   },
   error: { color: '#b42318', fontSize: 14, marginTop: 8 },
   input: {
