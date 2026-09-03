@@ -92,8 +92,7 @@ describe('PasswordRecoveryController', () => {
 
       await controller.verifyCode('person@example.com', '123456');
       await expect(controller.updatePassword('password123')).resolves.toEqual({
-        error:
-          'Choose a stronger password that meets the required security rules.',
+        error: 'Choose a stronger password that meets the required security rules.',
       });
       expect(client.auth.signOut).not.toHaveBeenCalled();
     },
