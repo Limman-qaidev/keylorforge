@@ -38,7 +38,7 @@ describe('RecoveryCallbackRoute', () => {
       updateRecoveryPassword,
     } as unknown as ReturnType<typeof useAuth>);
 
-    const view = render(<RecoveryCallbackRoute />);
+    const view = await render(<RecoveryCallbackRoute />);
 
     await waitFor(() => {
       expect(consumeRecoveryCallback).toHaveBeenCalledTimes(1);
@@ -61,7 +61,7 @@ describe('RecoveryCallbackRoute', () => {
       updateRecoveryPassword,
     } as unknown as ReturnType<typeof useAuth>);
 
-    const view = render(<RecoveryCallbackRoute />);
+    const view = await render(<RecoveryCallbackRoute />);
 
     fireEvent.changeText(view.getByLabelText('New password'), 'password123');
     fireEvent.changeText(
