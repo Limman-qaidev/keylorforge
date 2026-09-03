@@ -2,6 +2,7 @@ import { Link } from 'expo-router';
 import {
   ImageBackground,
   Pressable,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -24,38 +25,43 @@ export default function WelcomeRoute() {
       >
         <StatusBar barStyle="light-content" />
         <SafeAreaView edges={['top', 'bottom']} style={styles.overlay}>
-          <View style={styles.brandArea}>
-            <KeylorFitBrand variant="welcome" />
-          </View>
-          <View style={styles.content}>
-            <Text accessibilityRole="header" style={styles.headline}>
-              Train.{'\n'}
-              <Text style={styles.headlineTeal}>Progress.</Text>
-              {'\n'}
-              <Text style={styles.headlinePurple}>Surpass yourself.</Text>
-            </Text>
-            <Text style={styles.supportingText}>
-              Your best version starts with every rep.
-            </Text>
-          </View>
-          <View style={styles.actions}>
-            <Link asChild href="/sign-up">
-              <Pressable
-                accessibilityRole="button"
-                style={styles.primaryButton}
-              >
-                <Text style={styles.primaryButtonText}>Create account</Text>
-              </Pressable>
-            </Link>
-            <Link asChild href="/sign-in">
-              <Pressable accessibilityRole="button" style={styles.signInAction}>
-                <Text style={styles.signInText}>
-                  Already have an account?{' '}
-                  <Text style={styles.signInAccent}>Sign in</Text>
-                </Text>
-              </Pressable>
-            </Link>
-          </View>
+          <ScrollView contentContainerStyle={styles.scrollContent}>
+            <View style={styles.brandArea}>
+              <KeylorFitBrand variant="welcome" />
+            </View>
+            <View style={styles.content}>
+              <Text accessibilityRole="header" style={styles.headline}>
+                Train.{'\n'}
+                <Text style={styles.headlineTeal}>Progress.</Text>
+                {'\n'}
+                <Text style={styles.headlinePurple}>Surpass yourself.</Text>
+              </Text>
+              <Text style={styles.supportingText}>
+                Your best version starts with every rep.
+              </Text>
+            </View>
+            <View style={styles.actions}>
+              <Link asChild href="/sign-up">
+                <Pressable
+                  accessibilityRole="button"
+                  style={styles.primaryButton}
+                >
+                  <Text style={styles.primaryButtonText}>Create account</Text>
+                </Pressable>
+              </Link>
+              <Link asChild href="/sign-in">
+                <Pressable
+                  accessibilityRole="button"
+                  style={styles.signInAction}
+                >
+                  <Text style={styles.signInText}>
+                    Already have an account?{' '}
+                    <Text style={styles.signInAccent}>Sign in</Text>
+                  </Text>
+                </Pressable>
+              </Link>
+            </View>
+          </ScrollView>
         </SafeAreaView>
       </ImageBackground>
     </RequireSignedOut>
@@ -94,6 +100,7 @@ const styles = StyleSheet.create({
     minHeight: 56,
   },
   primaryButtonText: { color: '#ffffff', fontSize: 17, fontWeight: '800' },
+  scrollContent: { flexGrow: 1 },
   signInAccent: { color: '#2de1d2', fontWeight: '800' },
   signInAction: {
     alignItems: 'center',
