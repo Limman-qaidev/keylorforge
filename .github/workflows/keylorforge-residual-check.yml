@@ -13,10 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Reject live KeylorFit references
+      - name: Reject stale product-name references
         shell: bash
         run: |
-          if git grep -InE 'KeylorFit|KEYLORFIT|keylorfit' -- . ':!docs/design-docs/keylorforge-ui-reference/*.png' ':!docs/design-docs/keylorforge-ui-reference/*.jpg'; then
-            echo 'Old KeylorFit textual references remain.' >&2
+          if git grep -InE 'KeylorFit|KEYLORFIT|keylorfit' -- . ':!.github/workflows/keylorforge-residual-check.yml' ':!docs/design-docs/keylorforge-ui-reference/*.png' ':!docs/design-docs/keylorforge-ui-reference/*.jpg'; then
+            echo 'Stale product-name references remain.' >&2
             exit 1
           fi
