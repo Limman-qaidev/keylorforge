@@ -42,9 +42,9 @@ describe('PasswordRecoveryController', () => {
     const client = createClient();
     const controller = new PasswordRecoveryController(client);
 
-    await expect(
-      controller.requestCode('person@example.com'),
-    ).resolves.toEqual({});
+    await expect(controller.requestCode('person@example.com')).resolves.toEqual(
+      {},
+    );
     expect(client.auth.resetPasswordForEmail).toHaveBeenCalledWith(
       'person@example.com',
     );
@@ -64,53 +64,46 @@ describe('PasswordRecoveryController', () => {
     });
   });
 
-  it(
-    'does not expose provider detail for an invalid or expired code',
-    async () => {
-      const client = createClient({
-        verifyError: new Error('provider token detail'),
-      });
-      const controller = new PasswordRecoveryController(client);
+  it('does not expose provider detail for an invalid or expired code', async () => {
+    const client = createClient({
+      verifyError: new Error('provider token detail'),
+    });
+    const controller = new PasswordRecoveryController(client);
 
-      await expect(
-        controller.verifyCode('person@example.com', '123456'),
-      ).resolves.toEqual({
-        error: 'This recovery code is invalid or expired. Request a new code and try again.',
-      });
-    },
-  );
+    await expect(
+      controller.verifyCode('person@example.com', '123456'),
+    ).resolves.toEqual({
+      error:
+        'This recovery code is invalid or expired. Request a new code and try again.',
+    });
+  });
 
-  it(
-    'explains a weak password without destroying the verified recovery session',
-    async () => {
-      const weakPasswordError = Object.assign(new Error('password too weak'), {
-        code: 'weak_password',
-      });
-      const client = createClient({ updateError: weakPasswordError });
-      const controller = new PasswordRecoveryController(client);
+  it('explains a weak password without destroying the verified recovery session', async () => {
+    const weakPasswordError = Object.assign(new Error('password too weak'), {
+      code: 'weak_password',
+    });
+    const client = createClient({ updateError: weakPasswordError });
+    const controller = new PasswordRecoveryController(client);
 
-      await controller.verifyCode('person@example.com', '123456');
-      await expect(controller.updatePassword('password123')).resolves.toEqual({
-        error: 'Choose a stronger password that meets the required security rules.',
-      });
-      expect(client.auth.signOut).not.toHaveBeenCalled();
-    },
-  );
+    await controller.verifyCode('person@example.com', '123456');
+    await expect(controller.updatePassword('password123')).resolves.toEqual({
+      error:
+        'Choose a stronger password that meets the required security rules.',
+    });
+    expect(client.auth.signOut).not.toHaveBeenCalled();
+  });
 
-  it(
-    'updates the password and closes only the ephemeral recovery session',
-    async () => {
-      const client = createClient();
-      const controller = new PasswordRecoveryController(client);
+  it('updates the password and closes only the ephemeral recovery session', async () => {
+    const client = createClient();
+    const controller = new PasswordRecoveryController(client);
 
-      await controller.verifyCode('person@example.com', '123456');
-      await expect(
-        controller.updatePassword('Strong-password-73!'),
-      ).resolves.toEqual({});
-      expect(client.auth.updateUser).toHaveBeenCalledWith({
-        password: 'Strong-password-73!',
-      });
-      expect(client.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
-    },
-  );
+    await controller.verifyCode('person@example.com', '123456');
+    await expect(
+      controller.updatePassword('Strong-password-73!'),
+    ).resolves.toEqual({});
+    expect(client.auth.updateUser).toHaveBeenCalledWith({
+      password: 'Strong-password-73!',
+    });
+    expect(client.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+  });
 });
