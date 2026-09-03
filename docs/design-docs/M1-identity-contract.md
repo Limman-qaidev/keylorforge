@@ -33,11 +33,11 @@ The repository currently has Expo SDK 57 / React Native 0.86 and declares the cu
 
 ## Observed Supabase development-project state
 
-The connected development project is active in `eu-central-1` and exposes a modern publishable API key. Its currently visible management label remains KeylorForge until the BRAND-001 manual Supabase update is completed. During IDN-001 setup, the Authentication dashboard was checked manually and confirmed:
+The connected development project is active in `eu-central-1` and exposes a modern publishable API key. Its currently visible management label is still pending the BRAND-001 manual rename to KeylorForge. During IDN-001 setup, the Authentication dashboard was checked manually and confirmed:
 
 - Email/password provider enabled.
 - Email confirmation enabled.
-- Redirect URLs configured for the then-current KeylorForge callbacks.
+- Redirect URLs were configured for the previously accepted development callback schemes.
 - Current JWT signing key is asymmetric ECC P-256, suitable for public JWKS verification.
 - A legacy HS256 shared-secret signing key remains only under **Previously used keys** after rotation; it is not the current signing key.
 
@@ -110,7 +110,7 @@ Exact route filenames may be adjusted by IDN-003/IDN-005 while preserving these 
 
 For provider redirects requiring a stable callback URL, the supported M1 physical-device client is a development build, not Expo Go. Expo Go uses an `exp://` URL whose address is not stable enough to be the durable authentication callback contract. Expo Go can still be used for flows that do not depend on stable provider redirects, but IDN-005 recovery acceptance must use the supported development build if required.
 
-Supabase Auth Redirect URLs must allow the KeylorForge custom scheme for the M1 development project. Use the narrowest practical allowed callback set rather than an unnecessarily broad production wildcard. During the installed-build transition, retain the old KeylorForge callbacks only until no accepted development build depends on them; do not add wildcards.
+Supabase Auth Redirect URLs must allow the KeylorForge custom scheme for the M1 development project. Use the narrowest practical allowed callback set rather than an unnecessarily broad production wildcard. During the installed-build transition, retain legacy callback entries only until no accepted development build depends on them; do not add wildcards.
 
 ## Registration and email confirmation
 
@@ -282,7 +282,7 @@ The connected Supabase development project has the following M1 baseline. BRAND-
 2. Email confirmation enabled.
 3. Project URL and modern publishable key available through project configuration.
 4. Current asymmetric ECC P-256 signing key confirmed in JWT settings.
-5. Auth redirect URL settings must include `keylorforge://auth/confirm` and `keylorforge://auth/recovery`. Keep the legacy KeylorForge callbacks only while an accepted installed development build still uses them.
+5. Auth redirect URL settings must include `keylorforge://auth/confirm` and `keylorforge://auth/recovery`. Keep legacy callback entries only while an accepted installed development build still uses them.
 6. Any future `sb_secret_...` administrative credential remains server-only and should only be copied into secret storage when IDN-006 needs it.
 
 ### BRAND-001 Supabase Auth transition boundary
@@ -295,9 +295,9 @@ development project and record a read-back of the resulting settings:
 1. Open **Authentication > URL Configuration**. Add the exact narrow redirect
    URLs `keylorforge://auth/confirm` and `keylorforge://auth/recovery`. Do not add
    wildcard redirect URLs.
-2. Retain `keylorforge://auth/confirm` and `keylorforge://auth/recovery` only while
-   an accepted installed development build still uses the old scheme. Do not
-   remove either legacy URL until that build inventory is empty.
+2. Retain legacy callback entries only while an accepted installed development
+   build still uses them. Do not remove those legacy URLs until that build
+   inventory is empty.
 3. Where supported, change the Auth project/application display label to
    **KeylorForge**. Under **Authentication > Email Templates**, update the
    confirmation subject and visible body copy to identify KeylorForge while
