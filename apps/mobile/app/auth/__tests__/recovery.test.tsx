@@ -1,9 +1,4 @@
-import {
-  act,
-  fireEvent,
-  render,
-  waitFor,
-} from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 
 import RecoveryCallbackRoute from '../recovery';
 import { useAuth } from '@/lib/auth/auth-provider';
