@@ -1,6 +1,6 @@
 # KeylorForge rebrand notes
 
-This branch renames the live product identity from KeylorFit to KeylorForge.
+This branch adopts **KeylorForge** as the live product identity.
 
 ## Identity changes
 
