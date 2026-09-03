@@ -39,6 +39,7 @@ jobs:
           excluded = {
               Path(".github/workflows/keylorforge-internal-namespace-finalize.yml"),
               Path(".github/workflows/database-migration.yml"),
+              Path(".github/workflows/keylorforge-residual-check.yml"),
           }
 
           tracked = subprocess.check_output(["git", "ls-files", "-z"]).split(b"\0")
