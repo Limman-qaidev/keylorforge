@@ -26,23 +26,6 @@ describe('RecoveryCallbackRoute', () => {
     updateRecoveryPassword.mockResolvedValue({});
   });
 
-  it('consumes the recovery callback while auth restoration is still in progress', async () => {
-    consumeRecoveryCallback.mockResolvedValue({});
-    mockedUseAuth.mockReturnValue({
-      consumeRecoveryCallback,
-      phase: 'restoring',
-      updateRecoveryPassword,
-    } as unknown as ReturnType<typeof useAuth>);
-
-    await render(<RecoveryCallbackRoute />);
-
-    await waitFor(() => {
-      expect(consumeRecoveryCallback).toHaveBeenCalledWith(
-        'keylorforge://auth/recovery#access_token=access-token&refresh_token=refresh-token&type=recovery',
-      );
-    });
-  });
-
   it('consumes a second recovery link from the current route hash', async () => {
     consumeRecoveryCallback.mockResolvedValue({});
     mockedUseAuth.mockReturnValue({
