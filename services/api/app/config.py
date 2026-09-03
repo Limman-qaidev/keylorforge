@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import AnyHttpUrl, field_validator
+from pydantic import AnyHttpUrl, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     environment: Literal["development", "test", "production"] = "development"
     log_level: LogLevel = "INFO"
     supabase_project_url: AnyHttpUrl | None = None
+    supabase_secret_key: SecretStr | None = None
     supabase_jwks_cache_seconds: int = 300
 
     model_config = SettingsConfigDict(env_prefix="KEYLORFORGE_")

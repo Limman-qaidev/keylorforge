@@ -21,6 +21,11 @@ from app.auth.jwt_verifier import (
     SupabaseJwtVerifier,
 )
 from app.config import Settings
+from app.identity.supabase_admin import (
+    SupabaseAdminConfigurationError,
+    SupabaseAdminDeletionClient,
+    create_supabase_admin_client,
+)
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 BearerCredentials = Annotated[
@@ -80,6 +85,24 @@ def get_authenticated_principal(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="not authorized",
         ) from exc
+
+
+def get_supabase_admin_deletion_client(
+    request: Request,
+) -> SupabaseAdminDeletionClient:
+    """Provide the server-only admin boundary or fail before any DB mutation."""
+    client = getattr(request.app.state, "supabase_admin_deletion_client", None)
+    if client is None:
+        settings = cast(Settings, request.app.state.settings)
+        try:
+            client = create_supabase_admin_client(settings)
+        except SupabaseAdminConfigurationError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="account deletion is temporarily unavailable",
+            ) from exc
+        request.app.state.supabase_admin_deletion_client = client
+    return cast(SupabaseAdminDeletionClient, client)
 
 
 def get_database_session(request: Request) -> Generator[Session, None, None]:

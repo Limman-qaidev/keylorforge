@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -73,12 +74,21 @@ class ApplicationUserRepository:
         transaction, so the write is rolled back if the surrounding request
         fails.
         """
-        if user.lifecycle_state is not ApplicationUserLifecycle.ACTIVE:
+        locked_user = self._session.scalar(
+            select(ApplicationUser)
+            .options(joinedload(ApplicationUser.profile))
+            .where(ApplicationUser.id == user.id)
+            .execution_options(populate_existing=True)
+            .with_for_update(of=ApplicationUser)
+        )
+        if locked_user is None:
+            raise RuntimeError("active application user is missing")
+        if locked_user.lifecycle_state is not ApplicationUserLifecycle.ACTIVE:
             raise TerminalIdentityError(
                 "the external identity has a terminal KeylorForge lifecycle state"
             )
 
-        profile = user.profile
+        profile = locked_user.profile
         if profile is None:
             raise RuntimeError("active application user is missing its profile foundation")
 
@@ -86,6 +96,78 @@ class ApplicationUserRepository:
         self._session.flush()
         self._session.refresh(profile)
         return profile
+
+    def start_deletion(
+        self, *, auth_provider: AuthProvider, external_subject: UUID
+    ) -> ApplicationUser:
+        """Durably prepare an identity tombstone without committing it.
+
+        A subject which has not used the application before still receives a
+        tombstone. This prevents a valid, pre-deletion provider token from
+        provisioning a new application identity after an external retry.
+        """
+        identity = self._find_identity(auth_provider, external_subject)
+        if identity is not None:
+            locked_user = self._session.scalar(
+                select(ApplicationUser)
+                .options(joinedload(ApplicationUser.profile))
+                .where(ApplicationUser.id == identity.user.id)
+                .execution_options(populate_existing=True)
+                .with_for_update(of=ApplicationUser)
+            )
+            if locked_user is None:
+                raise RuntimeError("deletion identity is missing its application user")
+
+            if locked_user.lifecycle_state is ApplicationUserLifecycle.ACTIVE:
+                locked_user.lifecycle_state = (
+                    ApplicationUserLifecycle.DELETION_IN_PROGRESS
+                )
+                if locked_user.profile is not None:
+                    locked_user.profile.display_name = None
+                self._session.flush()
+            return locked_user
+
+        try:
+            with self._session.begin_nested():
+                user = ApplicationUser(
+                    lifecycle_state=ApplicationUserLifecycle.DELETION_IN_PROGRESS
+                )
+                identity = ApplicationUserIdentity(
+                    user=user,
+                    auth_provider=auth_provider,
+                    external_subject=external_subject,
+                )
+                profile = ApplicationUserProfile(user=user, display_name=None)
+                self._session.add_all((user, identity, profile))
+                self._session.flush()
+        except IntegrityError:
+            identity = self._find_identity(auth_provider, external_subject)
+            if identity is None:
+                raise
+            return self.start_deletion(
+                auth_provider=auth_provider, external_subject=external_subject
+            )
+
+        return user
+
+    def finalize_deletion(
+        self, *, auth_provider: AuthProvider, external_subject: UUID
+    ) -> ApplicationUser:
+        """Make a prepared tombstone terminal after provider deletion succeeds."""
+        identity = self._find_identity(auth_provider, external_subject)
+        if identity is None:
+            raise RuntimeError("deletion tombstone is missing its identity mapping")
+
+        user = identity.user
+        if user.lifecycle_state is ApplicationUserLifecycle.DELETED:
+            return user
+        if user.lifecycle_state is not ApplicationUserLifecycle.DELETION_IN_PROGRESS:
+            raise RuntimeError("application user was not prepared for deletion")
+
+        user.lifecycle_state = ApplicationUserLifecycle.DELETED
+        user.deleted_at = datetime.now(UTC)
+        self._session.flush()
+        return user
 
     def _find_identity(
         self, auth_provider: AuthProvider, external_subject: UUID

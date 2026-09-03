@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
@@ -216,6 +217,13 @@ export function ProfileScreen() {
             {profileQuery.isFetching ? 'Retrying…' : 'Try again'}
           </Text>
         </Pressable>
+        <Link
+          accessibilityRole="link"
+          href="/delete-account"
+          style={styles.deleteLink}
+        >
+          Delete account
+        </Link>
       </View>
     );
   }
@@ -281,6 +289,13 @@ export function ProfileScreen() {
           {isSaving ? 'Saving…' : 'Save profile'}
         </Text>
       </Pressable>
+      <Link
+        accessibilityRole="link"
+        href="/delete-account"
+        style={styles.deleteLink}
+      >
+        Delete account
+      </Link>
     </View>
   );
 }
@@ -298,6 +313,14 @@ const styles = StyleSheet.create({
   buttonText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
   centered: { flex: 1, justifyContent: 'center', padding: 24 },
   container: { backgroundColor: '#f7f9fc', flex: 1, padding: 24 },
+  deleteLink: {
+    color: '#b42318',
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 24,
+    minHeight: 44,
+    paddingVertical: 12,
+  },
   error: { color: '#b42318', fontSize: 14, marginTop: 8 },
   input: {
     backgroundColor: '#ffffff',
