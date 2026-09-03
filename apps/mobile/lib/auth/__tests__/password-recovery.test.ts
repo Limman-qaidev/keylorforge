@@ -40,9 +40,9 @@ describe('PasswordRecoveryController', () => {
     const client = createClient();
     const controller = new PasswordRecoveryController(client);
 
-    await expect(controller.requestCode('person@example.com')).resolves.toEqual(
-      {},
-    );
+    await expect(
+      controller.requestCode('person@example.com'),
+    ).resolves.toEqual({});
     expect(client.auth.resetPasswordForEmail).toHaveBeenCalledWith(
       'person@example.com',
     );
@@ -95,9 +95,9 @@ describe('PasswordRecoveryController', () => {
     const controller = new PasswordRecoveryController(client);
 
     await controller.verifyCode('person@example.com', '123456');
-    await expect(controller.updatePassword('Strong-password-73!')).resolves.toEqual(
-      {},
-    );
+    await expect(
+      controller.updatePassword('Strong-password-73!'),
+    ).resolves.toEqual({});
     expect(client.auth.updateUser).toHaveBeenCalledWith({
       password: 'Strong-password-73!',
     });
