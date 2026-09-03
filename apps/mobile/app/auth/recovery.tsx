@@ -1,17 +1,22 @@
-import { useRouter } from 'expo-router';
-import { useLinkingURL } from 'expo-linking';
-import { useEffect, useRef, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, Text } from 'react-native';
 
 import { AuthScreen, authScreenStyles } from '@/components/auth/auth-screen';
 import { NewPasswordForm } from '@/components/auth/new-password-form';
 import { useAuth } from '@/lib/auth/auth-provider';
+import { RECOVERY_CALLBACK_URL } from '@/lib/auth/recovery-callback';
 
 export default function RecoveryCallbackRoute() {
-  const callbackUrl = useLinkingURL();
+  const { '#': callbackHash } = useLocalSearchParams<{ '#': string }>();
   const router = useRouter();
   const { consumeRecoveryCallback, phase, updateRecoveryPassword } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const callbackUrl = useMemo(
+    () =>
+      callbackHash ? `${RECOVERY_CALLBACK_URL}#${callbackHash}` : null,
+    [callbackHash],
+  );
   const callbackOperation = useRef<{
     promise: Promise<{ error?: string }>;
     url: string;
@@ -24,6 +29,7 @@ export default function RecoveryCallbackRoute() {
 
     let active = true;
     if (callbackOperation.current?.url !== callbackUrl) {
+      setError(null);
       callbackOperation.current = {
         promise: consumeRecoveryCallback(callbackUrl),
         url: callbackUrl,
