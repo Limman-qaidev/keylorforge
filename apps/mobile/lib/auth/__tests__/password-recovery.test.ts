@@ -50,16 +50,16 @@ describe('PasswordRecoveryController', () => {
     );
   });
 
-  it('verifies the six-digit email code as a recovery OTP', async () => {
+  it('verifies the eight-digit email code as a recovery OTP', async () => {
     const client = createClient();
     const controller = new PasswordRecoveryController(client);
 
     await expect(
-      controller.verifyCode('person@example.com', '123456'),
+      controller.verifyCode('person@example.com', '12345678'),
     ).resolves.toEqual({});
     expect(client.auth.verifyOtp).toHaveBeenCalledWith({
       email: 'person@example.com',
-      token: '123456',
+      token: '12345678',
       type: 'recovery',
     });
   });
@@ -71,7 +71,7 @@ describe('PasswordRecoveryController', () => {
     const controller = new PasswordRecoveryController(client);
 
     await expect(
-      controller.verifyCode('person@example.com', '123456'),
+      controller.verifyCode('person@example.com', '12345678'),
     ).resolves.toEqual({
       error:
         'This recovery code is invalid or expired. Request a new code and try again.',
@@ -85,7 +85,7 @@ describe('PasswordRecoveryController', () => {
     const client = createClient({ updateError: weakPasswordError });
     const controller = new PasswordRecoveryController(client);
 
-    await controller.verifyCode('person@example.com', '123456');
+    await controller.verifyCode('person@example.com', '12345678');
     await expect(controller.updatePassword('password123')).resolves.toEqual({
       error:
         'Choose a stronger password that meets the required security rules.',
@@ -97,7 +97,7 @@ describe('PasswordRecoveryController', () => {
     const client = createClient();
     const controller = new PasswordRecoveryController(client);
 
-    await controller.verifyCode('person@example.com', '123456');
+    await controller.verifyCode('person@example.com', '12345678');
     await expect(
       controller.updatePassword('Strong-password-73!'),
     ).resolves.toEqual({});
