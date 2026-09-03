@@ -1,0 +1,53 @@
+name: KeylorForge semantic cleanup
+
+on:
+  push:
+    branches:
+      - brand/keylorforge-rebrand
+    paths:
+      - .github/workflows/keylorforge-semantic-cleanup.yml
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: brand/keylorforge-rebrand
+          fetch-depth: 0
+      - name: Fix semantic rebrand wording
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("docs/design-docs/M1-identity-contract.md")
+          text = path.read_text(encoding="utf-8")
+          replacements = {
+              "Its currently visible management label remains KeylorForge until the BRAND-001 manual Supabase update is completed.":
+                  "Its currently visible management label is still pending the BRAND-001 manual rename to KeylorForge.",
+              "Redirect URLs configured for the then-current KeylorForge callbacks.":
+                  "Redirect URLs were configured for the previously accepted development callback schemes.",
+              "During the installed-build transition, retain the old KeylorForge callbacks only until no accepted development build depends on them; do not add wildcards.":
+                  "During the installed-build transition, retain legacy callback entries only until no accepted development build depends on them; do not add wildcards.",
+              "Keep the legacy KeylorForge callbacks only while an accepted installed development build still uses them.":
+                  "Keep legacy callback entries only while an accepted installed development build still uses them.",
+              "Retain `keylorforge://auth/confirm` and `keylorforge://auth/recovery` only while\n   an accepted installed development build still uses the old scheme. Do not\n   remove either legacy URL until that build inventory is empty.":
+                  "Retain legacy callback entries only while an accepted installed development\n   build still uses them. Do not remove those legacy URLs until that build\n   inventory is empty.",
+          }
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f"Expected text not found: {old}")
+              text = text.replace(old, new)
+          path.write_text(text, encoding="utf-8")
+          PY
+          git add docs/design-docs/M1-identity-contract.md
+          git diff --check
+          git commit -m "docs(auth): clarify KeylorForge transition wording"
+          git push origin HEAD:brand/keylorforge-rebrand
