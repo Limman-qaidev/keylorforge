@@ -2,7 +2,9 @@
 
 ## Canonical mark
 
-`keylorfit-g4-mark.svg` is the canonical KeylorFit G4 mark approved by the Product Owner. It uses `currentColor`, so consuming clients can recolor the mark without modifying the path.
+`keylorfit-g4-mark.svg` is the canonical KeylorFit G4 mark approved by the Product Owner. It uses `currentColor` and is intended for inline SVG or component-based consumption where the consumer controls the CSS/current color value.
+
+When the SVG is used as an external image resource (for example an HTML `<img>`), the parent page's `color` does not cascade into the SVG document. External/static consumers should therefore use one of the fixed-color exports below instead of relying on `currentColor`.
 
 The fixed-color exports are convenience variants derived from the same vector geometry:
 
@@ -32,6 +34,8 @@ See [`PREVIEW.md`](./PREVIEW.md) for the visual review sheet rendered from the e
 
 ## Usage
 
-Use the SVG master whenever the platform supports vectors. Do not redraw the mark, substitute emoji lightning, or create screen-specific geometry. Runtime platforms that cannot consume SVG directly should derive raster exports or a platform component from this master while preserving the same silhouette.
+Use the SVG master when the platform supports inline vectors/components and dynamic recoloring is required. Use the fixed-color exports or outlined lockups for external/static image consumption. Do not redraw the mark, substitute emoji lightning, or create screen-specific geometry.
+
+Runtime platforms that cannot consume SVG directly should derive raster exports or a platform component from this master while preserving the same silhouette.
 
 For Welcome, prefer the photo lockup. For Sign In / Create Account and other dark non-photographic identity surfaces, prefer the dark lockup. The standalone mark is appropriate for app icons, compact navigation, avatars/marks, favicons and other spaces where the full wordmark would not remain legible.
