@@ -37,7 +37,9 @@ function SignInScreen() {
           accessibilityRole="link"
           style={authScreenStyles.footerAction}
         >
-          <Text style={authScreenStyles.footerAccent}>Forgot your password?</Text>
+          <Text style={authScreenStyles.footerAccent}>
+            Forgot your password?
+          </Text>
         </Pressable>
       </Link>
       <Link asChild href="/sign-up">
