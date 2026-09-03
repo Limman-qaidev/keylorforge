@@ -1,7 +1,10 @@
 """Application identity orchestration for protected endpoints."""
 
 from fastapi import HTTPException, status
-from keylorforge_database.identity import ApplicationUserRepository, TerminalIdentityError
+from keylorforge_database.identity import (
+    ApplicationUserRepository,
+    TerminalIdentityError,
+)
 from keylorforge_database.models import ApplicationUser, AuthProvider
 from sqlalchemy.orm import Session
 
