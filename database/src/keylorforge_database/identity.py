@@ -74,12 +74,21 @@ class ApplicationUserRepository:
         transaction, so the write is rolled back if the surrounding request
         fails.
         """
-        if user.lifecycle_state is not ApplicationUserLifecycle.ACTIVE:
+        locked_user = self._session.scalar(
+            select(ApplicationUser)
+            .options(joinedload(ApplicationUser.profile))
+            .where(ApplicationUser.id == user.id)
+            .execution_options(populate_existing=True)
+            .with_for_update(of=ApplicationUser)
+        )
+        if locked_user is None:
+            raise RuntimeError("active application user is missing")
+        if locked_user.lifecycle_state is not ApplicationUserLifecycle.ACTIVE:
             raise TerminalIdentityError(
                 "the external identity has a terminal KeylorForge lifecycle state"
             )
 
-        profile = user.profile
+        profile = locked_user.profile
         if profile is None:
             raise RuntimeError("active application user is missing its profile foundation")
 

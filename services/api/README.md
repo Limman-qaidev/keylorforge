@@ -43,8 +43,8 @@ Settings are read from environment variables prefixed with `KEYLORFORGE_`.
   its current `sb_secret_...` value through server-only secret storage; never
   commit, log, or place it in mobile configuration.
 
-No secrets are required by this skeleton. A future secret must be supplied
-through the environment, never committed to this repository.
+Server secrets must be supplied through the environment and never committed to
+this repository.
 
 ## Updating dependency constraints
 

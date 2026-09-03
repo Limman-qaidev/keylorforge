@@ -341,3 +341,54 @@ def test_deletion_creates_a_tombstone_for_an_unprovisioned_subject(
             assert tombstone.deleted_at is not None
     finally:
         engine.dispose()
+
+
+def test_stale_profile_update_cannot_restore_deletion_anonymization(
+    test_database_url: str,
+) -> None:
+    """A stale ORM user must observe deletion after acquiring its row lock."""
+    engine = create_engine(test_database_url)
+    subject = uuid4()
+    session_a = Session(engine)
+    try:
+        with Session(engine) as session:
+            repository = ApplicationUserRepository(session)
+            user = repository.get_or_provision_active_user(
+                auth_provider=AuthProvider.SUPABASE, external_subject=subject
+            )
+            user_id = user.id
+            repository.set_profile_display_name(user=user, display_name="Taylor")
+            session.commit()
+
+        stale_user = ApplicationUserRepository(
+            session_a
+        ).get_or_provision_active_user(
+            auth_provider=AuthProvider.SUPABASE, external_subject=subject
+        )
+        assert stale_user.lifecycle_state is ApplicationUserLifecycle.ACTIVE
+
+        with Session(engine) as session_b:
+            ApplicationUserRepository(session_b).start_deletion(
+                auth_provider=AuthProvider.SUPABASE, external_subject=subject
+            )
+            session_b.commit()
+
+        with pytest.raises(TerminalIdentityError):
+            ApplicationUserRepository(session_a).set_profile_display_name(
+                user=stale_user, display_name="Must not persist"
+            )
+        session_a.rollback()
+
+        with Session(engine) as session:
+            persisted_user = session.scalar(
+                select(ApplicationUser).where(ApplicationUser.id == user_id)
+            )
+            assert persisted_user is not None
+            assert persisted_user.lifecycle_state is (
+                ApplicationUserLifecycle.DELETION_IN_PROGRESS
+            )
+            assert persisted_user.profile is not None
+            assert persisted_user.profile.display_name is None
+    finally:
+        session_a.close()
+        engine.dispose()
