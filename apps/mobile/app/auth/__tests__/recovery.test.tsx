@@ -1,35 +1,43 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
-import { useLocalSearchParams } from 'expo-router';
 
 import RecoveryCallbackRoute from '../recovery';
 import { useAuth } from '@/lib/auth/auth-provider';
+import { useRecoveryLink } from '@/lib/auth/recovery-link-provider';
 
 const mockReplace = jest.fn();
+const clearRecoveryLink = jest.fn();
 const consumeRecoveryCallback = jest.fn();
+const invalidateSession = jest.fn();
 const updateRecoveryPassword = jest.fn();
 const mockedUseAuth = jest.mocked(useAuth);
-const mockedUseLocalSearchParams = jest.mocked(useLocalSearchParams);
+const mockedUseRecoveryLink = jest.mocked(useRecoveryLink);
 
 jest.mock('expo-router', () => ({
-  useLocalSearchParams: jest.fn(),
   useRouter: () => ({ replace: mockReplace }),
 }));
 
 jest.mock('@/lib/auth/auth-provider', () => ({ useAuth: jest.fn() }));
+jest.mock('@/lib/auth/recovery-link-provider', () => ({
+  useRecoveryLink: jest.fn(),
+}));
 
 describe('RecoveryCallbackRoute', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockedUseLocalSearchParams.mockReturnValue({
-      '#': 'access_token=access-token&refresh_token=refresh-token&type=recovery',
+    invalidateSession.mockResolvedValue(undefined);
+    mockedUseRecoveryLink.mockReturnValue({
+      clearRecoveryLink,
+      recoveryUrl:
+        'keylorforge://auth/recovery#access_token=access-token&refresh_token=refresh-token&type=recovery',
     });
     updateRecoveryPassword.mockResolvedValue({});
   });
 
-  it('consumes a second recovery link from the current route hash', async () => {
+  it('consumes a newer recovery link retained above the route', async () => {
     consumeRecoveryCallback.mockResolvedValue({});
     mockedUseAuth.mockReturnValue({
       consumeRecoveryCallback,
+      invalidateSession,
       phase: 'signedOut',
       updateRecoveryPassword,
     } as unknown as ReturnType<typeof useAuth>);
@@ -40,10 +48,15 @@ describe('RecoveryCallbackRoute', () => {
       expect(consumeRecoveryCallback).toHaveBeenCalledWith(
         'keylorforge://auth/recovery#access_token=access-token&refresh_token=refresh-token&type=recovery',
       );
+      expect(clearRecoveryLink).toHaveBeenCalledWith(
+        'keylorforge://auth/recovery#access_token=access-token&refresh_token=refresh-token&type=recovery',
+      );
     });
 
-    mockedUseLocalSearchParams.mockReturnValue({
-      '#': 'access_token=second-access-token&refresh_token=second-refresh-token&type=recovery',
+    mockedUseRecoveryLink.mockReturnValue({
+      clearRecoveryLink,
+      recoveryUrl:
+        'keylorforge://auth/recovery#access_token=second-access-token&refresh_token=second-refresh-token&type=recovery',
     });
     await view.rerender(<RecoveryCallbackRoute />);
 
@@ -62,6 +75,7 @@ describe('RecoveryCallbackRoute', () => {
     });
     mockedUseAuth.mockReturnValue({
       consumeRecoveryCallback,
+      invalidateSession,
       phase: 'signedOut',
       updateRecoveryPassword,
     } as unknown as ReturnType<typeof useAuth>);
@@ -87,6 +101,7 @@ describe('RecoveryCallbackRoute', () => {
     consumeRecoveryCallback.mockResolvedValue({});
     mockedUseAuth.mockReturnValue({
       consumeRecoveryCallback,
+      invalidateSession,
       phase: 'recovery',
       updateRecoveryPassword,
     } as unknown as ReturnType<typeof useAuth>);
@@ -129,5 +144,25 @@ describe('RecoveryCallbackRoute', () => {
         pathname: '/sign-in',
       });
     });
+  });
+
+  it('lets the user abandon a persisted recovery session safely', async () => {
+    mockedUseAuth.mockReturnValue({
+      consumeRecoveryCallback,
+      invalidateSession,
+      phase: 'recovery',
+      updateRecoveryPassword,
+    } as unknown as ReturnType<typeof useAuth>);
+
+    const view = await render(<RecoveryCallbackRoute />);
+
+    await act(async () => {
+      fireEvent.press(
+        view.getByText('Cancel recovery and return to sign in'),
+      );
+    });
+
+    expect(invalidateSession).toHaveBeenCalledTimes(1);
+    expect(mockReplace).toHaveBeenCalledWith('/sign-in');
   });
 });
