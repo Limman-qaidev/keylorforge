@@ -75,8 +75,7 @@ describe('PasswordRecoveryController', () => {
       await expect(
         controller.verifyCode('person@example.com', '123456'),
       ).resolves.toEqual({
-        error:
-          'This recovery code is invalid or expired. Request a new code and try again.',
+        error: 'This recovery code is invalid or expired. Request a new code and try again.',
       });
     },
   );
