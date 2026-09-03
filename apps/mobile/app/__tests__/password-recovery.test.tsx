@@ -58,7 +58,9 @@ describe('PasswordRecoveryRoute', () => {
     fireEvent.press(view.getByText('Send recovery link'));
 
     await waitFor(() => {
-      expect(requestPasswordRecovery).toHaveBeenCalledWith('person@example.com');
+      expect(requestPasswordRecovery).toHaveBeenCalledWith(
+        'person@example.com',
+      );
     });
     expect(
       await view.findByText(
