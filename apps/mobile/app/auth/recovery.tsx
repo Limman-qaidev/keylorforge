@@ -13,8 +13,7 @@ export default function RecoveryCallbackRoute() {
   const { consumeRecoveryCallback, phase, updateRecoveryPassword } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const callbackUrl = useMemo(
-    () =>
-      callbackHash ? `${RECOVERY_CALLBACK_URL}#${callbackHash}` : null,
+    () => (callbackHash ? `${RECOVERY_CALLBACK_URL}#${callbackHash}` : null),
     [callbackHash],
   );
   const callbackOperation = useRef<{
