@@ -44,8 +44,8 @@ describe('SignInRoute recovery entry', () => {
     } as unknown as ReturnType<typeof useAuth>);
   });
 
-  it('exposes password recovery and confirms a completed password update', () => {
-    const view = render(<SignInRoute />);
+  it('exposes password recovery and confirms a completed password update', async () => {
+    const view = await render(<SignInRoute />);
 
     expect(
       view.getByText('Password updated. Sign in with your new password.'),
