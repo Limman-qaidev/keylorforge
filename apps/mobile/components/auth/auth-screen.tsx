@@ -114,6 +114,12 @@ export const authScreenStyles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 18,
   },
+  link: {
+    color: '#2de1d2',
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: 20,
+  },
 });
 
 const styles = StyleSheet.create({
