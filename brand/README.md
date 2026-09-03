@@ -11,6 +11,18 @@ The fixed-color exports are convenience variants derived from the same vector ge
 - `keylorfit-g4-mark-teal.svg` — secondary brand accent
 - `keylorfit-g4-mark-black.svg` — light backgrounds / print
 
+## Canonical lockups
+
+Use these pre-outlined SVG lockups when a complete `KEYLORFIT` logo is required. The lettering is stored as vector paths, so rendering does not depend on fonts installed on the consuming platform.
+
+- `keylorfit-g4-lockup-horizontal-dark.svg` — yellow mark + white `KEYLOR` + teal `FIT`; default for dark auth surfaces
+- `keylorfit-g4-lockup-horizontal-photo.svg` — white mark + white `KEYLOR` + teal `FIT`; default over dark photography / Welcome
+- `keylorfit-g4-lockup-horizontal-light.svg` — black mark + black `KEYLOR` + teal `FIT`; light surfaces
+- `keylorfit-g4-lockup-stacked-dark.svg` — stacked yellow/white/teal treatment for narrow dark layouts
+- `keylorfit-g4-lockup-stacked-light.svg` — stacked black/teal treatment for narrow light layouts
+
+See [`PREVIEW.md`](./PREVIEW.md) for the visual review sheet rendered from the exact repository assets.
+
 ## Brand colors
 
 - Yellow: `#FFC107`
@@ -22,4 +34,4 @@ The fixed-color exports are convenience variants derived from the same vector ge
 
 Use the SVG master whenever the platform supports vectors. Do not redraw the mark, substitute emoji lightning, or create screen-specific geometry. Runtime platforms that cannot consume SVG directly should derive raster exports or a platform component from this master while preserving the same silhouette.
 
-The wordmark `KEYLORFIT` is separate from the mark. Keep `KEYLOR` neutral/white or dark according to background and use teal for `FIT` unless an explicitly approved monochrome treatment is required.
+For Welcome, prefer the photo lockup. For Sign In / Create Account and other dark non-photographic identity surfaces, prefer the dark lockup. The standalone mark is appropriate for app icons, compact navigation, avatars/marks, favicons and other spaces where the full wordmark would not remain legible.
