@@ -1,4 +1,9 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import {
+  act,
+  fireEvent,
+  render,
+  waitFor,
+} from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 
 import PasswordRecoveryRoute from '../password-recovery';
@@ -44,14 +49,25 @@ describe('PasswordRecoveryRoute', () => {
   it('validates the email, then submits without revealing account existence', async () => {
     const view = await render(<PasswordRecoveryRoute />);
 
-    fireEvent.changeText(view.getByLabelText('Email'), 'not-an-email');
-    fireEvent.press(view.getByText('Send recovery link'));
+    await act(async () => {
+      fireEvent.changeText(view.getByLabelText('Email'), 'not-an-email');
+    });
+    await act(async () => {
+      fireEvent.press(view.getByText('Send recovery link'));
+    });
 
     expect(await view.findByText('Enter a valid email address.')).toBeTruthy();
     expect(requestPasswordRecovery).not.toHaveBeenCalled();
 
-    fireEvent.changeText(view.getByLabelText('Email'), 'person@example.com');
-    fireEvent.press(view.getByText('Send recovery link'));
+    await act(async () => {
+      fireEvent.changeText(view.getByLabelText('Email'), 'person@example.com');
+    });
+    await waitFor(() => {
+      expect(view.getByDisplayValue('person@example.com')).toBeTruthy();
+    });
+    await act(async () => {
+      fireEvent.press(view.getByText('Send recovery link'));
+    });
 
     await waitFor(() => {
       expect(requestPasswordRecovery).toHaveBeenCalledWith(
