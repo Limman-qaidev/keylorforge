@@ -1,4 +1,9 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import {
+  act,
+  fireEvent,
+  render,
+  waitFor,
+} from '@testing-library/react-native';
 
 import RecoveryCallbackRoute from '../recovery';
 import { useAuth } from '@/lib/auth/auth-provider';
@@ -49,7 +54,9 @@ describe('RecoveryCallbackRoute', () => {
       ),
     ).toBeTruthy();
 
-    fireEvent.press(view.getByText('Request a new recovery email'));
+    await act(async () => {
+      fireEvent.press(view.getByText('Request a new recovery email'));
+    });
     expect(mockReplace).toHaveBeenCalledWith('/password-recovery');
   });
 
@@ -63,21 +70,34 @@ describe('RecoveryCallbackRoute', () => {
 
     const view = await render(<RecoveryCallbackRoute />);
 
-    fireEvent.changeText(view.getByLabelText('New password'), 'password123');
-    fireEvent.changeText(
-      view.getByLabelText('Confirm new password'),
-      'different123',
-    );
-    fireEvent.press(view.getByText('Update password'));
+    await act(async () => {
+      fireEvent.changeText(view.getByLabelText('New password'), 'password123');
+    });
+    await act(async () => {
+      fireEvent.changeText(
+        view.getByLabelText('Confirm new password'),
+        'different123',
+      );
+    });
+    await act(async () => {
+      fireEvent.press(view.getByText('Update password'));
+    });
 
     expect(await view.findByText('Passwords do not match.')).toBeTruthy();
     expect(updateRecoveryPassword).not.toHaveBeenCalled();
 
-    fireEvent.changeText(
-      view.getByLabelText('Confirm new password'),
-      'password123',
-    );
-    fireEvent.press(view.getByText('Update password'));
+    await act(async () => {
+      fireEvent.changeText(
+        view.getByLabelText('Confirm new password'),
+        'password123',
+      );
+    });
+    await waitFor(() => {
+      expect(view.getByDisplayValue('password123')).toBeTruthy();
+    });
+    await act(async () => {
+      fireEvent.press(view.getByText('Update password'));
+    });
 
     await waitFor(() => {
       expect(updateRecoveryPassword).toHaveBeenCalledWith('password123');
