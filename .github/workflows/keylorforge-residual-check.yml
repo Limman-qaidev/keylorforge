@@ -1,0 +1,22 @@
+name: KeylorForge residual check
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  no-old-brand:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reject live KeylorFit references
+        shell: bash
+        run: |
+          if git grep -InE 'KeylorFit|KEYLORFIT|keylorfit' -- . ':!docs/design-docs/keylorforge-ui-reference/*.png' ':!docs/design-docs/keylorforge-ui-reference/*.jpg'; then
+            echo 'Old KeylorFit textual references remain.' >&2
+            exit 1
+          fi
