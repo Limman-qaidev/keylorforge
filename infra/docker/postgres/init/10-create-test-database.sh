@@ -2,12 +2,12 @@
 # This script is mounted into a Linux PostgreSQL container; retain LF endings.
 set -eu
 
-test_database="${KEYLORNET_POSTGRES_TEST_DB:?KEYLORNET_POSTGRES_TEST_DB is required}"
+test_database="${KEYLORFORGE_POSTGRES_TEST_DB:?KEYLORFORGE_POSTGRES_TEST_DB is required}"
 
 case "$test_database" in
   *_test) ;;
   *)
-    echo "KEYLORNET_POSTGRES_TEST_DB must end in _test" >&2
+    echo "KEYLORFORGE_POSTGRES_TEST_DB must end in _test" >&2
     exit 1
     ;;
 esac

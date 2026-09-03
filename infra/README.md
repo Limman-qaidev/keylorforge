@@ -4,8 +4,8 @@ This Compose environment provides only the local PostgreSQL 17 service needed
 by the backend and database foundations. It does not package or deploy the API,
 mobile app, Supabase, or any product service.
 
-The local development database is `keylornet`; the separately provisioned
-disposable migration-test database is `keylornet_test`. Database clients must
+The local development database is `keylorforge`; the separately provisioned
+disposable migration-test database is `keylorforge_test`. Database clients must
 use the repository's sole supported SQLAlchemy driver contract:
 `postgresql+psycopg://` (psycopg 3).
 
@@ -18,7 +18,7 @@ PostgreSQL:
 Copy-Item .env.example .env
 docker compose up -d
 docker compose ps
-docker compose exec postgres pg_isready -U keylornet -d keylornet
+docker compose exec postgres pg_isready -U keylorforge -d keylorforge
 ```
 
 The default port is bound to `127.0.0.1` only. The checked-in password is a
@@ -37,8 +37,8 @@ development database:
 ```powershell
 Set-Location database
 python -m pip install -c constraints.txt -e '.[dev]'
-$env:KEYLORNET_ENVIRONMENT = 'development'
-$env:KEYLORNET_DATABASE_URL = 'postgresql+psycopg://keylornet:keylornet_local_development_only@127.0.0.1:5432/keylornet'
+$env:KEYLORFORGE_ENVIRONMENT = 'development'
+$env:KEYLORFORGE_DATABASE_URL = 'postgresql+psycopg://keylorforge:keylorforge_local_development_only@127.0.0.1:5432/keylorforge'
 python -m alembic upgrade head
 python -m alembic current
 ```
@@ -47,7 +47,7 @@ Validate the clean migration path with the separate test database before it
 has received any migrations:
 
 ```powershell
-$env:KEYLORNET_TEST_DATABASE_URL = 'postgresql+psycopg://keylornet:keylornet_local_development_only@127.0.0.1:5432/keylornet_test'
+$env:KEYLORFORGE_TEST_DATABASE_URL = 'postgresql+psycopg://keylorforge:keylorforge_local_development_only@127.0.0.1:5432/keylorforge_test'
 pytest
 ```
 
@@ -63,7 +63,7 @@ docker compose down
 ```
 
 Reset is destructive to the local named volume and therefore explicit. It
-recreates empty `keylornet` and `keylornet_test` databases on the next start:
+recreates empty `keylorforge` and `keylorforge_test` databases on the next start:
 
 ```powershell
 docker compose down --volumes

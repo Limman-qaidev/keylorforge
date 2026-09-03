@@ -32,12 +32,12 @@ Expected stable response:
 
 ## Configuration
 
-Settings are read from environment variables prefixed with `KEYLORNET_`.
+Settings are read from environment variables prefixed with `KEYLORFORGE_`.
 
-- `KEYLORNET_APP_NAME` defaults to `keylornet-api`.
-- `KEYLORNET_ENVIRONMENT` defaults to `development` and accepts `development`,
+- `KEYLORFORGE_APP_NAME` defaults to `keylorforge-api`.
+- `KEYLORFORGE_ENVIRONMENT` defaults to `development` and accepts `development`,
   `test`, or `production`.
-- `KEYLORNET_LOG_LEVEL` defaults to `INFO`.
+- `KEYLORFORGE_LOG_LEVEL` defaults to `INFO`.
 
 No secrets are required by this skeleton. A future secret must be supplied
 through the environment, never committed to this repository.

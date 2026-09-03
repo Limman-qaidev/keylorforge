@@ -6,16 +6,16 @@ import os
 
 import pytest
 
-from keylornet_database.config import DatabaseSettings
+from keylorforge_database.config import DatabaseSettings
 
 
 @pytest.fixture
 def test_database_url(monkeypatch: pytest.MonkeyPatch) -> str:
     """Return a verified disposable database URL or skip integration coverage."""
-    url = os.getenv("KEYLORNET_TEST_DATABASE_URL")
+    url = os.getenv("KEYLORFORGE_TEST_DATABASE_URL")
     if url is None:
-        pytest.skip("KEYLORNET_TEST_DATABASE_URL is required for PostgreSQL migration tests")
-    monkeypatch.setenv("KEYLORNET_ENVIRONMENT", "test")
-    monkeypatch.setenv("KEYLORNET_DATABASE_URL", url)
+        pytest.skip("KEYLORFORGE_TEST_DATABASE_URL is required for PostgreSQL migration tests")
+    monkeypatch.setenv("KEYLORFORGE_ENVIRONMENT", "test")
+    monkeypatch.setenv("KEYLORFORGE_DATABASE_URL", url)
     DatabaseSettings().validate_test_target()
     return url

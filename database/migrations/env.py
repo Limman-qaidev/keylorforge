@@ -3,8 +3,8 @@
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from keylornet_database.config import DatabaseSettings
-from keylornet_database.models import Base
+from keylorforge_database.config import DatabaseSettings
+from keylorforge_database.models import Base
 
 config = context.config
 settings = DatabaseSettings()

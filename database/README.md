@@ -9,9 +9,9 @@ tests.
 
 | Variable | Required | Values / purpose |
 | --- | --- | --- |
-| KEYLORNET_ENVIRONMENT | no | development (default), test, or production |
-| KEYLORNET_DATABASE_URL | yes | `postgresql+psycopg://` SQLAlchemy URL using psycopg 3 |
-| KEYLORNET_TEST_DATABASE_URL | migration test only | Separate psycopg 3 PostgreSQL URL; name ends in _test |
+| KEYLORFORGE_ENVIRONMENT | no | development (default), test, or production |
+| KEYLORFORGE_DATABASE_URL | yes | `postgresql+psycopg://` SQLAlchemy URL using psycopg 3 |
+| KEYLORFORGE_TEST_DATABASE_URL | migration test only | Separate psycopg 3 PostgreSQL URL; name ends in _test |
 
 Keep credentials in an untracked local environment file or secret store; do not
 commit them. The current configuration intentionally does not load .env files,
@@ -54,7 +54,7 @@ branch protection.
 - Every schema change is a new Alembic revision in migrations/versions; do not
   rewrite a revision applied to a shared environment.
 - Revisions use YYYYMMDD_NNNN_descriptive_name.py and explicit typed identifiers.
-- New SQLAlchemy models inherit keylornet_database.models.Base, whose metadata
+- New SQLAlchemy models inherit keylorforge_database.models.Base, whose metadata
   applies stable names to primary-key, foreign-key, unique, check and index
   constraints.
 - Migrations are PostgreSQL-only, deterministic, and need safe downgrade behavior
@@ -66,7 +66,7 @@ Create a revision after adding an approved model:
 
 ```powershell
 Set-Location database
-$env:KEYLORNET_DATABASE_URL = 'postgresql+psycopg://keylornet:change-me@localhost:5432/keylornet'
+$env:KEYLORFORGE_DATABASE_URL = 'postgresql+psycopg://keylorforge:change-me@localhost:5432/keylorforge'
 python -m alembic revision --autogenerate -m 'add workouts'
 python -m alembic upgrade head
 python -m alembic current
@@ -78,9 +78,9 @@ After the identity-foundation upgrade, current must report revision 20260829_000
 
 ## Test database strategy
 
-Use a dedicated PostgreSQL database, such as keylornet_test; never point
+Use a dedicated PostgreSQL database, such as keylorforge_test; never point
 migration tests at development or production. Test setup validates both
-KEYLORNET_ENVIRONMENT=test and the _test database-name suffix before running
+KEYLORFORGE_ENVIRONMENT=test and the _test database-name suffix before running
 migrations. The migration test upgrades a clean database and asserts the head
 revision recorded in alembic_version. It first asserts that the public schema
 has no tables and fails rather than deleting an existing test database.
@@ -88,7 +88,7 @@ has no tables and fails rather than deleting an existing test database.
 ```powershell
 Set-Location database
 python -m pip install -c constraints.txt -e '.[dev]'
-$env:KEYLORNET_TEST_DATABASE_URL = 'postgresql+psycopg://keylornet:change-me@localhost:5432/keylornet_test'
+$env:KEYLORFORGE_TEST_DATABASE_URL = 'postgresql+psycopg://keylorforge:change-me@localhost:5432/keylorforge_test'
 pytest
 ```
 

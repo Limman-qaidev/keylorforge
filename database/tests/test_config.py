@@ -3,13 +3,13 @@
 import pytest
 from pydantic import ValidationError
 
-from keylornet_database.config import DatabaseSettings, Environment
-from keylornet_database.engine import create_database_engine, create_session_factory
+from keylorforge_database.config import DatabaseSettings, Environment
+from keylorforge_database.engine import create_database_engine, create_session_factory
 
 
 def test_accepts_postgresql_url(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(
-        "KEYLORNET_DATABASE_URL", "postgresql+psycopg://user:pass@localhost/keylornet"
+        "KEYLORFORGE_DATABASE_URL", "postgresql+psycopg://user:pass@localhost/keylorforge"
     )
 
     settings = DatabaseSettings()
@@ -20,7 +20,7 @@ def test_accepts_postgresql_url(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_rejects_missing_database_url(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("KEYLORNET_DATABASE_URL", raising=False)
+    monkeypatch.delenv("KEYLORFORGE_DATABASE_URL", raising=False)
 
     with pytest.raises(ValidationError):
         DatabaseSettings()
@@ -29,18 +29,18 @@ def test_rejects_missing_database_url(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.parametrize(
     "url",
     [
-        "sqlite:///keylornet.db",
+        "sqlite:///keylorforge.db",
         "not a url",
-        "postgresql://localhost/keylornet",
-        "postgresql+psycopg2://localhost/keylornet",
-        "postgresql+asyncpg://localhost/keylornet",
+        "postgresql://localhost/keylorforge",
+        "postgresql+psycopg2://localhost/keylorforge",
+        "postgresql+asyncpg://localhost/keylorforge",
         "postgresql+psycopg://localhost",
     ],
 )
 def test_rejects_invalid_database_url(
     monkeypatch: pytest.MonkeyPatch, url: str
 ) -> None:
-    monkeypatch.setenv("KEYLORNET_DATABASE_URL", url)
+    monkeypatch.setenv("KEYLORFORGE_DATABASE_URL", url)
 
     with pytest.raises(ValidationError):
         DatabaseSettings()
@@ -50,7 +50,7 @@ def test_creates_sync_psycopg_engine_and_session_factory(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv(
-        "KEYLORNET_DATABASE_URL", "postgresql+psycopg://user:pass@localhost/keylornet"
+        "KEYLORFORGE_DATABASE_URL", "postgresql+psycopg://user:pass@localhost/keylorforge"
     )
 
     settings = DatabaseSettings()
@@ -67,9 +67,9 @@ def test_creates_sync_psycopg_engine_and_session_factory(
 
 
 def test_rejects_non_disposable_test_database(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("KEYLORNET_ENVIRONMENT", "test")
+    monkeypatch.setenv("KEYLORFORGE_ENVIRONMENT", "test")
     monkeypatch.setenv(
-        "KEYLORNET_DATABASE_URL", "postgresql+psycopg://user:pass@localhost/keylornet"
+        "KEYLORFORGE_DATABASE_URL", "postgresql+psycopg://user:pass@localhost/keylorforge"
     )
 
     with pytest.raises(ValueError, match="must end with '_test'"):

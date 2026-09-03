@@ -8,8 +8,8 @@ from typing import Annotated, cast
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from keylornet_database.config import DatabaseSettings
-from keylornet_database.engine import create_session_factory
+from keylorforge_database.config import DatabaseSettings
+from keylorforge_database.engine import create_session_factory
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.auth.jwt_verifier import (
@@ -86,7 +86,7 @@ def get_database_session(request: Request) -> Generator[Session, None, None]:
     """Yield a transaction-owning session for protected persistence operations."""
     session_factory = getattr(request.app.state, "session_factory", None)
     if session_factory is None:
-        database_url = environ.get("KEYLORNET_DATABASE_URL")
+        database_url = environ.get("KEYLORFORGE_DATABASE_URL")
         if database_url is None:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
