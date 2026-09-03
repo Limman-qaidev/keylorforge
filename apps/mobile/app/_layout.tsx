@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { useState } from 'react';
 
 import { AuthProvider } from '@/lib/auth/auth-provider';
+import { RecoveryLinkProvider } from '@/lib/auth/recovery-link-provider';
 
 export default function RootLayout() {
   const [queryClient] = useState(() => new QueryClient());
@@ -10,7 +11,9 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Stack screenOptions={{ headerShown: false }} />
+        <RecoveryLinkProvider>
+          <Stack screenOptions={{ headerShown: false }} />
+        </RecoveryLinkProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
