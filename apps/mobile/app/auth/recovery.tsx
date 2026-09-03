@@ -1,41 +1,44 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text } from 'react-native';
 
 import { AuthScreen, authScreenStyles } from '@/components/auth/auth-screen';
 import { NewPasswordForm } from '@/components/auth/new-password-form';
 import { useAuth } from '@/lib/auth/auth-provider';
-import { RECOVERY_CALLBACK_URL } from '@/lib/auth/recovery-callback';
+import { useRecoveryLink } from '@/lib/auth/recovery-link-provider';
 
 export default function RecoveryCallbackRoute() {
-  const { '#': callbackHash } = useLocalSearchParams<{ '#': string }>();
   const router = useRouter();
-  const { consumeRecoveryCallback, phase, updateRecoveryPassword } = useAuth();
+  const {
+    consumeRecoveryCallback,
+    invalidateSession,
+    phase,
+    updateRecoveryPassword,
+  } = useAuth();
+  const { clearRecoveryLink, recoveryUrl } = useRecoveryLink();
   const [error, setError] = useState<string | null>(null);
-  const callbackUrl = useMemo(
-    () => (callbackHash ? `${RECOVERY_CALLBACK_URL}#${callbackHash}` : null),
-    [callbackHash],
-  );
   const callbackOperation = useRef<{
     promise: Promise<{ error?: string }>;
     url: string;
   } | null>(null);
 
   useEffect(() => {
-    if (!callbackUrl || phase === 'recovery') {
+    if (!recoveryUrl || phase === 'recovery') {
       return;
     }
 
     let active = true;
-    if (callbackOperation.current?.url !== callbackUrl) {
+    if (callbackOperation.current?.url !== recoveryUrl) {
       setError(null);
       callbackOperation.current = {
-        promise: consumeRecoveryCallback(callbackUrl),
-        url: callbackUrl,
+        promise: consumeRecoveryCallback(recoveryUrl),
+        url: recoveryUrl,
       };
     }
 
-    void callbackOperation.current.promise.then((result) => {
+    const operation = callbackOperation.current;
+    void operation.promise.then((result) => {
+      clearRecoveryLink(operation.url);
       if (active && result.error) {
         setError(result.error);
       }
@@ -44,7 +47,7 @@ export default function RecoveryCallbackRoute() {
     return () => {
       active = false;
     };
-  }, [callbackUrl, consumeRecoveryCallback, phase]);
+  }, [clearRecoveryLink, consumeRecoveryCallback, phase, recoveryUrl]);
 
   const updatePassword = async (password: string) => {
     const result = await updateRecoveryPassword(password);
@@ -57,6 +60,11 @@ export default function RecoveryCallbackRoute() {
     return result;
   };
 
+  const cancelRecovery = async () => {
+    await invalidateSession();
+    router.replace('/sign-in');
+  };
+
   const returnToRequest = () => router.replace('/password-recovery');
 
   if (phase === 'recovery') {
@@ -66,6 +74,15 @@ export default function RecoveryCallbackRoute() {
         title="Set new password"
       >
         <NewPasswordForm onSubmit={updatePassword} />
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => void cancelRecovery()}
+          style={authScreenStyles.footerAction}
+        >
+          <Text style={authScreenStyles.footerText}>
+            Cancel recovery and return to sign in
+          </Text>
+        </Pressable>
       </AuthScreen>
     );
   }
