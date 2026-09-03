@@ -48,10 +48,7 @@ export default function WelcomeRoute() {
               </Pressable>
             </Link>
             <Link asChild href="/sign-in">
-              <Pressable
-                accessibilityRole="button"
-                style={styles.signInAction}
-              >
+              <Pressable accessibilityRole="button" style={styles.signInAction}>
                 <Text style={styles.signInText}>
                   Already have an account?{' '}
                   <Text style={styles.signInAccent}>Sign in</Text>
