@@ -12,9 +12,12 @@ type AuthListener = (
   session: Session | null,
 ) => void;
 
-function session(email = 'person@example.com'): Session {
+function session(
+  accessToken = 'access-token',
+  email = 'person@example.com',
+): Session {
   return {
-    access_token: 'access-token',
+    access_token: accessToken,
     expires_at: 1_999_999_999,
     expires_in: 3600,
     refresh_token: 'refresh-token',
@@ -35,6 +38,8 @@ function createClient({
   verifiedUserEmail = 'person@example.com',
   getUserError = null,
   getUserException = null,
+  refreshSessionValue = session('refreshed-access-token'),
+  refreshSessionError = null,
   restoreError = null,
   setSessionException = null,
   setSessionError = null,
@@ -47,6 +52,8 @@ function createClient({
   verifiedUserEmail?: string;
   getUserError?: Error | null;
   getUserException?: Error | null;
+  refreshSessionValue?: Session | null;
+  refreshSessionError?: Error | null;
   restoreError?: Error | null;
   setSessionException?: Error | null;
   setSessionError?: Error | null;
@@ -66,7 +73,9 @@ function createClient({
         ? jest.fn().mockRejectedValue(getUserException)
         : jest.fn().mockResolvedValue({
             data: {
-              user: getUserError ? null : session(verifiedUserEmail).user,
+              user: getUserError
+                ? null
+                : session('access-token', verifiedUserEmail).user,
             },
             error: getUserError,
           }),
@@ -78,10 +87,16 @@ function createClient({
         ? jest.fn().mockRejectedValue(setSessionException)
         : jest.fn().mockResolvedValue({
             data: {
-              session: setSessionError ? null : session(verifiedUserEmail),
+              session: setSessionError
+                ? null
+                : session('access-token', verifiedUserEmail),
             },
             error: setSessionError,
           }),
+      refreshSession: jest.fn().mockResolvedValue({
+        data: { session: refreshSessionError ? null : refreshSessionValue },
+        error: refreshSessionError,
+      }),
       signInWithPassword: jest.fn().mockResolvedValue({
         data: { session: signInError ? null : session() },
         error: signInError,
@@ -114,6 +129,9 @@ function AuthProbe() {
     consumeConfirmationCallback,
     feedback,
     phase,
+    invalidateSession,
+    refreshSession,
+    session: currentSession,
     signIn,
     signOut,
     signUp,
@@ -126,6 +144,7 @@ function AuthProbe() {
       <Text testID="confirmation">{confirmationEmail ?? ''}</Text>
       <Text testID="feedback">{feedback?.message ?? ''}</Text>
       <Text testID="callback-result">{callbackResult}</Text>
+      <Text testID="access-token">{currentSession?.access_token ?? ''}</Text>
       <Pressable
         onPress={() => void signIn('person@example.com', 'password123')}
       >
@@ -171,6 +190,12 @@ function AuthProbe() {
       </Pressable>
       <Pressable onPress={() => void signOut()}>
         <Text>sign out</Text>
+      </Pressable>
+      <Pressable onPress={() => void invalidateSession()}>
+        <Text>invalidate session</Text>
+      </Pressable>
+      <Pressable onPress={() => void refreshSession()}>
+        <Text>refresh session</Text>
       </Pressable>
     </>
   );
@@ -373,7 +398,7 @@ describe('AuthProvider', () => {
       refresh_token: 'refresh-token',
     });
     expect(getByTestId('callback-result').props.children).toBe('success');
-    expect(queryByText(/access-token|refresh-token/)).toBeNull();
+    expect(queryByText('refresh-token')).toBeNull();
   });
 
   it('rejects a malformed confirmation callback without mutating the session', async () => {
@@ -509,6 +534,77 @@ describe('AuthProvider', () => {
       fireEvent.press(getByText('sign out'));
     });
     await expectPhase(getByTestId, 'signedOut');
+  });
+
+  it('fails closed locally when terminal API auth invalidation cannot revoke remotely', async () => {
+    const remoteFailure = new Error('network failed');
+    const { client } = createClient({
+      initialSession: session(),
+      signOutError: remoteFailure,
+    });
+    const { getByText, getByTestId } = await render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedIn');
+    await act(async () => {
+      fireEvent.press(getByText('invalidate session'));
+    });
+
+    await expectPhase(getByTestId, 'signedOut');
+    expect(client.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    expect(getByTestId('feedback').props.children).toBe(
+      'Your session has ended. Please sign in again.',
+    );
+  });
+
+  it('refreshes an expired access token without ending a valid session', async () => {
+    const { client } = createClient({
+      initialSession: session('expired-access-token'),
+      refreshSessionValue: session('fresh-access-token'),
+    });
+    const { getByText, getByTestId } = await render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedIn');
+    await act(async () => {
+      fireEvent.press(getByText('refresh session'));
+    });
+
+    await waitFor(() => {
+      expect(getByTestId('access-token').props.children).toBe(
+        'fresh-access-token',
+      );
+    });
+    expect(getByTestId('phase').props.children).toBe('signedIn');
+    expect(client.auth.refreshSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails closed when an explicit refresh finds revoked credentials', async () => {
+    const { client } = createClient({
+      initialSession: session(),
+      refreshSessionError: new Error('Invalid refresh token: session revoked'),
+    });
+    const { getByText, getByTestId } = await render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedIn');
+    await act(async () => {
+      fireEvent.press(getByText('refresh session'));
+    });
+
+    await expectPhase(getByTestId, 'signedOut');
+    expect(getByTestId('feedback').props.children).toBe(
+      'Your session has ended. Please sign in again.',
+    );
   });
 
   it('keeps the shell signed in after a successful token refresh', async () => {
