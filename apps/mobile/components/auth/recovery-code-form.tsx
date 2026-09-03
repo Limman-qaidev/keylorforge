@@ -7,9 +7,7 @@ import { z } from 'zod';
 import { authScreenStyles } from '@/components/auth/auth-screen';
 
 const recoveryCodeSchema = z.object({
-  code: z
-    .string()
-    .regex(/^\d{6}$/, 'Enter the 6-digit code from your email.'),
+  code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code from your email.'),
 });
 
 type RecoveryCodeValues = z.infer<typeof recoveryCodeSchema>;
