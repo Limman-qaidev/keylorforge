@@ -1,9 +1,4 @@
-import {
-  act,
-  fireEvent,
-  render,
-  waitFor,
-} from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 
 import PasswordRecoveryRoute from '../password-recovery';
