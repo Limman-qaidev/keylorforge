@@ -108,13 +108,24 @@ class ApplicationUserRepository:
         """
         identity = self._find_identity(auth_provider, external_subject)
         if identity is not None:
-            user = identity.user
-            if user.lifecycle_state is ApplicationUserLifecycle.ACTIVE:
-                user.lifecycle_state = ApplicationUserLifecycle.DELETION_IN_PROGRESS
-                if user.profile is not None:
-                    user.profile.display_name = None
+            locked_user = self._session.scalar(
+                select(ApplicationUser)
+                .options(joinedload(ApplicationUser.profile))
+                .where(ApplicationUser.id == identity.user.id)
+                .execution_options(populate_existing=True)
+                .with_for_update(of=ApplicationUser)
+            )
+            if locked_user is None:
+                raise RuntimeError("deletion identity is missing its application user")
+
+            if locked_user.lifecycle_state is ApplicationUserLifecycle.ACTIVE:
+                locked_user.lifecycle_state = (
+                    ApplicationUserLifecycle.DELETION_IN_PROGRESS
+                )
+                if locked_user.profile is not None:
+                    locked_user.profile.display_name = None
                 self._session.flush()
-            return user
+            return locked_user
 
         try:
             with self._session.begin_nested():
