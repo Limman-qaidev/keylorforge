@@ -38,6 +38,10 @@ Settings are read from environment variables prefixed with `KEYLORFORGE_`.
 - `KEYLORFORGE_ENVIRONMENT` defaults to `development` and accepts `development`,
   `test`, or `production`.
 - `KEYLORFORGE_LOG_LEVEL` defaults to `INFO`.
+- `KEYLORFORGE_SUPABASE_PROJECT_URL` identifies the trusted Supabase project.
+- `KEYLORFORGE_SUPABASE_SECRET_KEY` is required only for account deletion. Supply
+  its current `sb_secret_...` value through server-only secret storage; never
+  commit, log, or place it in mobile configuration.
 
 No secrets are required by this skeleton. A future secret must be supplied
 through the environment, never committed to this repository.

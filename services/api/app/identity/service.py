@@ -14,6 +14,10 @@ from app.identity.schemas import (
     ProfileResponse,
     UpdateProfileRequest,
 )
+from app.identity.supabase_admin import (
+    SupabaseAdminDeletionClient,
+    SupabaseAdminDeletionError,
+)
 
 
 def get_or_provision_current_identity(
@@ -61,6 +65,36 @@ def update_current_profile(
         created_at=profile.created_at,
         updated_at=profile.updated_at,
     )
+
+
+def delete_current_identity(
+    *,
+    principal: AuthenticatedPrincipal,
+    session: Session,
+    admin_client: SupabaseAdminDeletionClient,
+) -> None:
+    """Delete only the authenticated caller while preserving a local tombstone."""
+    repository = ApplicationUserRepository(session)
+    repository.start_deletion(
+        auth_provider=AuthProvider.SUPABASE,
+        external_subject=principal.external_subject,
+    )
+    # This explicit commit is the fail-closed boundary before provider I/O.
+    session.commit()
+
+    try:
+        admin_client.delete_user(principal.external_subject)
+    except SupabaseAdminDeletionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="account deletion could not be completed; please try again",
+        ) from exc
+
+    repository.finalize_deletion(
+        auth_provider=AuthProvider.SUPABASE,
+        external_subject=principal.external_subject,
+    )
+    session.commit()
 
 
 def _profile_response_for_user(user: ApplicationUser) -> MeResponse:
