@@ -157,9 +157,7 @@ describe('RecoveryCallbackRoute', () => {
     const view = await render(<RecoveryCallbackRoute />);
 
     await act(async () => {
-      fireEvent.press(
-        view.getByText('Cancel recovery and return to sign in'),
-      );
+      fireEvent.press(view.getByText('Cancel recovery and return to sign in'));
     });
 
     expect(invalidateSession).toHaveBeenCalledTimes(1);
