@@ -8,7 +8,10 @@ import { useAuth } from '@/lib/auth/auth-provider';
 
 function SignInScreen() {
   const { feedback, signIn } = useAuth();
-  const { confirmed } = useLocalSearchParams<{ confirmed?: string }>();
+  const { confirmed, passwordUpdated } = useLocalSearchParams<{
+    confirmed?: string;
+    passwordUpdated?: string;
+  }>();
 
   return (
     <AuthScreen backHref="/welcome" subtitle="Welcome back." title="Sign in">
@@ -20,10 +23,25 @@ function SignInScreen() {
           Email confirmed. You can now sign in.
         </Text>
       ) : null}
+      {passwordUpdated === 'true' ? (
+        <Text accessibilityRole="alert" style={authScreenStyles.success}>
+          Password updated. Sign in with your new password.
+        </Text>
+      ) : null}
       <EmailPasswordForm
         actionLabel="Sign in"
         onSubmit={({ email, password }) => signIn(email, password)}
       />
+      <Link asChild href="/password-recovery">
+        <Pressable
+          accessibilityRole="link"
+          style={authScreenStyles.footerAction}
+        >
+          <Text style={authScreenStyles.footerAccent}>
+            Forgot your password?
+          </Text>
+        </Pressable>
+      </Link>
       <Link asChild href="/sign-up">
         <Pressable
           accessibilityRole="link"
