@@ -26,7 +26,9 @@ function createClient({
       }),
       verifyOtp: jest.fn().mockResolvedValue({
         data: {
-          session: verifyError ? null : { access_token: 'recovery-access-token' },
+          session: verifyError
+            ? null
+            : { access_token: 'recovery-access-token' },
           user: verifyError ? null : { id: 'user-id' },
         },
         error: verifyError,
