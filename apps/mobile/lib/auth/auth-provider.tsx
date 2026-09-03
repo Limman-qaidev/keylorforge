@@ -65,7 +65,7 @@ const restoringState: AuthState = {
 };
 
 const pendingConfirmationEmailKey =
-  '@keylorfit/auth/pending-confirmation-email';
+  '@keylorforge/auth/pending-confirmation-email';
 
 function readableAuthError(error: AuthError | Error | null): string {
   if (!error) {

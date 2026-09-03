@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
-from keylornet_database.models import (
+from keylorforge_database.models import (
     ApplicationUser,
     ApplicationUserIdentity,
     ApplicationUserLifecycle,
@@ -75,7 +75,7 @@ class ApplicationUserRepository:
         """
         if user.lifecycle_state is not ApplicationUserLifecycle.ACTIVE:
             raise TerminalIdentityError(
-                "the external identity has a terminal KeylorFit lifecycle state"
+                "the external identity has a terminal KeylorForge lifecycle state"
             )
 
         profile = user.profile
@@ -107,6 +107,6 @@ class ApplicationUserRepository:
         user = identity.user
         if user.lifecycle_state is not ApplicationUserLifecycle.ACTIVE:
             raise TerminalIdentityError(
-                "the external identity has a terminal KeylorFit lifecycle state"
+                "the external identity has a terminal KeylorForge lifecycle state"
             )
         return user

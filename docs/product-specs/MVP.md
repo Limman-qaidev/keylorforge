@@ -1,8 +1,8 @@
-# KeylorFit MVP Product Specification
+# KeylorForge MVP Product Specification
 
 ## Product goal
 
-KeylorFit is a mobile application for recording gym training, reviewing personal history and progress, and comparing activity and performance within groups. Social sharing is a later layer built on top of trustworthy workout data.
+KeylorForge is a mobile application for recording gym training, reviewing personal history and progress, and comparing activity and performance within groups. Social sharing is a later layer built on top of trustworthy workout data.
 
 ## MVP priorities
 

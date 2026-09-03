@@ -24,8 +24,8 @@ function ConfirmationScreen() {
           </Text>
         ) : null}
         <Text style={styles.hint}>
-          Open the link on this device. KeylorFit will bring you back to sign in
-          when your email is confirmed.
+          Open the link on this device. KeylorForge will bring you back to sign
+          in when your email is confirmed.
         </Text>
       </View>
       <Link asChild href="/sign-in" onPress={clearConfirmation}>

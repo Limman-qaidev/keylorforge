@@ -3,14 +3,14 @@ requires = ["hatchling==1.27.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "keylornet-api"
+name = "keylorforge-api"
 version = "0.1.0"
-description = "KeylorFit FastAPI backend foundation"
+description = "KeylorForge FastAPI backend foundation"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
     "fastapi==0.116.1",
-    "keylornet-database @ file:../../database",
+    "keylorforge-database @ file:../../database",
     "pydantic==2.13.4",
     "pydantic-settings==2.10.1",
     "PyJWT[crypto]==2.13.0",

@@ -7,7 +7,7 @@ export function SessionRestoring() {
         accessibilityLabel="Restoring your session"
         size="large"
       />
-      <Text style={styles.title}>KeylorFit</Text>
+      <Text style={styles.title}>KeylorForge</Text>
       <Text accessibilityLiveRegion="polite" style={styles.message}>
         Restoring your session…
       </Text>

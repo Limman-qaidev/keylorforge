@@ -12,11 +12,11 @@ from alembic.config import Config
 from sqlalchemy import create_engine, select, text, update
 from sqlalchemy.orm import Session
 
-from keylornet_database.identity import (
+from keylorforge_database.identity import (
     ApplicationUserRepository,
     TerminalIdentityError,
 )
-from keylornet_database.models import (
+from keylorforge_database.models import (
     ApplicationUser,
     ApplicationUserIdentity,
     ApplicationUserLifecycle,

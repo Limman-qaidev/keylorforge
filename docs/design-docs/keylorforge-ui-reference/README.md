@@ -1,4 +1,4 @@
-# KeylorFit UI visual references
+# KeylorForge UI visual references
 
 This directory stores Product Owner-approved visual references used while implementing the mobile UI.
 
@@ -6,15 +6,15 @@ This directory stores Product Owner-approved visual references used while implem
 
 Canonical file:
 
-`keylorfit-ui-foundation-v1.png`
+`keylorforge-ui-foundation-v1.png`
 
-This is the approved concept board covering the broader KeylorFit visual language for Home, active workout, Progress, Training Hub, Social/Ranking and representative future product surfaces.
+This is the approved concept board covering the broader KeylorForge visual language for Home, active workout, Progress, Training Hub, Social/Ranking and representative future product surfaces.
 
 ## M1 product-shell reference
 
 Canonical file:
 
-`keylorfit-m1-reference-v1.png`
+`keylorforge-m1-reference-v1.png`
 
 This board is the Product Owner-approved M1 reference covering:
 
@@ -33,7 +33,7 @@ It remains the broad M1 composition reference. Domain functionality shown illust
 
 Canonical file:
 
-`keylorfit-auth-reference-v1.png`
+`keylorforge-auth-reference-v1.png`
 
 This triptych is the Product Owner-approved **close visual target** for the current Welcome/Auth implementation slice of #51:
 
@@ -55,10 +55,10 @@ Do not render dead controls solely to make a screenshot resemble the reference. 
 
 Implementation agents working on #51 must inspect the relevant references before coding:
 
-1. `keylorfit-ui-foundation-v1.png` defines the broader KeylorFit product language.
-2. `keylorfit-m1-reference-v1.png` defines the broader M1 composition/product-shell direction.
-3. `keylorfit-auth-reference-v1.png` is the closest visual target for Welcome, Sign in and Sign up.
-4. `../KEYLORFIT_VISUAL_FOUNDATION.md` and current product/domain contracts remain authoritative for behavior, architecture, accessibility and milestone boundaries.
+1. `keylorforge-ui-foundation-v1.png` defines the broader KeylorForge product language.
+2. `keylorforge-m1-reference-v1.png` defines the broader M1 composition/product-shell direction.
+3. `keylorforge-auth-reference-v1.png` is the closest visual target for Welcome, Sign in and Sign up.
+4. `../KEYLORFORGE_VISUAL_FOUNDATION.md` and current product/domain contracts remain authoritative for behavior, architecture, accessibility and milestone boundaries.
 
 Generated mockup text/data is never a source of domain truth. Do not fabricate rankings, workout data, plans, routines, social content, provider behavior or persistence rules merely because they appear in a visual reference.
 

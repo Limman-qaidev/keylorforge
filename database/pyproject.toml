@@ -3,9 +3,9 @@ requires = ["hatchling==1.27.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "keylornet-database"
+name = "keylorforge-database"
 version = "0.1.0"
-description = "PostgreSQL and Alembic foundation for KeylorFit"
+description = "PostgreSQL and Alembic foundation for KeylorForge"
 requires-python = ">=3.11,<3.14"
 dependencies = [
   "alembic==1.16.4",
@@ -24,4 +24,4 @@ testpaths = ["tests"]
 addopts = "-ra"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/keylornet_database"]
+packages = ["src/keylorforge_database"]

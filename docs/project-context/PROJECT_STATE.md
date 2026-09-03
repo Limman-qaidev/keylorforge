@@ -1,4 +1,4 @@
-# KeylorFit project state
+# KeylorForge project state
 
 Last updated: 2026-08-30
 

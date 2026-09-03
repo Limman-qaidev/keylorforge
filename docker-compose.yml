@@ -2,14 +2,14 @@ services:
   postgres:
     image: postgres:17.6-alpine
     environment:
-      POSTGRES_USER: ${KEYLORNET_POSTGRES_USER:-keylornet}
-      POSTGRES_PASSWORD: ${KEYLORNET_POSTGRES_PASSWORD:-keylornet_local_development_only}
-      POSTGRES_DB: ${KEYLORNET_POSTGRES_DB:-keylornet}
-      KEYLORNET_POSTGRES_TEST_DB: ${KEYLORNET_POSTGRES_TEST_DB:-keylornet_test}
+      POSTGRES_USER: ${KEYLORFORGE_POSTGRES_USER:-keylorforge}
+      POSTGRES_PASSWORD: ${KEYLORFORGE_POSTGRES_PASSWORD:-keylorforge_local_development_only}
+      POSTGRES_DB: ${KEYLORFORGE_POSTGRES_DB:-keylorforge}
+      KEYLORFORGE_POSTGRES_TEST_DB: ${KEYLORFORGE_POSTGRES_TEST_DB:-keylorforge_test}
     ports:
-      - "127.0.0.1:${KEYLORNET_POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${KEYLORFORGE_POSTGRES_PORT:-5432}:5432"
     volumes:
-      - keylornet_postgres_data:/var/lib/postgresql/data
+      - keylorforge_postgres_data:/var/lib/postgresql/data
       - ./infra/docker/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
@@ -20,4 +20,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  keylornet_postgres_data:
+  keylorforge_postgres_data:

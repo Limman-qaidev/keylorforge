@@ -20,7 +20,7 @@ function HomeScreen() {
       <Text accessibilityRole="header" style={styles.title}>
         Your training home
       </Text>
-      <Text style={styles.message}>You are signed in to KeylorFit.</Text>
+      <Text style={styles.message}>You are signed in to KeylorForge.</Text>
       <Link accessibilityRole="link" href="/profile" style={styles.profileLink}>
         Profile
       </Link>

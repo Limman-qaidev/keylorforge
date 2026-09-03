@@ -228,7 +228,7 @@ export function ProfileScreen() {
         Profile
       </Text>
       <Text style={styles.subtitle}>
-        Choose the name shown with your KeylorFit account.
+        Choose the name shown with your KeylorForge account.
       </Text>
 
       <Text style={styles.inputLabel}>Display name</Text>

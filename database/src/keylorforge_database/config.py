@@ -18,10 +18,10 @@ class Environment(StrEnum):
 
 
 class DatabaseSettings(BaseSettings):
-    """Validated psycopg 3 PostgreSQL settings loaded from KEYLORNET variables."""
+    """Validated psycopg 3 PostgreSQL settings loaded from KEYLORFORGE variables."""
 
     model_config = SettingsConfigDict(
-        env_prefix="KEYLORNET_", case_sensitive=False, extra="ignore"
+        env_prefix="KEYLORFORGE_", case_sensitive=False, extra="ignore"
     )
 
     environment: Environment = Environment.DEVELOPMENT
@@ -48,7 +48,7 @@ class DatabaseSettings(BaseSettings):
     def validate_test_target(self) -> None:
         """Reject a test run unless its target database is explicitly disposable."""
         if self.environment is not Environment.TEST:
-            raise ValueError("KEYLORNET_ENVIRONMENT must be 'test' for migration tests")
+            raise ValueError("KEYLORFORGE_ENVIRONMENT must be 'test' for migration tests")
         database_name = self.sqlalchemy_url().database
         assert database_name is not None
         if not database_name.endswith("_test"):

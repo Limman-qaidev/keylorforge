@@ -7,7 +7,7 @@ from app.config import Settings
 
 
 def test_log_level_is_normalized(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("KEYLORNET_LOG_LEVEL", "debug")
+    monkeypatch.setenv("KEYLORFORGE_LOG_LEVEL", "debug")
 
     settings = Settings()
 
@@ -15,7 +15,7 @@ def test_log_level_is_normalized(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_invalid_log_level_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("KEYLORNET_LOG_LEVEL", "VERBOSE")
+    monkeypatch.setenv("KEYLORFORGE_LOG_LEVEL", "VERBOSE")
 
     with pytest.raises(ValidationError):
         Settings()

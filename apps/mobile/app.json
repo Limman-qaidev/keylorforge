@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "KeylorFit",
-    "slug": "keylorfit",
+    "name": "KeylorForge",
+    "slug": "keylorforge",
     "version": "0.1.0",
-    "scheme": "keylorfit",
+    "scheme": "keylorforge",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "android": {
-      "package": "com.jonathansalgadonieto.keylorfit",
+      "package": "com.jonathansalgadonieto.keylorforge",
       "intentFilters": [
         {
           "action": "VIEW",
@@ -15,12 +15,12 @@
           "category": ["BROWSABLE", "DEFAULT"],
           "data": [
             {
-              "scheme": "keylorfit",
+              "scheme": "keylorforge",
               "host": "auth",
               "pathPrefix": "/confirm"
             },
             {
-              "scheme": "keylorfit",
+              "scheme": "keylorforge",
               "host": "auth",
               "pathPrefix": "/recovery"
             }

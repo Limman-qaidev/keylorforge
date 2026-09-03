@@ -36,7 +36,7 @@ describe('ConfirmationCallbackRoute', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockedUseLinkingURL.mockReturnValue(
-      'keylorfit://auth/confirm#access_token=access-token&refresh_token=refresh-token',
+      'keylorforge://auth/confirm#access_token=access-token&refresh_token=refresh-token',
     );
     clearConfirmation.mockResolvedValue(undefined);
   });
@@ -103,7 +103,7 @@ describe('ConfirmationCallbackRoute', () => {
     expect(consumeConfirmationCallback).not.toHaveBeenCalled();
 
     mockedUseLinkingURL.mockReturnValue(
-      'keylorfit://auth/confirm#access_token=access-token&refresh_token=refresh-token',
+      'keylorforge://auth/confirm#access_token=access-token&refresh_token=refresh-token',
     );
     await view.rerender(<ConfirmationCallbackRoute />);
 

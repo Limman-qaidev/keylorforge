@@ -158,7 +158,7 @@ function AuthProbe() {
       <Pressable
         onPress={() =>
           void consumeConfirmationCallback(
-            'keylorfit://auth/confirm#access_token=access-token&refresh_token=refresh-token',
+            'keylorforge://auth/confirm#access_token=access-token&refresh_token=refresh-token',
           ).then((result) => setCallbackResult(result.error ?? 'success'))
         }
       >
@@ -167,10 +167,10 @@ function AuthProbe() {
       <Pressable
         onPress={() => {
           void consumeConfirmationCallback(
-            'keylorfit://auth/confirm#access_token=access-token&refresh_token=refresh-token',
+            'keylorforge://auth/confirm#access_token=access-token&refresh_token=refresh-token',
           );
           void consumeConfirmationCallback(
-            'keylorfit://auth/confirm#access_token=access-token&refresh_token=refresh-token',
+            'keylorforge://auth/confirm#access_token=access-token&refresh_token=refresh-token',
           );
         }}
       >
@@ -178,7 +178,7 @@ function AuthProbe() {
       </Pressable>
       <Pressable
         onPress={() =>
-          void consumeConfirmationCallback('keylorfit://auth/confirm').then(
+          void consumeConfirmationCallback('keylorforge://auth/confirm').then(
             (result) => setCallbackResult(result.error ?? 'success'),
           )
         }
@@ -266,7 +266,7 @@ describe('AuthProvider', () => {
     expect(client.auth.signUp).toHaveBeenCalledWith({
       email: 'person@example.com',
       password: 'password123',
-      options: { emailRedirectTo: 'keylorfit://auth/confirm' },
+      options: { emailRedirectTo: 'keylorforge://auth/confirm' },
     });
   });
 
@@ -294,14 +294,14 @@ describe('AuthProvider', () => {
     await waitFor(() => {
       expect(getByTestId('confirmation').props.children).toBe('');
       expect(AsyncStorage.removeItem).toHaveBeenCalledWith(
-        '@keylorfit/auth/pending-confirmation-email',
+        '@keylorforge/auth/pending-confirmation-email',
       );
     });
   });
 
   it('consumes a valid callback after cold-start restoration leaves the pending email only in storage', async () => {
     await AsyncStorage.setItem(
-      '@keylorfit/auth/pending-confirmation-email',
+      '@keylorforge/auth/pending-confirmation-email',
       'person@example.com',
     );
     const auth = createClient();
@@ -328,7 +328,7 @@ describe('AuthProvider', () => {
 
   it('keeps a persisted-only confirmation callback single-flight', async () => {
     await AsyncStorage.setItem(
-      '@keylorfit/auth/pending-confirmation-email',
+      '@keylorforge/auth/pending-confirmation-email',
       'person@example.com',
     );
     const auth = createClient();

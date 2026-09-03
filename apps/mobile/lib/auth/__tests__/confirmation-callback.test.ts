@@ -4,11 +4,11 @@ import {
 } from '../confirmation-callback';
 
 describe('confirmation callback parsing', () => {
-  it('accepts only the configured KeylorFit confirmation endpoint', () => {
-    expect(CONFIRMATION_CALLBACK_URL).toBe('keylorfit://auth/confirm');
+  it('accepts only the configured KeylorForge confirmation endpoint', () => {
+    expect(CONFIRMATION_CALLBACK_URL).toBe('keylorforge://auth/confirm');
     expect(
       parseConfirmationCallback(
-        'keylorfit://auth/recovery#access_token=access-token&refresh_token=refresh-token',
+        'keylorforge://auth/recovery#access_token=access-token&refresh_token=refresh-token',
       ),
     ).toEqual({ kind: 'invalid' });
   });
@@ -16,7 +16,7 @@ describe('confirmation callback parsing', () => {
   it('maps provider callback errors to a safe category without provider text', () => {
     expect(
       parseConfirmationCallback(
-        'keylorfit://auth/confirm#error=access_denied&error_description=Token%20expired',
+        'keylorforge://auth/confirm#error=access_denied&error_description=Token%20expired',
       ),
     ).toEqual({ kind: 'providerError' });
   });

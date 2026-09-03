@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { RequireSignedOut } from '@/components/auth/auth-guards';
-import { KeylorFitBrand } from '@/components/brand/keylorfit-brand';
+import { KeylorForgeBrand } from '@/components/brand/keylorforge-brand';
 
 const welcomeHero = require('../assets/images/welcome-hero.png');
 
@@ -27,7 +27,7 @@ export default function WelcomeRoute() {
         <SafeAreaView edges={['top', 'bottom']} style={styles.overlay}>
           <ScrollView contentContainerStyle={styles.scrollContent}>
             <View style={styles.brandArea}>
-              <KeylorFitBrand variant="welcome" />
+              <KeylorForgeBrand variant="welcome" />
             </View>
             <View style={styles.content}>
               <Text accessibilityRole="header" style={styles.headline}>

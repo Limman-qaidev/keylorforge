@@ -1,30 +1,30 @@
-# KeylorFit Visual Foundation
+# KeylorForge Visual Foundation
 
 Status: **Product Owner approved visual direction**
 
-Issue: #51 (`UX-001 — Establish KeylorFit mobile visual design foundation`)
+Issue: #51 (`UX-001 — Establish KeylorForge mobile visual design foundation`)
 
-This document is the implementation contract for KeylorFit's visual foundation. It exists so implementation agents do not invent product/UI direction while coding.
+This document is the implementation contract for KeylorForge's visual foundation. It exists so implementation agents do not invent product/UI direction while coding.
 
 The approved broader product-direction reference is committed at:
 
-`docs/design-docs/keylorfit-ui-reference/keylorfit-ui-foundation-v1.png`
+`docs/design-docs/keylorforge-ui-reference/keylorforge-ui-foundation-v1.png`
 
 The approved broader M1/product-shell reference is committed at:
 
-`docs/design-docs/keylorfit-ui-reference/keylorfit-m1-reference-v1.png`
+`docs/design-docs/keylorforge-ui-reference/keylorforge-m1-reference-v1.png`
 
 The approved **Welcome/Auth close visual target** is committed at:
 
-`docs/design-docs/keylorfit-ui-reference/keylorfit-auth-reference-v1.png`
+`docs/design-docs/keylorforge-ui-reference/keylorforge-auth-reference-v1.png`
 
 The reference boards are visual specifications, not sources of domain truth. Where generated mockup text/data or controls conflict with product/domain contracts, current product/domain contracts win. A control shown in a board must not be made fake merely for screenshot parity.
 
-For Welcome, Sign in and Sign up specifically, `keylorfit-auth-reference-v1.png` is the closest visual target and should be matched closely in composition, energy, imagery, hierarchy, density, spacing and control treatment, subject to platform/accessibility constraints and real product behavior.
+For Welcome, Sign in and Sign up specifically, `keylorforge-auth-reference-v1.png` is the closest visual target and should be matched closely in composition, energy, imagery, hierarchy, density, spacing and control treatment, subject to platform/accessibility constraints and real product behavior.
 
 ## 1. Product personality
 
-KeylorFit should feel fresh, motivating, modern and immediately useful while training.
+KeylorForge should feel fresh, motivating, modern and immediately useful while training.
 
 The visual/product language draws inspiration from the strengths of:
 
@@ -33,7 +33,7 @@ The visual/product language draws inspiration from the strengths of:
 - Wellhub: approachable, fresh fitness/wellness presentation.
 - X: compact, content-first navigation and low-friction scanning.
 
-KeylorFit must **not** read like a generic SaaS dashboard, corporate banking app, form scaffold, or bodybuilding cliché.
+KeylorForge must **not** read like a generic SaaS dashboard, corporate banking app, form scaffold, or bodybuilding cliché.
 
 ## 2. Product hierarchy
 
@@ -68,7 +68,7 @@ Home, Progress, Training Hub, Social, Profile and configuration surfaces use the
 - strong hierarchy without oversized explanatory copy
 - cards only when they group meaningful information; avoid card-everything UI
 
-Auth uses the approved treatment shown in `keylorfit-auth-reference-v1.png`; this includes a high-energy dark photographic Welcome and dark, refined authentication surfaces rather than generic white scaffold forms.
+Auth uses the approved treatment shown in `keylorforge-auth-reference-v1.png`; this includes a high-energy dark photographic Welcome and dark, refined authentication surfaces rather than generic white scaffold forms.
 
 ### 4.2 Active workout mode
 
@@ -96,7 +96,7 @@ Welcome should preserve:
 - strong athlete/gym imagery
 - dark/navy visual field
 - high contrast
-- KeylorFit branding integrated into the composition
+- KeylorForge branding integrated into the composition
 - white + teal/blue/purple hierarchy
 - strong, compact motivational copy
 - a prominent lower CTA area
@@ -279,9 +279,9 @@ Do **not** modify Home, Profile, the authenticated five-destination shell, passw
 
 For every visual implementation PR touching this foundation:
 
-- inspect `keylorfit-ui-foundation-v1.png` for the broader product language
-- inspect `keylorfit-m1-reference-v1.png` for broader M1 composition
-- when touching Welcome/Auth, inspect `keylorfit-auth-reference-v1.png` and treat it as the closest visual target
+- inspect `keylorforge-ui-foundation-v1.png` for the broader product language
+- inspect `keylorforge-m1-reference-v1.png` for broader M1 composition
+- when touching Welcome/Auth, inspect `keylorforge-auth-reference-v1.png` and treat it as the closest visual target
 - compare rendered physical-device screenshots side-by-side against the relevant reference before acceptance
 - preserve hierarchy, density, imagery treatment, navigation character and mode distinction
 - do not blindly reproduce generated text, fake data, unsupported provider behavior or impossible details

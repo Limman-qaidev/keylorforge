@@ -11,13 +11,13 @@ LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 class Settings(BaseSettings):
     """Typed settings loaded from environment variables."""
 
-    app_name: str = "keylornet-api"
+    app_name: str = "keylorforge-api"
     environment: Literal["development", "test", "production"] = "development"
     log_level: LogLevel = "INFO"
     supabase_project_url: AnyHttpUrl | None = None
     supabase_jwks_cache_seconds: int = 300
 
-    model_config = SettingsConfigDict(env_prefix="KEYLORNET_")
+    model_config = SettingsConfigDict(env_prefix="KEYLORFORGE_")
 
     @field_validator("log_level", mode="before")
     @classmethod
@@ -31,7 +31,7 @@ class Settings(BaseSettings):
         """Return the only issuer trusted for Supabase access tokens."""
         if self.supabase_project_url is None:
             raise ValueError(
-                "KEYLORNET_SUPABASE_PROJECT_URL is required for protected routes"
+                "KEYLORFORGE_SUPABASE_PROJECT_URL is required for protected routes"
             )
         return f"{str(self.supabase_project_url).rstrip('/')}/auth/v1"
 

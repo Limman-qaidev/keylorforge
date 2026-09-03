@@ -6,7 +6,7 @@
 
 ## Purpose and scope
 
-This document defines the test foundation for KeylorFit's modular monolith and
+This document defines the test foundation for KeylorForge's modular monolith and
 mobile client. It complements the accepted architecture decisions; it does not
 change API, database, authentication, or offline-sync contracts.
 
@@ -121,9 +121,9 @@ They must not pretend to validate database semantics.
 
 The test target contract is intentionally defensive:
 
-1. Integration tests receive `KEYLORNET_TEST_DATABASE_URL`, never an inferred
+1. Integration tests receive `KEYLORFORGE_TEST_DATABASE_URL`, never an inferred
    development or production URL.
-2. Test setup sets `KEYLORNET_ENVIRONMENT=test` and validates that the database
+2. Test setup sets `KEYLORFORGE_ENVIRONMENT=test` and validates that the database
    name ends in `_test` before touching it.
 3. The supported driver is only `postgresql+psycopg://` with psycopg 3.
 4. Migration tests require a clean, explicitly provisioned disposable target
@@ -132,9 +132,9 @@ The test target contract is intentionally defensive:
 5. Docker/local cleanup remains an explicit operator action. No test helper
    may widen its target or delete a non-test database for convenience.
 
-GitHub Actions provisions its ephemeral `keylornet_test` PostgreSQL service
+GitHub Actions provisions its ephemeral `keylorforge_test` PostgreSQL service
 and must continue to fail if the migration test is skipped. Local runs use the
-separately provisioned `keylornet_test` database described in `infra/README.md`.
+separately provisioned `keylorforge_test` database described in `infra/README.md`.
 
 ## Fixtures, environment, and isolation conventions
 
@@ -171,7 +171,7 @@ a second mobile request path.
 The smoke run is:
 
 1. From a clean local Docker state, use the documented Compose commands to
-   start PostgreSQL and confirm the development and `keylornet_test` databases
+   start PostgreSQL and confirm the development and `keylorforge_test` databases
    are healthy.
 2. Install constrained database dependencies; run Alembic upgrade/current on
    the development database and the real database pytest suite against the

@@ -3,7 +3,7 @@
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from keylornet_database.config import DatabaseSettings
+from keylorforge_database.config import DatabaseSettings
 
 
 def create_database_engine(settings: DatabaseSettings) -> Engine:

@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { KeylorFitBrand } from '@/components/brand/keylorfit-brand';
+import { KeylorForgeBrand } from '@/components/brand/keylorforge-brand';
 
 type AuthScreenProps = PropsWithChildren<{
   backHref?: '/welcome';
@@ -48,7 +48,7 @@ export function AuthScreen({
             ) : (
               <View style={styles.backButtonPlaceholder} />
             )}
-            <KeylorFitBrand compact variant="auth" />
+            <KeylorForgeBrand compact variant="auth" />
             <View style={styles.backButtonPlaceholder} />
           </View>
           <View style={styles.heading}>

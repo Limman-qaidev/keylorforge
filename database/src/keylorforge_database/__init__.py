@@ -1,8 +1,8 @@
-"""PostgreSQL configuration and migration primitives for KeylorFit."""
+"""PostgreSQL configuration and migration primitives for KeylorForge."""
 
-from keylornet_database.config import DatabaseSettings, Environment
-from keylornet_database.identity import ApplicationUserRepository, TerminalIdentityError
-from keylornet_database.models import (
+from keylorforge_database.config import DatabaseSettings, Environment
+from keylorforge_database.identity import ApplicationUserRepository, TerminalIdentityError
+from keylorforge_database.models import (
     ApplicationUser,
     ApplicationUserIdentity,
     ApplicationUserLifecycle,
