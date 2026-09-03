@@ -41,7 +41,7 @@ describe('PasswordRecoveryRoute', () => {
     } as unknown as ReturnType<typeof useAuth>);
   });
 
-  it('validates the email before requesting recovery', async () => {
+  it('validates the email, then submits without revealing account existence', async () => {
     const view = await render(<PasswordRecoveryRoute />);
 
     fireEvent.changeText(view.getByLabelText('Email'), 'not-an-email');
@@ -49,10 +49,6 @@ describe('PasswordRecoveryRoute', () => {
 
     expect(await view.findByText('Enter a valid email address.')).toBeTruthy();
     expect(requestPasswordRecovery).not.toHaveBeenCalled();
-  });
-
-  it('submits a valid email and shows a non-enumerating success message', async () => {
-    const view = await render(<PasswordRecoveryRoute />);
 
     fireEvent.changeText(view.getByLabelText('Email'), 'person@example.com');
     fireEvent.press(view.getByText('Send recovery link'));
