@@ -83,7 +83,9 @@ export function RecoveryLinkProvider({ children }: PropsWithChildren) {
 export function useRecoveryLink(): RecoveryLinkContextValue {
   const value = useContext(RecoveryLinkContext);
   if (!value) {
-    throw new Error('useRecoveryLink must be rendered within RecoveryLinkProvider.');
+    throw new Error(
+      'useRecoveryLink must be rendered within RecoveryLinkProvider.',
+    );
   }
 
   return value;
