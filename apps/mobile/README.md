@@ -1,6 +1,6 @@
-# KeylorFit mobile
+# KeylorForge mobile
 
-Expo/React Native client for KeylorFit. The primary route is the M1
+Expo/React Native client for KeylorForge. The primary route is the M1
 email/password identity flow; the M0 health diagnostic is no longer the normal
 entry experience.
 
@@ -62,14 +62,14 @@ the authenticated shell and can sign out. Session refresh is active only while
 the app is foregrounded. A definitive refresh failure clears the local
 authenticated state and returns to sign-in.
 
-For confirmation or password-recovery deep links, use a KeylorFit development
-build with the `keylorfit` scheme; Expo Go does not provide the stable callback
+For confirmation or password-recovery deep links, use a KeylorForge development
+build with the `keylorforge` scheme; Expo Go does not provide the stable callback
 URL required by the M1 contract.
 
 ### Physical Android confirmation acceptance
 
 Before testing, the Supabase development project's Auth Redirect URLs must
-contain the exact `keylorfit://auth/confirm` callback. Use an installed Android
+contain the exact `keylorforge://auth/confirm` callback. Use an installed Android
 development build (the stable application ID is already configured in
 `app.json`), then start its bundler from `apps/mobile/`:
 
@@ -82,18 +82,18 @@ existing Expo Android workflow (for example `npx expo run:android`). This may
 create local native Android files; do not commit generated directories solely
 for this test.
 
-1. Open the installed KeylorFit development build on the Android device and
+1. Open the installed KeylorForge development build on the Android device and
    connect it to the dev-client bundler.
 2. Register a new, disposable email address and confirm the app shows the
    pending-confirmation screen.
 3. In the received email, tap the confirmation link. Android should open
-   KeylorFit at `keylorfit://auth/confirm`, then route to the authenticated
+   KeylorForge at `keylorforge://auth/confirm`, then route to the authenticated
    home screen without first asking the user to sign in.
 4. Capture the pending-confirmation screen, the Android app-open handoff, and
    the authenticated home screen. Do not capture or share the email URL,
    authorization code, access token, refresh token, or password.
 
-For an expired or previously used email link, KeylorFit should stay signed out,
+For an expired or previously used email link, KeylorForge should stay signed out,
 show a safe request-a-new-email message, and provide a route back to sign in.
 
 ## Validation

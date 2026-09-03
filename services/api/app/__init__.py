@@ -1,1 +1,1 @@
-"""KeylorFit API application package."""
+"""KeylorForge API application package."""

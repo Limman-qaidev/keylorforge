@@ -1,4 +1,4 @@
-# KeylorFit technical blueprint
+# KeylorForge technical blueprint
 
 This document summarizes the technical direction and rationale established during the original design work. Accepted ADRs remain authoritative where they exist.
 

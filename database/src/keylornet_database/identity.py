@@ -75,7 +75,7 @@ class ApplicationUserRepository:
         """
         if user.lifecycle_state is not ApplicationUserLifecycle.ACTIVE:
             raise TerminalIdentityError(
-                "the external identity has a terminal KeylorFit lifecycle state"
+                "the external identity has a terminal KeylorForge lifecycle state"
             )
 
         profile = user.profile
@@ -107,6 +107,6 @@ class ApplicationUserRepository:
         user = identity.user
         if user.lifecycle_state is not ApplicationUserLifecycle.ACTIVE:
             raise TerminalIdentityError(
-                "the external identity has a terminal KeylorFit lifecycle state"
+                "the external identity has a terminal KeylorForge lifecycle state"
             )
         return user

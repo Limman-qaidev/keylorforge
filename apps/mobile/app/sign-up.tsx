@@ -12,7 +12,7 @@ function SignUpScreen() {
   return (
     <AuthScreen
       backHref="/welcome"
-      subtitle="Join KeylorFit."
+      subtitle="Join KeylorForge."
       title="Create your account"
     >
       <EmailPasswordForm

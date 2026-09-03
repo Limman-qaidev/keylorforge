@@ -1,6 +1,6 @@
 import 'react-native-url-polyfill/auto';
 
-export const CONFIRMATION_CALLBACK_URL = 'keylorfit://auth/confirm';
+export const CONFIRMATION_CALLBACK_URL = 'keylorforge://auth/confirm';
 
 type ConfirmationCallback =
   | { kind: 'providerError' }
@@ -12,14 +12,14 @@ type ConfirmationCallback =
   | { kind: 'invalid' };
 
 /**
- * Reads only the implicit-flow session fields expected at the KeylorFit
+ * Reads only the implicit-flow session fields expected at the KeylorForge
  * confirmation callback. The callback itself is never surfaced in UI or logs.
  */
 export function parseConfirmationCallback(url: string): ConfirmationCallback {
   try {
     const callback = new URL(url);
     if (
-      callback.protocol !== 'keylorfit:' ||
+      callback.protocol !== 'keylorforge:' ||
       callback.hostname !== 'auth' ||
       callback.pathname !== '/confirm'
     ) {

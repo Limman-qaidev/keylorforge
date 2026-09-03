@@ -36,7 +36,7 @@ class UpdateProfileRequest(BaseModel):
 
 
 class MeResponse(BaseModel):
-    """The active caller's own KeylorFit identity and profile foundation."""
+    """The active caller's own KeylorForge identity and profile foundation."""
 
     id: UUID
     profile: ProfileResponse

@@ -1,6 +1,6 @@
-# KeylorFit API
+# KeylorForge API
 
-Minimal FastAPI foundation for the KeylorFit modular monolith. It deliberately
+Minimal FastAPI foundation for the KeylorForge modular monolith. It deliberately
 contains no authentication, persistence, migrations, or product-domain APIs.
 
 ## Requirements
