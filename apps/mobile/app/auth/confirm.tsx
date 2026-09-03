@@ -30,15 +30,22 @@ export default function ConfirmationCallbackRoute() {
     }
 
     void callbackOperation.current.promise.then((result) => {
-      if (active && result.error) {
-        setError(result.error);
+      if (!active) {
+        return;
       }
+
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+
+      router.replace({ pathname: '/sign-in', params: { confirmed: 'true' } });
     });
 
     return () => {
       active = false;
     };
-  }, [callbackUrl, consumeConfirmationCallback, phase]);
+  }, [callbackUrl, consumeConfirmationCallback, phase, router]);
 
   if (phase === 'signedIn') {
     return <Redirect href="/home" />;

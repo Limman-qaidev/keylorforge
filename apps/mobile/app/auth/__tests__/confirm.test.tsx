@@ -109,6 +109,10 @@ describe('ConfirmationCallbackRoute', () => {
 
     await waitFor(() => {
       expect(consumeConfirmationCallback).toHaveBeenCalledTimes(1);
+      expect(mockReplace).toHaveBeenCalledWith({
+        params: { confirmed: 'true' },
+        pathname: '/sign-in',
+      });
     });
   });
 });

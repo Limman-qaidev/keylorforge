@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { Link, useLocalSearchParams } from 'expo-router';
 import { Pressable, Text } from 'react-native';
 
 import { AuthScreen, authScreenStyles } from '@/components/auth/auth-screen';
@@ -8,11 +8,17 @@ import { useAuth } from '@/lib/auth/auth-provider';
 
 function SignInScreen() {
   const { feedback, signIn } = useAuth();
+  const { confirmed } = useLocalSearchParams<{ confirmed?: string }>();
 
   return (
     <AuthScreen backHref="/welcome" subtitle="Welcome back." title="Sign in">
       {feedback ? (
         <Text style={authScreenStyles.error}>{feedback.message}</Text>
+      ) : null}
+      {confirmed === 'true' ? (
+        <Text accessibilityRole="alert" style={authScreenStyles.success}>
+          Email confirmed. You can now sign in.
+        </Text>
       ) : null}
       <EmailPasswordForm
         actionLabel="Sign in"

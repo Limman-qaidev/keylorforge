@@ -321,9 +321,9 @@ describe('AuthProvider', () => {
       fireEvent.press(getByText('consume confirmation'));
     });
 
-    await expectPhase(getByTestId, 'signedIn');
+    await expectPhase(getByTestId, 'signedOut');
     expect(auth.client.auth.getUser).toHaveBeenCalledWith('access-token');
-    expect(auth.client.auth.setSession).toHaveBeenCalledTimes(1);
+    expect(auth.client.auth.setSession).not.toHaveBeenCalled();
   });
 
   it('keeps a persisted-only confirmation callback single-flight', async () => {
@@ -346,9 +346,9 @@ describe('AuthProvider', () => {
       fireEvent.press(getByText('consume confirmation twice'));
     });
 
-    await expectPhase(getByTestId, 'signedIn');
+    await expectPhase(getByTestId, 'signedOut');
     expect(auth.client.auth.getUser).toHaveBeenCalledTimes(1);
-    expect(auth.client.auth.setSession).toHaveBeenCalledTimes(1);
+    expect(auth.client.auth.setSession).not.toHaveBeenCalled();
   });
 
   it('fails safely when persisted confirmation lookup rejects', async () => {
@@ -391,12 +391,9 @@ describe('AuthProvider', () => {
       fireEvent.press(getByText('consume confirmation'));
     });
 
-    await expectPhase(getByTestId, 'signedIn');
+    await expectPhase(getByTestId, 'signedOut');
     expect(client.auth.getUser).toHaveBeenCalledWith('access-token');
-    expect(client.auth.setSession).toHaveBeenCalledWith({
-      access_token: 'access-token',
-      refresh_token: 'refresh-token',
-    });
+    expect(client.auth.setSession).not.toHaveBeenCalled();
     expect(getByTestId('callback-result').props.children).toBe('success');
     expect(queryByText('refresh-token')).toBeNull();
   });
@@ -497,7 +494,7 @@ describe('AuthProvider', () => {
     );
   });
 
-  it('does not exchange a duplicate confirmation after session establishment', async () => {
+  it('does not consume a duplicate confirmation after pending state is cleared', async () => {
     const { client } = createClient();
     const { getByText, getByTestId } = await render(
       <AuthProvider client={client}>
@@ -512,13 +509,14 @@ describe('AuthProvider', () => {
     await act(async () => {
       fireEvent.press(getByText('consume confirmation'));
     });
-    await expectPhase(getByTestId, 'signedIn');
+    await expectPhase(getByTestId, 'signedOut');
     await act(async () => {
       fireEvent.press(getByText('consume confirmation'));
     });
 
-    expect(client.auth.setSession).toHaveBeenCalledTimes(1);
-    expect(getByTestId('phase').props.children).toBe('signedIn');
+    expect(client.auth.getUser).toHaveBeenCalledTimes(1);
+    expect(client.auth.setSession).not.toHaveBeenCalled();
+    expect(getByTestId('phase').props.children).toBe('signedOut');
   });
 
   it('clears the local authenticated state after logout', async () => {

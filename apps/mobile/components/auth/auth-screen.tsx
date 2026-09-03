@@ -120,6 +120,18 @@ export const authScreenStyles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 20,
   },
+  success: {
+    backgroundColor: '#0f352f',
+    borderColor: '#00d1c1',
+    borderRadius: 12,
+    borderWidth: 1,
+    color: '#d9fffb',
+    fontSize: 15,
+    lineHeight: 21,
+    marginTop: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
 });
 
 const styles = StyleSheet.create({

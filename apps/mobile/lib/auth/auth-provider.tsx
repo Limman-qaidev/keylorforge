@@ -415,19 +415,8 @@ export function AuthProvider({
           };
         }
 
-        const { data, error } = await client.auth.setSession({
-          access_token: callback.accessToken,
-          refresh_token: callback.refreshToken,
-        });
-        if (error || !data.session) {
-          return {
-            error:
-              'This confirmation link is no longer valid. Request a new confirmation email and try again.',
-          };
-        }
-
         await AsyncStorage.removeItem(pendingConfirmationEmailKey);
-        updateAuthState(stateForSession(data.session));
+        updateAuthState(stateForSession(null));
         return {};
       } catch {
         return {
