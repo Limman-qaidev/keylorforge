@@ -32,15 +32,13 @@ describe('PasswordRecoveryRoute', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     requestPasswordRecovery.mockResolvedValue({});
-    mockedUseAuth.mockReturnValue(
-      ({
-        confirmationEmail: null,
-        feedback: null,
-        phase: 'signedOut',
-        requestPasswordRecovery,
-        session: null,
-      }) as unknown as ReturnType<typeof useAuth>,
-    );
+    mockedUseAuth.mockReturnValue({
+      confirmationEmail: null,
+      feedback: null,
+      phase: 'signedOut',
+      requestPasswordRecovery,
+      session: null,
+    } as unknown as ReturnType<typeof useAuth>);
   });
 
   it('validates the email before requesting recovery', async () => {
@@ -60,9 +58,7 @@ describe('PasswordRecoveryRoute', () => {
     fireEvent.press(view.getByText('Send recovery link'));
 
     await waitFor(() => {
-      expect(requestPasswordRecovery).toHaveBeenCalledWith(
-        'person@example.com',
-      );
+      expect(requestPasswordRecovery).toHaveBeenCalledWith('person@example.com');
     });
     expect(
       await view.findByText(
