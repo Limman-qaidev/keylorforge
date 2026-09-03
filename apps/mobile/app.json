@@ -7,7 +7,26 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "android": {
-      "package": "com.jonathansalgadonieto.keylorfit"
+      "package": "com.jonathansalgadonieto.keylorfit",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": false,
+          "category": ["BROWSABLE", "DEFAULT"],
+          "data": [
+            {
+              "scheme": "keylorfit",
+              "host": "auth",
+              "pathPrefix": "/confirm"
+            },
+            {
+              "scheme": "keylorfit",
+              "host": "auth",
+              "pathPrefix": "/recovery"
+            }
+          ]
+        }
+      ]
     },
     "plugins": ["expo-router"],
     "experiments": {

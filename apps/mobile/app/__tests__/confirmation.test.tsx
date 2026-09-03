@@ -102,15 +102,12 @@ describe('ConfirmationRoute', () => {
       expect(queryByTestId('redirect')).toBeNull();
     });
     expect(await findByText('/sign-in')).toBeTruthy();
-    expect(
-      await findByText(
-        'We sent a confirmation link to pending@example.com. Confirm your email, then sign in.',
-      ),
-    ).toBeTruthy();
+    expect(await findByText('pending@example.com')).toBeTruthy();
+    expect(await findByText('CONFIRM YOUR EMAIL')).toBeTruthy();
 
     fireEvent.press(getByTestId('confirmation-link'));
     await waitFor(() => {
-      expect(getByText('Confirm your email, then sign in.')).toBeTruthy();
+      expect(getByText('Check your inbox')).toBeTruthy();
     });
   });
 

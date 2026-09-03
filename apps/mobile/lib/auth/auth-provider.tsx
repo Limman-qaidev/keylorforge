@@ -3,6 +3,7 @@ import {
   type AuthError,
   type Session,
 } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   createContext,
   type PropsWithChildren,
@@ -19,6 +20,10 @@ import {
   getSupabaseClient,
   type MobileSupabaseClient,
 } from '@/lib/auth/supabase';
+import {
+  CONFIRMATION_CALLBACK_URL,
+  parseConfirmationCallback,
+} from '@/lib/auth/confirmation-callback';
 
 export type AuthPhase = 'restoring' | 'signedOut' | 'signedIn';
 
@@ -41,7 +46,8 @@ type RegistrationResult = AuthActionResult & {
 };
 
 type AuthContextValue = AuthState & {
-  clearConfirmation: () => void;
+  clearConfirmation: () => Promise<void>;
+  consumeConfirmationCallback: (url: string) => Promise<AuthActionResult>;
   invalidateSession: () => Promise<void>;
   refreshSession: () => Promise<string | null>;
   signIn: (email: string, password: string) => Promise<AuthActionResult>;
@@ -57,6 +63,9 @@ const restoringState: AuthState = {
   phase: 'restoring',
   session: null,
 };
+
+const pendingConfirmationEmailKey =
+  '@keylorfit/auth/pending-confirmation-email';
 
 function readableAuthError(error: AuthError | Error | null): string {
   if (!error) {
@@ -96,6 +105,20 @@ function stateForSession(session: Session | null): AuthState {
     phase: session ? 'signedIn' : 'signedOut',
     session,
   };
+}
+
+function stateForRestoredSession(
+  session: Session | null,
+  confirmationEmail: string | null,
+): AuthState {
+  return {
+    ...stateForSession(session),
+    confirmationEmail: session ? null : confirmationEmail,
+  };
+}
+
+function emailsMatch(first: string | undefined, second: string): boolean {
+  return first?.trim().toLowerCase() === second.trim().toLowerCase();
 }
 
 type AuthProviderProps = PropsWithChildren<{
@@ -139,6 +162,8 @@ export function AuthProvider({
     };
   });
   const stateRef = useRef(authState);
+  const isConsumingConfirmation = useRef(false);
+  const sessionOperationVersion = useRef(0);
 
   const updateAuthState = useCallback((nextState: AuthState) => {
     stateRef.current = nextState;
@@ -171,9 +196,16 @@ export function AuthProvider({
       return;
     }
 
-    const { data, error } = await clientResult.client.auth.getSession();
+    const operationVersion = sessionOperationVersion.current;
+    const [{ data, error }, confirmationEmail] = await Promise.all([
+      clientResult.client.auth.getSession(),
+      AsyncStorage.getItem(pendingConfirmationEmailKey),
+    ]);
+    if (operationVersion !== sessionOperationVersion.current) {
+      return;
+    }
     if (!error) {
-      updateAuthState(stateForSession(data.session));
+      updateAuthState(stateForRestoredSession(data.session, confirmationEmail));
       return;
     }
 
@@ -294,7 +326,11 @@ export function AuthProvider({
         return { error: clientResult.error ?? 'Supabase is unavailable.' };
       }
 
-      const { data, error } = await client.auth.signUp({ email, password });
+      const { data, error } = await client.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: CONFIRMATION_CALLBACK_URL },
+      });
       if (error) {
         const message = readableAuthError(error);
         updateAuthState({
@@ -317,7 +353,79 @@ export function AuthProvider({
         phase: 'signedOut',
         session: null,
       });
+      await AsyncStorage.setItem(pendingConfirmationEmailKey, email);
       return { confirmationRequired: true };
+    },
+    [clientResult.client, clientResult.error, updateAuthState],
+  );
+
+  const consumeConfirmationCallback = useCallback(
+    async (url: string): Promise<AuthActionResult> => {
+      const client = clientResult.client;
+      if (!client) {
+        return { error: clientResult.error ?? 'Supabase is unavailable.' };
+      }
+
+      if (
+        isConsumingConfirmation.current ||
+        stateRef.current.phase === 'signedIn'
+      ) {
+        return {};
+      }
+
+      const callback = parseConfirmationCallback(url);
+      if (callback.kind === 'providerError') {
+        return {
+          error:
+            'This confirmation link is no longer valid. Request a new confirmation email and try again.',
+        };
+      }
+
+      if (callback.kind === 'invalid') {
+        return {
+          error:
+            'We could not confirm this link. Request a new confirmation email and try again.',
+        };
+      }
+
+      isConsumingConfirmation.current = true;
+      sessionOperationVersion.current += 1;
+      try {
+        const confirmationEmail =
+          stateRef.current.confirmationEmail ??
+          (await AsyncStorage.getItem(pendingConfirmationEmailKey));
+        if (!confirmationEmail) {
+          return {
+            error:
+              'We could not confirm this link. Request a new confirmation email and try again.',
+          };
+        }
+
+        const { data: userData, error: userError } = await client.auth.getUser(
+          callback.accessToken,
+        );
+        if (
+          userError ||
+          !userData.user ||
+          !emailsMatch(userData.user.email, confirmationEmail)
+        ) {
+          return {
+            error:
+              'This confirmation link is no longer valid. Request a new confirmation email and try again.',
+          };
+        }
+
+        await AsyncStorage.removeItem(pendingConfirmationEmailKey);
+        updateAuthState(stateForSession(null));
+        return {};
+      } catch {
+        return {
+          error:
+            'This confirmation link is no longer valid. Request a new confirmation email and try again.',
+        };
+      } finally {
+        isConsumingConfirmation.current = false;
+      }
     },
     [clientResult.client, clientResult.error, updateAuthState],
   );
@@ -379,6 +487,7 @@ export function AuthProvider({
     }
 
     updateAuthState(stateForSession(null));
+    await AsyncStorage.removeItem(pendingConfirmationEmailKey);
     return {};
   }, [clientResult.client, updateAuthState]);
 
@@ -394,14 +503,20 @@ export function AuthProvider({
     }
   }, [clientResult.client, setTerminalSignedOutState]);
 
-  const clearConfirmation = useCallback(() => {
+  const clearConfirmation = useCallback(async () => {
     updateAuthState({ ...stateForSession(null), confirmationEmail: null });
+    try {
+      await AsyncStorage.removeItem(pendingConfirmationEmailKey);
+    } catch {
+      // The in-memory state is already cleared; navigation must remain usable.
+    }
   }, [updateAuthState]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       ...authState,
       clearConfirmation,
+      consumeConfirmationCallback,
       invalidateSession,
       refreshSession,
       signIn,
@@ -411,6 +526,7 @@ export function AuthProvider({
     [
       authState,
       clearConfirmation,
+      consumeConfirmationCallback,
       invalidateSession,
       refreshSession,
       signIn,
