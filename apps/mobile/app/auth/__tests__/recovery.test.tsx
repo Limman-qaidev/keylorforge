@@ -32,13 +32,11 @@ describe('RecoveryCallbackRoute', () => {
       error:
         'This recovery link is no longer valid. Request a new recovery email and try again.',
     });
-    mockedUseAuth.mockReturnValue(
-      ({
-        consumeRecoveryCallback,
-        phase: 'signedOut',
-        updateRecoveryPassword,
-      }) as unknown as ReturnType<typeof useAuth>,
-    );
+    mockedUseAuth.mockReturnValue({
+      consumeRecoveryCallback,
+      phase: 'signedOut',
+      updateRecoveryPassword,
+    } as unknown as ReturnType<typeof useAuth>);
 
     const view = render(<RecoveryCallbackRoute />);
 
@@ -57,13 +55,11 @@ describe('RecoveryCallbackRoute', () => {
 
   it('validates matching passwords and returns to sign in after a successful update', async () => {
     consumeRecoveryCallback.mockResolvedValue({});
-    mockedUseAuth.mockReturnValue(
-      ({
-        consumeRecoveryCallback,
-        phase: 'recovery',
-        updateRecoveryPassword,
-      }) as unknown as ReturnType<typeof useAuth>,
-    );
+    mockedUseAuth.mockReturnValue({
+      consumeRecoveryCallback,
+      phase: 'recovery',
+      updateRecoveryPassword,
+    } as unknown as ReturnType<typeof useAuth>);
 
     const view = render(<RecoveryCallbackRoute />);
 
