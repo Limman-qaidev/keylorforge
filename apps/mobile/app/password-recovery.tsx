@@ -66,7 +66,7 @@ function PasswordRecoveryScreen() {
   if (stage === 'code') {
     return (
       <AuthScreen
-        subtitle="Enter the 6-digit code from the recovery email."
+        subtitle="Enter the 8-digit code from the recovery email."
         title="Check your email"
       >
         <Text accessibilityRole="alert" style={authScreenStyles.success}>
@@ -106,7 +106,7 @@ function PasswordRecoveryScreen() {
 
   return (
     <AuthScreen
-      subtitle="We'll email a 6-digit code. No link needs to open the app."
+      subtitle="We'll email an 8-digit code. No link needs to open the app."
       title="Reset your password"
     >
       <RecoveryRequestForm onSubmit={requestCode} />
