@@ -106,7 +106,10 @@ export class PasswordRecoveryController {
     };
   }
 
-  async verifyCode(email: string, token: string): Promise<RecoveryActionResult> {
+  async verifyCode(
+    email: string,
+    token: string,
+  ): Promise<RecoveryActionResult> {
     try {
       const { data, error } = await this.client.auth.verifyOtp({
         email,
