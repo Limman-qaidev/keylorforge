@@ -1,0 +1,107 @@
+name: KeylorForge one-time brand finalize
+
+on:
+  push:
+    branches:
+      - brand/keylorforge-rebrand
+
+permissions:
+  contents: write
+
+jobs:
+  finalize-brand:
+    if: ${{ !contains(github.event.head_commit.message, '[brand-assets]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: brand/keylorforge-rebrand
+          fetch-depth: 0
+      - name: Generate stacked and runtime brand assets
+        shell: bash
+        run: |
+          python -m pip install --quiet cairosvg
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          import cairosvg
+
+          root = Path('.')
+          brand = root / 'brand'
+          mobile_brand = root / 'apps/mobile/assets/brand'
+
+          dark = (brand / 'keylorforge-g4-lockup-horizontal-dark.svg').read_text()
+          light = (brand / 'keylorforge-g4-lockup-horizontal-light.svg').read_text()
+
+          def paths(svg: str) -> list[str]:
+              return re.findall(r'<path d="([^"]+)"[^>]*/>', svg)
+
+          dark_paths = paths(dark)
+          assert len(dark_paths) == 14, len(dark_paths)
+          glyphs = dark_paths[3:]
+          advances = [1473, 1244, 1497, 1158, 1578, 1345, 1202, 1579, 1345, 1537, 1255]
+
+          g4 = dark_paths[:3]
+          def stacked(mark_color: str, keylor_color: str, forge_color: str) -> str:
+              width = 380
+              mark_scale = 0.85
+              mark_x = (width - 125 * mark_scale) / 2
+              scale = 0.0215
+              total = (sum(advances) + 300) * scale
+              x = (width - total) / 2
+              out = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} 220" role="img" aria-label="KeylorForge stacked logo">']
+              for d in g4:
+                  out.append(f'<path d="{d}" transform="translate({mark_x:.3f} 8) scale({mark_scale})" fill="{mark_color}"/>')
+              for i, (d, adv) in enumerate(zip(glyphs, advances)):
+                  if i == 6:
+                      x += 300 * scale
+                  color = keylor_color if i < 6 else forge_color
+                  out.append(f'<path d="{d}" transform="translate({x:.3f} 190.000) scale({scale:.6f} -{scale:.6f})" fill="{color}"/>')
+                  x += adv * scale
+              out.append('</svg>')
+              return ''.join(out)
+
+          (brand / 'keylorforge-g4-lockup-stacked-dark.svg').write_text(
+              stacked('#FFC107', '#FFFFFF', '#00D1C1'), encoding='utf-8'
+          )
+          (brand / 'keylorforge-g4-lockup-stacked-light.svg').write_text(
+              stacked('#0B0B0D', '#0B0B0D', '#00AFA1'), encoding='utf-8'
+          )
+
+          cairosvg.svg2png(
+              bytestring=dark.encode(),
+              write_to=str(mobile_brand / 'keylorforge-g4-lockup-auth.png'),
+              output_width=1860,
+              output_height=393,
+          )
+          photo = (brand / 'keylorforge-g4-lockup-horizontal-photo.svg').read_text()
+          cairosvg.svg2png(
+              bytestring=photo.encode(),
+              write_to=str(mobile_brand / 'keylorforge-g4-lockup-welcome.png'),
+              output_width=1860,
+              output_height=393,
+          )
+
+          for rel in ['brand/README.md', 'apps/mobile/assets/brand/README.md']:
+              path = root / rel
+              text = path.read_text(encoding='utf-8')
+              text = text.replace('teal `FIT`', 'teal `FORGE`')
+              text = text.replace('white KEYLOR + teal FIT', 'white KEYLOR + teal FORGE')
+              path.write_text(text, encoding='utf-8')
+
+          readme = brand / 'README.md'
+          text = readme.read_text(encoding='utf-8')
+          text = text.replace('- Teal: `#00D1C1`', '- Teal: `#00D1C1`\n- Teal on light surfaces: `#00AFA1`')
+          readme.write_text(text, encoding='utf-8')
+
+          Path('.github/workflows/keylorforge-brand-finalize.yml').unlink(missing_ok=True)
+          PY
+      - name: Commit generated brand assets
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "fix(brand): finalize KeylorForge lockups and runtime assets [brand-assets]"
+          git push origin HEAD:brand/keylorforge-rebrand
