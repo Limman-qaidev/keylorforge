@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { RequireAuthenticated } from '@/components/auth/auth-guards';
+import { AuthenticatedShell } from '@/components/navigation/authenticated-shell';
 import { useAuth } from '@/lib/auth/auth-provider';
 
 function HomeScreen() {
@@ -43,7 +44,9 @@ function HomeScreen() {
 export default function HomeRoute() {
   return (
     <RequireAuthenticated>
-      <HomeScreen />
+      <AuthenticatedShell activeDestination="home">
+        <HomeScreen />
+      </AuthenticatedShell>
     </RequireAuthenticated>
   );
 }
