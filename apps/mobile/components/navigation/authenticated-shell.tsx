@@ -4,11 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export type ShellDestination =
-  | 'home'
-  | 'progress'
-  | 'train'
-  | 'social'
-  | 'profile';
+  'home' | 'progress' | 'train' | 'social' | 'profile';
 
 type NavigationItem = {
   destination: ShellDestination;
