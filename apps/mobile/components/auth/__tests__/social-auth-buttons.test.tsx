@@ -1,4 +1,4 @@
-import { fireEvent, render } from '@testing-library/react-native';
+import { render } from '@testing-library/react-native';
 
 import { SocialAuthButtons } from '../social-auth-buttons';
 
@@ -25,35 +25,15 @@ afterAll(() => {
 });
 
 describe('SocialAuthButtons', () => {
-  it('renders no dead provider controls when capabilities are unavailable', async () => {
+  it('renders no social provider controls while the UI kill switch is disabled', async () => {
+    process.env.EXPO_PUBLIC_GOOGLE_AUTH_ENABLED = 'true';
+    process.env.EXPO_PUBLIC_APPLE_AUTH_ENABLED = 'true';
+
     const { queryByRole } = await render(
       <SocialAuthButtons onSignIn={jest.fn()} />,
     );
 
     expect(queryByRole('button', { name: 'Continue with Google' })).toBeNull();
     expect(queryByRole('button', { name: 'Continue with Apple' })).toBeNull();
-  });
-
-  it('renders only Google when Google capability is enabled', async () => {
-    process.env.EXPO_PUBLIC_GOOGLE_AUTH_ENABLED = 'true';
-    const { getByRole, queryByRole } = await render(
-      <SocialAuthButtons onSignIn={jest.fn()} />,
-    );
-
-    expect(getByRole('button', { name: 'Continue with Google' })).toBeTruthy();
-    expect(queryByRole('button', { name: 'Continue with Apple' })).toBeNull();
-  });
-
-  it('invokes Apple only when the Apple capability is enabled', async () => {
-    process.env.EXPO_PUBLIC_APPLE_AUTH_ENABLED = 'true';
-    const onSignIn = jest.fn().mockResolvedValue(undefined);
-    const { getByRole, queryByRole } = await render(
-      <SocialAuthButtons onSignIn={onSignIn} />,
-    );
-
-    fireEvent.press(getByRole('button', { name: 'Continue with Apple' }));
-
-    expect(onSignIn).toHaveBeenCalledWith('apple');
-    expect(queryByRole('button', { name: 'Continue with Google' })).toBeNull();
   });
 });
