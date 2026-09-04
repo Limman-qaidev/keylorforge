@@ -90,10 +90,7 @@ function HomeScreen() {
         accessibilityLabel="Abrir perfil"
         accessibilityRole="button"
         onPress={() => router.push('/profile')}
-        style={({ pressed }) => [
-          styles.profileLink,
-          pressed && styles.pressed,
-        ]}
+        style={({ pressed }) => [styles.profileLink, pressed && styles.pressed]}
       >
         <View style={styles.profileLinkIcon}>
           <Text accessible={false} style={styles.profileLinkIconText}>
