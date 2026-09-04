@@ -10,7 +10,9 @@ jest.mock('expo-linking', () => ({
   openURL: jest.fn().mockResolvedValue(true),
 }));
 
-const mockOpenUrl = Linking.openURL as jest.MockedFunction<typeof Linking.openURL>;
+const mockOpenUrl = Linking.openURL as jest.MockedFunction<
+  typeof Linking.openURL
+>;
 
 function session(): Session {
   return {
