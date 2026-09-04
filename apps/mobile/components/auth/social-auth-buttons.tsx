@@ -19,8 +19,9 @@ const providers: Array<{ label: string; provider: SocialAuthProvider }> = [
 
 export function SocialAuthButtons() {
   const { signInWithSocial, socialAuthCapabilities } = useAuth();
-  const [pendingProvider, setPendingProvider] =
-    useState<SocialAuthProvider | null>(null);
+  const [pendingProvider, setPendingProvider] = useState<
+    SocialAuthProvider | null
+  >(null);
 
   const availableProviders = providers.filter(
     ({ provider }) => socialAuthCapabilities[provider],
