@@ -1,11 +1,14 @@
-import { Link } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { RequireAuthenticated } from '@/components/auth/auth-guards';
+import { KeylorForgeG4Mark } from '@/components/brand/keylorforge-g4-mark';
+import { AuthenticatedShell } from '@/components/navigation/authenticated-shell';
 import { useAuth } from '@/lib/auth/auth-provider';
 
 function HomeScreen() {
+  const router = useRouter();
   const { signOut } = useAuth();
   const [error, setError] = useState<string | null>(null);
 
@@ -16,14 +19,92 @@ function HomeScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text accessibilityRole="header" style={styles.title}>
-        Your training home
-      </Text>
-      <Text style={styles.message}>You are signed in to KeylorForge.</Text>
-      <Link accessibilityRole="link" href="/profile" style={styles.profileLink}>
-        Profile
-      </Link>
+    <ScrollView
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      style={styles.container}
+    >
+      <View style={styles.topRow}>
+        <View style={styles.headingCopy}>
+          <Text style={styles.eyebrow}>KEYLORFORGE</Text>
+          <Text accessibilityRole="header" style={styles.title}>
+            Tu espacio de entrenamiento
+          </Text>
+        </View>
+        <View accessibilityLabel="KeylorForge" style={styles.avatar}>
+          <View style={styles.brandMarkOpticalCenter}>
+            <KeylorForgeG4Mark size={32} />
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.heroSurface}>
+        <View style={styles.heroAccent} />
+        <Text style={styles.heroEyebrow}>INICIO</Text>
+        <Text style={styles.heroTitle}>Todo empieza con tu próximo paso.</Text>
+        <Text style={styles.heroMessage}>
+          Cuando el entrenamiento esté disponible, podrás iniciarlo desde aquí
+          sin perder el foco.
+        </Text>
+        <Pressable
+          accessibilityLabel="Ir a Entrenar"
+          accessibilityRole="button"
+          onPress={() => router.push('/train')}
+          style={({ pressed }) => [
+            styles.primaryButton,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text numberOfLines={1} style={styles.primaryButtonText}>
+            IR A ENTRENAR
+          </Text>
+          <Text accessible={false} style={styles.primaryButtonArrow}>
+            →
+          </Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.sectionHeader}>
+        <Text accessibilityRole="header" style={styles.sectionTitle}>
+          Tu actividad
+        </Text>
+        <View style={styles.sectionLine} />
+      </View>
+      <View style={styles.emptyActivity}>
+        <View style={styles.activityIcon}>
+          <Text accessible={false} style={styles.activityIconText}>
+            ↗
+          </Text>
+        </View>
+        <View style={styles.activityCopy}>
+          <Text style={styles.activityTitle}>
+            Lista para cuando tú lo estés
+          </Text>
+          <Text style={styles.activityMessage}>
+            Aún no hay actividad disponible para mostrar.
+          </Text>
+        </View>
+      </View>
+
+      <Pressable
+        accessibilityLabel="Abrir perfil"
+        accessibilityRole="button"
+        onPress={() => router.push('/profile')}
+        style={({ pressed }) => [styles.profileLink, pressed && styles.pressed]}
+      >
+        <View style={styles.profileLinkIcon}>
+          <Text accessible={false} style={styles.profileLinkIconText}>
+            ◯
+          </Text>
+        </View>
+        <Text numberOfLines={1} style={styles.profileLinkText}>
+          Gestionar perfil
+        </Text>
+        <Text accessible={false} style={styles.profileLinkArrow}>
+          ›
+        </Text>
+      </Pressable>
+
       {error ? (
         <Text accessibilityLiveRegion="polite" style={styles.error}>
           {error}
@@ -32,44 +113,199 @@ function HomeScreen() {
       <Pressable
         accessibilityRole="button"
         onPress={onSignOut}
-        style={styles.button}
+        style={({ pressed }) => [styles.signOut, pressed && styles.pressed]}
       >
-        <Text style={styles.buttonText}>Sign out</Text>
+        <Text style={styles.signOutText}>Cerrar sesión</Text>
       </Pressable>
-    </View>
+    </ScrollView>
   );
 }
 
 export default function HomeRoute() {
   return (
     <RequireAuthenticated>
-      <HomeScreen />
+      <AuthenticatedShell activeDestination="home">
+        <HomeScreen />
+      </AuthenticatedShell>
     </RequireAuthenticated>
   );
 }
 
 const styles = StyleSheet.create({
-  button: {
-    backgroundColor: '#275dad',
-    borderRadius: 8,
-    marginTop: 28,
-    minHeight: 48,
-    padding: 14,
+  activityCopy: { flex: 1, marginLeft: 14 },
+  activityIcon: {
+    alignItems: 'center',
+    backgroundColor: '#eaf1ff',
+    borderRadius: 20,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
   },
-  buttonText: {
-    color: '#ffffff',
-    fontSize: 16,
+  activityIconText: {
+    color: '#075bff',
+    fontSize: 23,
     fontWeight: '700',
-    textAlign: 'center',
+    lineHeight: 26,
   },
-  container: { flex: 1, justifyContent: 'center', padding: 24 },
-  error: { color: '#b42318', marginTop: 12 },
-  message: { color: '#4d5d74', fontSize: 16, marginTop: 12 },
+  activityMessage: {
+    color: '#66758c',
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 3,
+  },
+  activityTitle: { color: '#1a2942', fontSize: 15, fontWeight: '700' },
+  avatar: {
+    alignItems: 'center',
+    backgroundColor: '#12213a',
+    borderRadius: 23,
+    height: 46,
+    justifyContent: 'center',
+    width: 46,
+  },
+  brandMarkOpticalCenter: {
+    transform: [{ translateX: 4 }, { translateY: 2 }],
+  },
+  container: { backgroundColor: '#f6f8fc', flex: 1 },
+  content: { padding: 24, paddingBottom: 30 },
+  emptyActivity: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: '#e3e9f3',
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: 'row',
+    marginTop: 12,
+    padding: 16,
+  },
+  error: { color: '#b42318', fontSize: 14, marginTop: 16 },
+  eyebrow: {
+    color: '#075bff',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.1,
+  },
+  headingCopy: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  heroAccent: {
+    backgroundColor: '#1bc6bb',
+    borderRadius: 3,
+    height: 5,
+    width: 48,
+  },
+  heroEyebrow: {
+    color: '#8db5ff',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    marginTop: 20,
+  },
+  heroMessage: {
+    color: '#d5e2ff',
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 10,
+  },
+  heroSurface: {
+    backgroundColor: '#12213a',
+    borderRadius: 22,
+    marginTop: 26,
+    overflow: 'hidden',
+    padding: 22,
+  },
+  heroTitle: {
+    color: '#ffffff',
+    fontSize: 27,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    lineHeight: 32,
+    marginTop: 7,
+    maxWidth: 300,
+  },
+  pressed: { opacity: 0.7 },
   profileLink: {
-    color: '#1d4f91',
-    fontSize: 16,
-    fontWeight: '600',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: '#e3e9f3',
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: 'row',
     marginTop: 24,
+    minHeight: 64,
+    paddingHorizontal: 16,
   },
-  title: { color: '#101b2d', fontSize: 30, fontWeight: '700' },
+  profileLinkArrow: {
+    color: '#526074',
+    fontSize: 28,
+    fontWeight: '400',
+    marginLeft: 10,
+  },
+  profileLinkIcon: {
+    alignItems: 'center',
+    backgroundColor: '#edf2f8',
+    borderRadius: 16,
+    height: 32,
+    justifyContent: 'center',
+    width: 32,
+  },
+  profileLinkIconText: { color: '#1a2942', fontSize: 17, fontWeight: '800' },
+  profileLinkText: {
+    color: '#1a2942',
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+    marginLeft: 12,
+  },
+  primaryButton: {
+    alignItems: 'center',
+    backgroundColor: '#075bff',
+    borderRadius: 10,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 22,
+    minHeight: 52,
+    paddingHorizontal: 18,
+  },
+  primaryButtonArrow: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '700',
+    marginLeft: 10,
+  },
+  primaryButtonText: {
+    color: '#ffffff',
+    flexShrink: 1,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  sectionHeader: { alignItems: 'center', flexDirection: 'row', marginTop: 30 },
+  sectionLine: {
+    backgroundColor: '#dce5f4',
+    flex: 1,
+    height: 1,
+    marginLeft: 12,
+  },
+  sectionTitle: { color: '#1a2942', fontSize: 18, fontWeight: '800' },
+  signOut: {
+    alignSelf: 'center',
+    marginTop: 20,
+    minHeight: 48,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  signOutText: { color: '#526074', fontSize: 14, fontWeight: '700' },
+  title: {
+    color: '#12213a',
+    fontSize: 26,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    marginTop: 5,
+  },
+  topRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
 });
