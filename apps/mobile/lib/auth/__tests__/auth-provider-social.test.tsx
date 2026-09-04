@@ -133,7 +133,7 @@ describe('AuthProvider social integration', () => {
   it('keeps persisted session restoration unchanged', async () => {
     const restoredSession = session('restored-access');
     const { client } = createClient({ initialSession: restoredSession });
-    const { getByTestId } = render(
+    const { getByTestId } = await render(
       <AuthProvider client={client}>
         <AuthProbe />
       </AuthProvider>,
@@ -145,7 +145,7 @@ describe('AuthProvider social integration', () => {
 
   it('keeps email/password sign in on the existing signedIn session contract', async () => {
     const { client } = createClient();
-    const { getByText, getByTestId } = render(
+    const { getByText, getByTestId } = await render(
       <AuthProvider client={client}>
         <AuthProbe />
       </AuthProvider>,
@@ -171,7 +171,7 @@ describe('AuthProvider social integration', () => {
       type: 'success',
       url: 'keylorforge://auth/oauth#access_token=oauth-access&refresh_token=oauth-refresh',
     } as Awaited<ReturnType<typeof WebBrowser.openAuthSessionAsync>>);
-    const { getByText, getByTestId } = render(
+    const { getByText, getByTestId } = await render(
       <AuthProvider client={client}>
         <AuthProbe />
       </AuthProvider>,
@@ -198,7 +198,7 @@ describe('AuthProvider social integration', () => {
     jest.mocked(WebBrowser.openAuthSessionAsync).mockResolvedValue({
       type: 'cancel',
     } as Awaited<ReturnType<typeof WebBrowser.openAuthSessionAsync>>);
-    const { getByText, getByTestId } = render(
+    const { getByText, getByTestId } = await render(
       <AuthProvider client={client}>
         <AuthProbe />
       </AuthProvider>,
@@ -220,7 +220,7 @@ describe('AuthProvider social integration', () => {
     const { client } = createClient({
       oauthError: new Error('sensitive provider authorization code'),
     });
-    const { getByText, getByTestId, queryByText } = render(
+    const { getByText, getByTestId, queryByText } = await render(
       <AuthProvider client={client}>
         <AuthProbe />
       </AuthProvider>,
