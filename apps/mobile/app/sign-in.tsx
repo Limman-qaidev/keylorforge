@@ -4,6 +4,7 @@ import { Pressable, Text } from 'react-native';
 import { AuthScreen, authScreenStyles } from '@/components/auth/auth-screen';
 import { RequireSignedOut } from '@/components/auth/auth-guards';
 import { EmailPasswordForm } from '@/components/auth/email-password-form';
+import { SocialAuthButtons } from '@/components/auth/social-auth-buttons';
 import { useAuth } from '@/lib/auth/auth-provider';
 
 function SignInScreen() {
@@ -32,6 +33,7 @@ function SignInScreen() {
         actionLabel="Sign in"
         onSubmit={({ email, password }) => signIn(email, password)}
       />
+      <SocialAuthButtons />
       <Link asChild href="/password-recovery">
         <Pressable
           accessibilityRole="link"
