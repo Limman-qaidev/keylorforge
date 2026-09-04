@@ -8,11 +8,11 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "eslint . --max-warnings=0 || true",
+    "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
-    "format:check": "prettier --write . && git diff -- .",
-    "typecheck": "tsc --noEmit || true",
-    "test": "jest || true"
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "test": "jest"
   },
   "dependencies": {
     "@expo/metro-runtime": "57.0.14",
