@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -8,6 +8,7 @@ import { AuthenticatedShell } from '@/components/navigation/authenticated-shell'
 import { useAuth } from '@/lib/auth/auth-provider';
 
 function HomeScreen() {
+  const router = useRouter();
   const { signOut } = useAuth();
   const [error, setError] = useState<string | null>(null);
 
@@ -24,14 +25,16 @@ function HomeScreen() {
       style={styles.container}
     >
       <View style={styles.topRow}>
-        <View>
+        <View style={styles.headingCopy}>
           <Text style={styles.eyebrow}>KEYLORFORGE</Text>
           <Text accessibilityRole="header" style={styles.title}>
             Tu espacio de entrenamiento
           </Text>
         </View>
         <View accessibilityLabel="KeylorForge" style={styles.avatar}>
-          <KeylorForgeG4Mark size={26} />
+          <View style={styles.brandMarkOpticalCenter}>
+            <KeylorForgeG4Mark size={26} />
+          </View>
         </View>
       </View>
 
@@ -43,21 +46,22 @@ function HomeScreen() {
           Cuando el entrenamiento esté disponible, podrás iniciarlo desde aquí
           sin perder el foco.
         </Text>
-        <Link asChild href="/train">
-          <Pressable
-            accessibilityLabel="Ir a Entrenar"
-            accessibilityRole="button"
-            style={({ pressed }) => [
-              styles.primaryButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Text style={styles.primaryButtonText}>IR A ENTRENAR</Text>
-            <Text accessible={false} style={styles.primaryButtonArrow}>
-              →
-            </Text>
-          </Pressable>
-        </Link>
+        <Pressable
+          accessibilityLabel="Ir a Entrenar"
+          accessibilityRole="button"
+          onPress={() => router.push('/train')}
+          style={({ pressed }) => [
+            styles.primaryButton,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text numberOfLines={1} style={styles.primaryButtonText}>
+            IR A ENTRENAR
+          </Text>
+          <Text accessible={false} style={styles.primaryButtonArrow}>
+            →
+          </Text>
+        </Pressable>
       </View>
 
       <View style={styles.sectionHeader}>
@@ -82,26 +86,28 @@ function HomeScreen() {
         </View>
       </View>
 
-      <Link asChild href="/profile">
-        <Pressable
-          accessibilityLabel="Abrir perfil"
-          accessibilityRole="button"
-          style={({ pressed }) => [
-            styles.profileLink,
-            pressed && styles.pressed,
-          ]}
-        >
-          <View style={styles.profileLinkIcon}>
-            <Text accessible={false} style={styles.profileLinkIconText}>
-              ◯
-            </Text>
-          </View>
-          <Text style={styles.profileLinkText}>Gestionar perfil</Text>
-          <Text accessible={false} style={styles.profileLinkArrow}>
-            ›
+      <Pressable
+        accessibilityLabel="Abrir perfil"
+        accessibilityRole="button"
+        onPress={() => router.push('/profile')}
+        style={({ pressed }) => [
+          styles.profileLink,
+          pressed && styles.pressed,
+        ]}
+      >
+        <View style={styles.profileLinkIcon}>
+          <Text accessible={false} style={styles.profileLinkIconText}>
+            ◯
           </Text>
-        </Pressable>
-      </Link>
+        </View>
+        <Text numberOfLines={1} style={styles.profileLinkText}>
+          Gestionar perfil
+        </Text>
+        <Text accessible={false} style={styles.profileLinkArrow}>
+          ›
+        </Text>
+      </Pressable>
+
       {error ? (
         <Text accessibilityLiveRegion="polite" style={styles.error}>
           {error}
@@ -159,6 +165,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 46,
   },
+  brandMarkOpticalCenter: {
+    transform: [{ translateX: 2 }],
+  },
   container: { backgroundColor: '#f6f8fc', flex: 1 },
   content: { padding: 24, paddingBottom: 30 },
   emptyActivity: {
@@ -177,6 +186,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1.1,
+  },
+  headingCopy: {
+    flex: 1,
+    paddingRight: 12,
   },
   heroAccent: {
     backgroundColor: '#1bc6bb',
@@ -265,6 +278,7 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: '#ffffff',
+    flexShrink: 1,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.4,
