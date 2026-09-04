@@ -1,5 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { KeylorForgeG4Mark } from '@/components/brand/keylorforge-g4-mark';
+
 type EmptyDestinationProps = {
   eyebrow: string;
   message: string;
@@ -15,9 +17,7 @@ export function EmptyDestination({
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.brandMark}>
-          <Text accessible={false} style={styles.brandMarkText}>
-            ϟ
-          </Text>
+          <KeylorForgeG4Mark size={18} />
         </View>
         <Text style={styles.brand}>KEYLORFORGE</Text>
       </View>
@@ -29,7 +29,7 @@ export function EmptyDestination({
         <Text style={styles.message}>{message}</Text>
         <View accessibilityElementsHidden style={styles.visualPlaceholder}>
           <View style={styles.placeholderIcon}>
-            <Text style={styles.placeholderIconText}>ϟ</Text>
+            <Text style={styles.placeholderIconText}>▱</Text>
           </View>
           <View style={styles.placeholderLineLong} />
           <View style={styles.placeholderLineShort} />
@@ -56,12 +56,6 @@ const styles = StyleSheet.create({
     height: 28,
     justifyContent: 'center',
     width: 28,
-  },
-  brandMarkText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '800',
-    lineHeight: 21,
   },
   container: {
     backgroundColor: '#f6f8fc',

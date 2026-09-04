@@ -3,12 +3,14 @@ import type { PropsWithChildren } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { KeylorForgeG4Mark } from '@/components/brand/keylorforge-g4-mark';
+
 export type ShellDestination =
   'home' | 'progress' | 'train' | 'social' | 'profile';
 
 type NavigationItem = {
   destination: ShellDestination;
-  glyph: string;
+  glyph?: string;
   href: '/home' | '/progress' | '/train' | '/social' | '/profile';
   label: string;
   primary?: boolean;
@@ -19,7 +21,6 @@ const navigationItems: readonly NavigationItem[] = [
   { destination: 'progress', glyph: '▥', href: '/progress', label: 'Progreso' },
   {
     destination: 'train',
-    glyph: 'ϟ',
     href: '/train',
     label: 'Entrenar',
     primary: true,
@@ -73,16 +74,19 @@ export function AuthenticatedShell({
                       !isPrimary && isActive && styles.activeGlyphContainer,
                     ]}
                   >
-                    <Text
-                      accessible={false}
-                      style={[
-                        styles.glyph,
-                        isActive && styles.activeText,
-                        isPrimary && styles.primaryGlyph,
-                      ]}
-                    >
-                      {item.glyph}
-                    </Text>
+                    {isPrimary ? (
+                      <KeylorForgeG4Mark
+                        size={34}
+                        testID="primary-training-brand-mark"
+                      />
+                    ) : (
+                      <Text
+                        accessible={false}
+                        style={[styles.glyph, isActive && styles.activeText]}
+                      >
+                        {item.glyph}
+                      </Text>
+                    )}
                   </View>
                   <Text
                     style={[
@@ -154,12 +158,6 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.64,
-  },
-  primaryGlyph: {
-    color: '#ffffff',
-    fontSize: 34,
-    fontWeight: '800',
-    lineHeight: 38,
   },
   primaryGlyphContainer: {
     backgroundColor: '#075bff',

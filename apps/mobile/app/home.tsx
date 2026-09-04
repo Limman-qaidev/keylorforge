@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { RequireAuthenticated } from '@/components/auth/auth-guards';
+import { KeylorForgeG4Mark } from '@/components/brand/keylorforge-g4-mark';
 import { AuthenticatedShell } from '@/components/navigation/authenticated-shell';
 import { useAuth } from '@/lib/auth/auth-provider';
 
@@ -30,9 +31,7 @@ function HomeScreen() {
           </Text>
         </View>
         <View accessibilityLabel="KeylorForge" style={styles.avatar}>
-          <Text accessible={false} style={styles.avatarMark}>
-            ϟ
-          </Text>
+          <KeylorForgeG4Mark size={26} />
         </View>
       </View>
 
@@ -159,12 +158,6 @@ const styles = StyleSheet.create({
     height: 46,
     justifyContent: 'center',
     width: 46,
-  },
-  avatarMark: {
-    color: '#1bc6bb',
-    fontSize: 26,
-    fontWeight: '800',
-    lineHeight: 30,
   },
   container: { backgroundColor: '#f6f8fc', flex: 1 },
   content: { padding: 24, paddingBottom: 30 },
