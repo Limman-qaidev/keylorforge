@@ -18,10 +18,12 @@ const SOCIAL_AUTH_UNAVAILABLE = 'This sign-in option is not available.';
 type SocialAuthActionResult = { error: string } | { error?: undefined };
 
 type SocialAuthSessionResult =
-  | { error: string; session?: undefined }
-  | { error?: undefined; session: Session };
+  | { cancelled: true; error?: undefined; session?: undefined }
+  | { error: string; cancelled?: undefined; session?: undefined }
+  | { error?: undefined; cancelled?: undefined; session: Session };
 
 type SocialAuthCallback =
+  | { kind: 'cancelled' }
   | { kind: 'invalid' }
   | { kind: 'providerError' }
   | { accessToken: string; kind: 'success'; refreshToken: string };
@@ -74,8 +76,16 @@ export function parseSocialAuthCallback(url: string): SocialAuthCallback {
   }
 
   const parameters = callbackParameters(parsedUrl);
+  const providerError = parameters.get('error');
   if (
-    parameters.has('error') ||
+    providerError === 'access_denied' ||
+    (providerError?.toLowerCase().includes('cancel') ?? false)
+  ) {
+    return { kind: 'cancelled' };
+  }
+
+  if (
+    providerError ||
     parameters.has('error_code') ||
     parameters.has('error_description')
   ) {
@@ -121,6 +131,9 @@ export async function installSocialAuthSession(
   callbackUrl: string,
 ): Promise<SocialAuthSessionResult> {
   const callback = parseSocialAuthCallback(callbackUrl);
+  if (callback.kind === 'cancelled') {
+    return { cancelled: true };
+  }
   if (callback.kind !== 'success') {
     return { error: SOCIAL_AUTH_ERROR };
   }
