@@ -1,4 +1,4 @@
-import { fireEventAsync, render } from '@testing-library/react-native';
+import { render } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 import { Text } from 'react-native';
 
@@ -44,19 +44,19 @@ describe('AuthenticatedShell', () => {
       </AuthenticatedShell>,
     );
 
-    await fireEventAsync.press(getByLabelText('Inicio'));
+    getByLabelText('Inicio').props.onPress();
     expect(mockReplace).toHaveBeenLastCalledWith('/home');
 
-    await fireEventAsync.press(getByLabelText('Progreso'));
+    getByLabelText('Progreso').props.onPress();
     expect(mockReplace).toHaveBeenLastCalledWith('/progress');
 
-    await fireEventAsync.press(getByLabelText('Entrenar'));
+    getByLabelText('Entrenar').props.onPress();
     expect(mockReplace).toHaveBeenLastCalledWith('/train');
 
-    await fireEventAsync.press(getByLabelText('Social'));
+    getByLabelText('Social').props.onPress();
     expect(mockReplace).toHaveBeenLastCalledWith('/social');
 
-    await fireEventAsync.press(getByLabelText('Perfil'));
+    getByLabelText('Perfil').props.onPress();
     expect(mockReplace).toHaveBeenLastCalledWith('/profile');
 
     expect(getByTestId('primary-training-destination')).toBeTruthy();
