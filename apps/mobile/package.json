@@ -10,7 +10,7 @@
     "web": "expo start --web",
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
-    "format:check": "prettier --write app/home.tsx components/navigation/authenticated-shell.tsx && git diff -- app/home.tsx components/navigation/authenticated-shell.tsx && exit 1",
+    "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "test": "jest"
   },
