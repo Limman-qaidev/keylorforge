@@ -1,14 +1,13 @@
-import { render } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 import { Text } from 'react-native';
 
 import { AuthenticatedShell } from '../authenticated-shell';
 
+const mockReplace = jest.fn();
+
 jest.mock('expo-router', () => ({
-  Link: ({ children, href }: { children: ReactNode; href: string }) => {
-    const { View } = jest.requireActual('react-native');
-    return <View accessibilityLabel={`route:${href}`}>{children}</View>;
-  },
+  useRouter: () => ({ replace: mockReplace }),
 }));
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -19,6 +18,10 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 
 describe('AuthenticatedShell', () => {
+  beforeEach(() => {
+    mockReplace.mockClear();
+  });
+
   it('exposes exactly the five approved authenticated destinations', async () => {
     const { getAllByRole, getByLabelText } = await render(
       <AuthenticatedShell activeDestination="home">
@@ -35,21 +38,30 @@ describe('AuthenticatedShell', () => {
   });
 
   it('routes every destination and keeps Entrenar as the primary action', async () => {
-    const { getByLabelText, getByTestId, queryByText } = await render(
+    const { getByLabelText, getByTestId, queryByTestId } = await render(
       <AuthenticatedShell activeDestination="train">
         <Text>training destination</Text>
       </AuthenticatedShell>,
     );
 
-    expect(getByLabelText('route:/home')).toBeTruthy();
-    expect(getByLabelText('route:/progress')).toBeTruthy();
-    expect(getByLabelText('route:/train')).toBeTruthy();
-    expect(getByLabelText('route:/social')).toBeTruthy();
-    expect(getByLabelText('route:/profile')).toBeTruthy();
+    fireEvent.press(getByLabelText('Inicio'));
+    expect(mockReplace).toHaveBeenLastCalledWith('/home');
+
+    fireEvent.press(getByLabelText('Progreso'));
+    expect(mockReplace).toHaveBeenLastCalledWith('/progress');
+
+    fireEvent.press(getByLabelText('Entrenar'));
+    expect(mockReplace).toHaveBeenLastCalledWith('/train');
+
+    fireEvent.press(getByLabelText('Social'));
+    expect(mockReplace).toHaveBeenLastCalledWith('/social');
+
+    fireEvent.press(getByLabelText('Perfil'));
+    expect(mockReplace).toHaveBeenLastCalledWith('/profile');
+
     expect(getByTestId('primary-training-destination')).toBeTruthy();
-    expect(getByTestId('primary-training-brand-mark')).toBeTruthy();
-    expect(queryByText('ϟ')).toBeNull();
-    expect(queryByText('+')).toBeNull();
+    expect(getByTestId('primary-training-icon')).toBeTruthy();
+    expect(queryByTestId('primary-training-brand-mark')).toBeNull();
     expect(getByLabelText('Entrenar').props.accessibilityState).toEqual({
       selected: true,
     });
