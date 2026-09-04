@@ -14,8 +14,8 @@ jest.mock('@/components/navigation/authenticated-shell', () => ({
 }));
 
 describe('authenticated product destinations', () => {
-  it('renders a truthful Progress placeholder without fabricated metrics', () => {
-    const { getByText } = render(<ProgressRoute />);
+  it('renders a truthful Progress placeholder without fabricated metrics', async () => {
+    const { getByText } = await render(<ProgressRoute />);
 
     expect(getByText('Progreso')).toBeTruthy();
     expect(
@@ -25,8 +25,8 @@ describe('authenticated product destinations', () => {
     ).toBeTruthy();
   });
 
-  it('renders a truthful Training placeholder without fake workouts', () => {
-    const { getByText } = render(<TrainRoute />);
+  it('renders a truthful Training placeholder without fake workouts', async () => {
+    const { getByText } = await render(<TrainRoute />);
 
     expect(getByText('Entrenar')).toBeTruthy();
     expect(
@@ -36,8 +36,8 @@ describe('authenticated product destinations', () => {
     ).toBeTruthy();
   });
 
-  it('renders a truthful Social placeholder without fake rankings or friends', () => {
-    const { getByText } = render(<SocialRoute />);
+  it('renders a truthful Social placeholder without fake rankings or friends', async () => {
+    const { getByText } = await render(<SocialRoute />);
 
     expect(getByText('Social')).toBeTruthy();
     expect(
