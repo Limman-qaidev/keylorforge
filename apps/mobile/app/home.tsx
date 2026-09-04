@@ -33,7 +33,7 @@ function HomeScreen() {
         </View>
         <View accessibilityLabel="KeylorForge" style={styles.avatar}>
           <View style={styles.brandMarkOpticalCenter}>
-            <KeylorForgeG4Mark size={26} />
+            <KeylorForgeG4Mark size={32} />
           </View>
         </View>
       </View>
