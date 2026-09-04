@@ -17,15 +17,24 @@ import {
 import { AppState, type AppStateStatus } from 'react-native';
 
 import {
-  getSupabaseClient,
-  type MobileSupabaseClient,
-} from '@/lib/auth/supabase';
-import {
   CONFIRMATION_CALLBACK_URL,
   parseConfirmationCallback,
 } from '@/lib/auth/confirmation-callback';
+import {
+  beginSocialAuth,
+  getSocialAuthCapabilities,
+  installSocialAuthSession,
+  socialAuthUnavailableResult,
+  type SocialAuthCapabilities,
+  type SocialAuthProvider,
+} from '@/lib/auth/social-auth';
+import {
+  getSupabaseClient,
+  type MobileSupabaseClient,
+} from '@/lib/auth/supabase';
 
 export type AuthPhase = 'restoring' | 'signedOut' | 'signedIn';
+export type { SocialAuthProvider } from '@/lib/auth/social-auth';
 
 type AuthFeedback = {
   kind: 'terminal' | 'transient';
@@ -48,11 +57,14 @@ type RegistrationResult = AuthActionResult & {
 type AuthContextValue = AuthState & {
   clearConfirmation: () => Promise<void>;
   consumeConfirmationCallback: (url: string) => Promise<AuthActionResult>;
+  consumeSocialAuthCallback: (url: string) => Promise<AuthActionResult>;
   invalidateSession: () => Promise<void>;
   refreshSession: () => Promise<string | null>;
   signIn: (email: string, password: string) => Promise<AuthActionResult>;
+  signInWithSocial: (provider: SocialAuthProvider) => Promise<AuthActionResult>;
   signOut: () => Promise<AuthActionResult>;
   signUp: (email: string, password: string) => Promise<RegistrationResult>;
+  socialAuthCapabilities: SocialAuthCapabilities;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -146,6 +158,7 @@ export function AuthProvider({
       };
     }
   }, [providedClient]);
+  const socialAuthCapabilities = useMemo(getSocialAuthCapabilities, []);
   const [authState, setAuthState] = useState<AuthState>(() => {
     if (clientResult.client) {
       return restoringState;
@@ -163,6 +176,7 @@ export function AuthProvider({
   });
   const stateRef = useRef(authState);
   const isConsumingConfirmation = useRef(false);
+  const isConsumingSocialAuth = useRef(false);
   const sessionOperationVersion = useRef(0);
 
   const updateAuthState = useCallback((nextState: AuthState) => {
@@ -181,6 +195,18 @@ export function AuthProvider({
       session: null,
     });
   }, [updateAuthState]);
+
+  const setTransientSignedOutState = useCallback(
+    (message: string) => {
+      updateAuthState({
+        confirmationEmail: null,
+        feedback: { kind: 'transient', message },
+        phase: 'signedOut',
+        session: null,
+      });
+    },
+    [updateAuthState],
+  );
 
   const restoreSession = useCallback(async () => {
     if (!clientResult.client) {
@@ -304,19 +330,44 @@ export function AuthProvider({
       });
       if (error) {
         const message = readableAuthError(error);
-        updateAuthState({
-          confirmationEmail: null,
-          feedback: { kind: 'transient', message },
-          phase: 'signedOut',
-          session: null,
-        });
+        setTransientSignedOutState(message);
         return { error: message };
       }
 
       updateAuthState(stateForSession(data.session));
       return {};
     },
-    [clientResult.client, clientResult.error, updateAuthState],
+    [
+      clientResult.client,
+      clientResult.error,
+      setTransientSignedOutState,
+      updateAuthState,
+    ],
+  );
+
+  const signInWithSocial = useCallback(
+    async (provider: SocialAuthProvider): Promise<AuthActionResult> => {
+      const client = clientResult.client;
+      if (!client) {
+        return { error: clientResult.error ?? 'Supabase is unavailable.' };
+      }
+
+      if (!socialAuthCapabilities[provider]) {
+        return socialAuthUnavailableResult();
+      }
+
+      const result = await beginSocialAuth(client, provider);
+      if (result.error) {
+        setTransientSignedOutState(result.error);
+      }
+      return result;
+    },
+    [
+      clientResult.client,
+      clientResult.error,
+      setTransientSignedOutState,
+      socialAuthCapabilities,
+    ],
   );
 
   const signUp = useCallback(
@@ -333,12 +384,7 @@ export function AuthProvider({
       });
       if (error) {
         const message = readableAuthError(error);
-        updateAuthState({
-          confirmationEmail: null,
-          feedback: { kind: 'transient', message },
-          phase: 'signedOut',
-          session: null,
-        });
+        setTransientSignedOutState(message);
         return { error: message };
       }
 
@@ -356,7 +402,12 @@ export function AuthProvider({
       await AsyncStorage.setItem(pendingConfirmationEmailKey, email);
       return { confirmationRequired: true };
     },
-    [clientResult.client, clientResult.error, updateAuthState],
+    [
+      clientResult.client,
+      clientResult.error,
+      setTransientSignedOutState,
+      updateAuthState,
+    ],
   );
 
   const consumeConfirmationCallback = useCallback(
@@ -428,6 +479,43 @@ export function AuthProvider({
       }
     },
     [clientResult.client, clientResult.error, updateAuthState],
+  );
+
+  const consumeSocialAuthCallback = useCallback(
+    async (url: string): Promise<AuthActionResult> => {
+      const client = clientResult.client;
+      if (!client) {
+        return { error: clientResult.error ?? 'Supabase is unavailable.' };
+      }
+
+      if (
+        isConsumingSocialAuth.current ||
+        stateRef.current.phase === 'signedIn'
+      ) {
+        return {};
+      }
+
+      isConsumingSocialAuth.current = true;
+      sessionOperationVersion.current += 1;
+      try {
+        const result = await installSocialAuthSession(client, url);
+        if (result.error) {
+          setTransientSignedOutState(result.error);
+          return { error: result.error };
+        }
+
+        updateAuthState(stateForSession(result.session));
+        return {};
+      } finally {
+        isConsumingSocialAuth.current = false;
+      }
+    },
+    [
+      clientResult.client,
+      clientResult.error,
+      setTransientSignedOutState,
+      updateAuthState,
+    ],
   );
 
   /**
@@ -517,21 +605,27 @@ export function AuthProvider({
       ...authState,
       clearConfirmation,
       consumeConfirmationCallback,
+      consumeSocialAuthCallback,
       invalidateSession,
       refreshSession,
       signIn,
+      signInWithSocial,
       signOut,
       signUp,
+      socialAuthCapabilities,
     }),
     [
       authState,
       clearConfirmation,
       consumeConfirmationCallback,
+      consumeSocialAuthCallback,
       invalidateSession,
       refreshSession,
       signIn,
+      signInWithSocial,
       signOut,
       signUp,
+      socialAuthCapabilities,
     ],
   );
 
