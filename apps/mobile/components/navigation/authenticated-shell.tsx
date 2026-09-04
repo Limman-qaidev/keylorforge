@@ -44,7 +44,10 @@ export function AuthenticatedShell({
     <View style={styles.root}>
       <View style={styles.content}>{children}</View>
       <SafeAreaView edges={['bottom']} style={styles.safeArea}>
-        <View accessibilityLabel="Navegación principal" style={styles.navigation}>
+        <View
+          accessibilityLabel="Navegación principal"
+          style={styles.navigation}
+        >
           {navigationItems.map((item) => {
             const isActive = item.destination === activeDestination;
             const isPrimary = item.primary === true;
@@ -55,7 +58,9 @@ export function AuthenticatedShell({
                   accessibilityLabel={item.label}
                   accessibilityRole="button"
                   accessibilityState={{ selected: isActive }}
-                  testID={isPrimary ? 'primary-training-destination' : undefined}
+                  testID={
+                    isPrimary ? 'primary-training-destination' : undefined
+                  }
                   style={({ pressed }) => [
                     styles.navigationItem,
                     isPrimary && styles.primaryNavigationItem,
