@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     width: 46,
   },
   brandMarkOpticalCenter: {
-    transform: [{ translateX: 8 }, { translateY: 4 }],
+    transform: [{ translateX: 4 }, { translateY: 2 }],
   },
   container: { backgroundColor: '#f6f8fc', flex: 1 },
   content: { padding: 24, paddingBottom: 30 },
