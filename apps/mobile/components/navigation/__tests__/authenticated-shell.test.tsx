@@ -19,8 +19,8 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 
 describe('AuthenticatedShell', () => {
-  it('exposes exactly the five approved authenticated destinations', () => {
-    const { getAllByRole, getByLabelText } = render(
+  it('exposes exactly the five approved authenticated destinations', async () => {
+    const { getAllByRole, getByLabelText } = await render(
       <AuthenticatedShell activeDestination="home">
         <Text>real home</Text>
       </AuthenticatedShell>,
@@ -34,8 +34,8 @@ describe('AuthenticatedShell', () => {
     expect(getByLabelText('Perfil')).toBeTruthy();
   });
 
-  it('routes every destination and keeps Entrenar as the primary action', () => {
-    const { getByLabelText, getByTestId } = render(
+  it('routes every destination and keeps Entrenar as the primary action', async () => {
+    const { getByLabelText, getByTestId } = await render(
       <AuthenticatedShell activeDestination="train">
         <Text>training destination</Text>
       </AuthenticatedShell>,
@@ -52,8 +52,8 @@ describe('AuthenticatedShell', () => {
     });
   });
 
-  it('renders real destination content inside the shell', () => {
-    const { getByText } = render(
+  it('renders real destination content inside the shell', async () => {
+    const { getByText } = await render(
       <AuthenticatedShell activeDestination="profile">
         <Text>server-backed profile</Text>
       </AuthenticatedShell>,
