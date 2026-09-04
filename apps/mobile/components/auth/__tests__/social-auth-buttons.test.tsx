@@ -25,16 +25,18 @@ afterAll(() => {
 });
 
 describe('SocialAuthButtons', () => {
-  it('renders no dead provider controls when capabilities are unavailable', () => {
-    const { queryByRole } = render(<SocialAuthButtons onSignIn={jest.fn()} />);
+  it('renders no dead provider controls when capabilities are unavailable', async () => {
+    const { queryByRole } = await render(
+      <SocialAuthButtons onSignIn={jest.fn()} />,
+    );
 
     expect(queryByRole('button', { name: 'Continue with Google' })).toBeNull();
     expect(queryByRole('button', { name: 'Continue with Apple' })).toBeNull();
   });
 
-  it('renders only Google when Google capability is enabled', () => {
+  it('renders only Google when Google capability is enabled', async () => {
     process.env.EXPO_PUBLIC_GOOGLE_AUTH_ENABLED = 'true';
-    const { getByRole, queryByRole } = render(
+    const { getByRole, queryByRole } = await render(
       <SocialAuthButtons onSignIn={jest.fn()} />,
     );
 
@@ -42,10 +44,10 @@ describe('SocialAuthButtons', () => {
     expect(queryByRole('button', { name: 'Continue with Apple' })).toBeNull();
   });
 
-  it('invokes Apple only when the Apple capability is enabled', () => {
+  it('invokes Apple only when the Apple capability is enabled', async () => {
     process.env.EXPO_PUBLIC_APPLE_AUTH_ENABLED = 'true';
     const onSignIn = jest.fn().mockResolvedValue(undefined);
-    const { getByRole, queryByRole } = render(
+    const { getByRole, queryByRole } = await render(
       <SocialAuthButtons onSignIn={onSignIn} />,
     );
 
