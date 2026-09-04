@@ -7,10 +7,7 @@ import {
   View,
 } from 'react-native';
 
-import {
-  useAuth,
-  type SocialAuthProvider,
-} from '@/lib/auth/auth-provider';
+import { useAuth, type SocialAuthProvider } from '@/lib/auth/auth-provider';
 
 const providers: Array<{ label: string; provider: SocialAuthProvider }> = [
   { label: 'Continue with Google', provider: 'google' },
@@ -19,9 +16,8 @@ const providers: Array<{ label: string; provider: SocialAuthProvider }> = [
 
 export function SocialAuthButtons() {
   const { signInWithSocial, socialAuthCapabilities } = useAuth();
-  const [pendingProvider, setPendingProvider] = useState<
-    SocialAuthProvider | null
-  >(null);
+  const [pendingProvider, setPendingProvider] =
+    useState<SocialAuthProvider | null>(null);
 
   const availableProviders = providers.filter(
     ({ provider }) => socialAuthCapabilities[provider],
