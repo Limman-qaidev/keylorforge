@@ -13,14 +13,14 @@ export const SOCIAL_AUTH_CALLBACK_URL = 'keylorforge://auth/oauth';
 
 const SOCIAL_AUTH_ERROR =
   'Social sign-in could not be completed. Please try again.';
+const SOCIAL_AUTH_CANCELLED = 'Sign-in was cancelled.';
 const SOCIAL_AUTH_UNAVAILABLE = 'This sign-in option is not available.';
 
 type SocialAuthActionResult = { error: string } | { error?: undefined };
 
 type SocialAuthSessionResult =
-  | { cancelled: true; error?: undefined; session?: undefined }
-  | { error: string; cancelled?: undefined; session?: undefined }
-  | { error?: undefined; cancelled?: undefined; session: Session };
+  | { error: string; session?: undefined }
+  | { error?: undefined; session: Session };
 
 type SocialAuthCallback =
   | { kind: 'cancelled' }
@@ -132,7 +132,7 @@ export async function installSocialAuthSession(
 ): Promise<SocialAuthSessionResult> {
   const callback = parseSocialAuthCallback(callbackUrl);
   if (callback.kind === 'cancelled') {
-    return { cancelled: true };
+    return { error: SOCIAL_AUTH_CANCELLED };
   }
   if (callback.kind !== 'success') {
     return { error: SOCIAL_AUTH_ERROR };
