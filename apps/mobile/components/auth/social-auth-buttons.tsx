@@ -21,7 +21,21 @@ const providers: { label: string; provider: SocialAuthProvider }[] = [
   { label: 'Continue with Apple', provider: 'apple' },
 ];
 
-export function SocialAuthButtons({ onSignIn }: SocialAuthButtonsProps) {
+// Social OAuth remains fully implemented but is intentionally muted in the UI
+// until Google and Apple are configured and accepted for release. Set this to
+// true when those external providers are ready; no OAuth implementation needs
+// to be restored or rewritten.
+const SOCIAL_AUTH_UI_ENABLED = false;
+
+export function SocialAuthButtons(props: SocialAuthButtonsProps) {
+  if (!SOCIAL_AUTH_UI_ENABLED) {
+    return null;
+  }
+
+  return <EnabledSocialAuthButtons {...props} />;
+}
+
+function EnabledSocialAuthButtons({ onSignIn }: SocialAuthButtonsProps) {
   const capabilities = getSocialAuthCapabilities();
   const [pendingProvider, setPendingProvider] =
     useState<SocialAuthProvider | null>(null);
