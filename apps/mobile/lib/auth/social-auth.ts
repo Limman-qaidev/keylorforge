@@ -58,7 +58,11 @@ function readUnambiguousParameter(
     return null;
   }
 
-  const [firstValue] = values;
+  const firstValue = values[0];
+  if (!firstValue) {
+    return null;
+  }
+
   return values.every((value) => value === firstValue) ? firstValue : null;
 }
 
