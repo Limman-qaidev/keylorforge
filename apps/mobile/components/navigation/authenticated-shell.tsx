@@ -60,9 +60,7 @@ export function AuthenticatedShell({
                 accessibilityState={{ selected: isActive }}
                 key={item.destination}
                 onPress={() => router.replace(item.href)}
-                testID={
-                  isPrimary ? 'primary-training-destination' : undefined
-                }
+                testID={isPrimary ? 'primary-training-destination' : undefined}
                 style={({ pressed }) => [
                   styles.navigationItem,
                   isPrimary && styles.primaryNavigationItem,
