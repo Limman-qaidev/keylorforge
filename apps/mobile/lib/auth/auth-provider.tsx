@@ -17,13 +17,19 @@ import {
 import { AppState, type AppStateStatus } from 'react-native';
 
 import {
-  getSupabaseClient,
-  type MobileSupabaseClient,
-} from '@/lib/auth/supabase';
-import {
   CONFIRMATION_CALLBACK_URL,
   parseConfirmationCallback,
 } from '@/lib/auth/confirmation-callback';
+import {
+  authenticateWithSocialProvider,
+  isSocialAuthProviderEnabled,
+  SOCIAL_AUTH_ERROR_MESSAGE,
+  type SocialAuthProvider,
+} from '@/lib/auth/social-auth';
+import {
+  getSupabaseClient,
+  type MobileSupabaseClient,
+} from '@/lib/auth/supabase';
 
 export type AuthPhase = 'restoring' | 'signedOut' | 'signedIn';
 
@@ -51,6 +57,9 @@ type AuthContextValue = AuthState & {
   invalidateSession: () => Promise<void>;
   refreshSession: () => Promise<string | null>;
   signIn: (email: string, password: string) => Promise<AuthActionResult>;
+  signInWithSocial: (
+    provider: SocialAuthProvider,
+  ) => Promise<AuthActionResult>;
   signOut: () => Promise<AuthActionResult>;
   signUp: (email: string, password: string) => Promise<RegistrationResult>;
 };
@@ -319,6 +328,32 @@ export function AuthProvider({
     [clientResult.client, clientResult.error, updateAuthState],
   );
 
+  const signInWithSocial = useCallback(
+    async (provider: SocialAuthProvider): Promise<AuthActionResult> => {
+      const client = clientResult.client;
+      if (!client || !isSocialAuthProviderEnabled(provider)) {
+        return { error: SOCIAL_AUTH_ERROR_MESSAGE };
+      }
+
+      const result = await authenticateWithSocialProvider(client, provider);
+      if (result.status === 'cancelled') {
+        return {};
+      }
+
+      if (result.status === 'error') {
+        updateAuthState({
+          ...stateRef.current,
+          feedback: { kind: 'transient', message: result.message },
+        });
+        return { error: result.message };
+      }
+
+      updateAuthState(stateForSession(result.session));
+      return {};
+    },
+    [clientResult.client, updateAuthState],
+  );
+
   const signUp = useCallback(
     async (email: string, password: string): Promise<RegistrationResult> => {
       const client = clientResult.client;
@@ -520,6 +555,7 @@ export function AuthProvider({
       invalidateSession,
       refreshSession,
       signIn,
+      signInWithSocial,
       signOut,
       signUp,
     }),
@@ -530,6 +566,7 @@ export function AuthProvider({
       invalidateSession,
       refreshSession,
       signIn,
+      signInWithSocial,
       signOut,
       signUp,
     ],
