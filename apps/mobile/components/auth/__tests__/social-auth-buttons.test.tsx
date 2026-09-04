@@ -1,57 +1,57 @@
 import { fireEvent, render } from '@testing-library/react-native';
 
 import { SocialAuthButtons } from '../social-auth-buttons';
-import { useAuth } from '@/lib/auth/auth-provider';
 
-jest.mock('@/lib/auth/auth-provider', () => ({
-  useAuth: jest.fn(),
-}));
+const originalAppleAuthFlag = process.env.EXPO_PUBLIC_APPLE_AUTH_ENABLED;
+const originalGoogleAuthFlag = process.env.EXPO_PUBLIC_GOOGLE_AUTH_ENABLED;
 
-const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
+beforeEach(() => {
+  delete process.env.EXPO_PUBLIC_APPLE_AUTH_ENABLED;
+  delete process.env.EXPO_PUBLIC_GOOGLE_AUTH_ENABLED;
+});
+
+afterAll(() => {
+  if (originalAppleAuthFlag === undefined) {
+    delete process.env.EXPO_PUBLIC_APPLE_AUTH_ENABLED;
+  } else {
+    process.env.EXPO_PUBLIC_APPLE_AUTH_ENABLED = originalAppleAuthFlag;
+  }
+
+  if (originalGoogleAuthFlag === undefined) {
+    delete process.env.EXPO_PUBLIC_GOOGLE_AUTH_ENABLED;
+  } else {
+    process.env.EXPO_PUBLIC_GOOGLE_AUTH_ENABLED = originalGoogleAuthFlag;
+  }
+});
 
 describe('SocialAuthButtons', () => {
-  const signInWithSocial = jest.fn().mockResolvedValue({});
+  it('renders no dead provider controls when capabilities are unavailable', () => {
+    const { queryByRole } = render(<SocialAuthButtons onSignIn={jest.fn()} />);
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockUseAuth.mockReturnValue({
-      signInWithSocial,
-      socialAuthCapabilities: { apple: false, google: false },
-    } as ReturnType<typeof useAuth>);
+    expect(queryByRole('button', { name: 'Continue with Google' })).toBeNull();
+    expect(queryByRole('button', { name: 'Continue with Apple' })).toBeNull();
   });
 
-  it('renders no dead provider controls when providers are unavailable', async () => {
-    const { queryByText } = await render(<SocialAuthButtons />);
+  it('renders only Google when Google capability is enabled', () => {
+    process.env.EXPO_PUBLIC_GOOGLE_AUTH_ENABLED = 'true';
+    const { getByRole, queryByRole } = render(
+      <SocialAuthButtons onSignIn={jest.fn()} />,
+    );
 
-    expect(queryByText('Continue with Google')).toBeNull();
-    expect(queryByText('Continue with Apple')).toBeNull();
+    expect(getByRole('button', { name: 'Continue with Google' })).toBeTruthy();
+    expect(queryByRole('button', { name: 'Continue with Apple' })).toBeNull();
   });
 
-  it('renders and invokes only enabled providers', async () => {
-    mockUseAuth.mockReturnValue({
-      signInWithSocial,
-      socialAuthCapabilities: { apple: false, google: true },
-    } as ReturnType<typeof useAuth>);
+  it('invokes Apple only when the Apple capability is enabled', () => {
+    process.env.EXPO_PUBLIC_APPLE_AUTH_ENABLED = 'true';
+    const onSignIn = jest.fn().mockResolvedValue(undefined);
+    const { getByRole, queryByRole } = render(
+      <SocialAuthButtons onSignIn={onSignIn} />,
+    );
 
-    const { getByText, queryByText } = await render(<SocialAuthButtons />);
+    fireEvent.press(getByRole('button', { name: 'Continue with Apple' }));
 
-    expect(queryByText('Continue with Apple')).toBeNull();
-    await fireEvent.press(getByText('Continue with Google'));
-
-    expect(signInWithSocial).toHaveBeenCalledWith('google');
-  });
-
-  it('supports Apple when its capability is enabled', async () => {
-    mockUseAuth.mockReturnValue({
-      signInWithSocial,
-      socialAuthCapabilities: { apple: true, google: false },
-    } as ReturnType<typeof useAuth>);
-
-    const { getByText, queryByText } = await render(<SocialAuthButtons />);
-
-    expect(queryByText('Continue with Google')).toBeNull();
-    await fireEvent.press(getByText('Continue with Apple'));
-
-    expect(signInWithSocial).toHaveBeenCalledWith('apple');
+    expect(onSignIn).toHaveBeenCalledWith('apple');
+    expect(queryByRole('button', { name: 'Continue with Google' })).toBeNull();
   });
 });

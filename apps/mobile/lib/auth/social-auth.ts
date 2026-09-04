@@ -1,111 +1,114 @@
 import 'react-native-url-polyfill/auto';
 
-import * as Linking from 'expo-linking';
 import type { Session } from '@supabase/supabase-js';
+import * as WebBrowser from 'expo-web-browser';
 
 import type { MobileSupabaseClient } from '@/lib/auth/supabase';
+
+export const SOCIAL_AUTH_CALLBACK_URL = 'keylorforge://auth/oauth';
+export const SOCIAL_AUTH_ERROR_MESSAGE =
+  'Social sign-in could not be completed. Please try again.';
 
 export type SocialAuthProvider = 'apple' | 'google';
 
 export type SocialAuthCapabilities = Record<SocialAuthProvider, boolean>;
 
-export const SOCIAL_AUTH_CALLBACK_URL = 'keylorforge://auth/oauth';
+type SocialAuthResult =
+  | { status: 'cancelled' }
+  | { message: string; status: 'error' }
+  | { session: Session; status: 'success' };
 
-const SOCIAL_AUTH_ERROR =
-  'Social sign-in could not be completed. Please try again.';
-const SOCIAL_AUTH_CANCELLED = 'Sign-in was cancelled.';
-const SOCIAL_AUTH_UNAVAILABLE = 'This sign-in option is not available.';
+type TokenPair = {
+  accessToken: string;
+  refreshToken: string;
+};
 
-type SocialAuthActionResult = { error: string } | { error?: undefined };
-
-type SocialAuthSessionResult =
-  | { error: string; session?: undefined }
-  | { error?: undefined; session: Session };
-
-type SocialAuthCallback =
-  | { kind: 'cancelled' }
-  | { kind: 'invalid' }
-  | { kind: 'providerError' }
-  | { accessToken: string; kind: 'success'; refreshToken: string };
-
-type OpenUrl = (url: string) => Promise<unknown>;
-
-function enabled(value: string | undefined): boolean {
+function isExplicitlyEnabled(value: string | undefined): boolean {
   return value?.trim().toLowerCase() === 'true';
 }
 
 export function getSocialAuthCapabilities(): SocialAuthCapabilities {
   return {
-    apple: enabled(process.env.EXPO_PUBLIC_APPLE_AUTH_ENABLED),
-    google: enabled(process.env.EXPO_PUBLIC_GOOGLE_AUTH_ENABLED),
+    apple: isExplicitlyEnabled(process.env.EXPO_PUBLIC_APPLE_AUTH_ENABLED),
+    google: isExplicitlyEnabled(process.env.EXPO_PUBLIC_GOOGLE_AUTH_ENABLED),
   };
 }
 
-export function socialAuthUnavailableResult(): SocialAuthActionResult {
-  return { error: SOCIAL_AUTH_UNAVAILABLE };
+/**
+ * Both typed providers are implemented by the M1 client. Runtime capability
+ * flags intentionally do not authorize this action; they only control whether
+ * provider buttons are presented by the UI.
+ */
+export function isSocialAuthProviderEnabled(
+  provider: SocialAuthProvider,
+): boolean {
+  return provider === 'apple' || provider === 'google';
 }
 
-function callbackParameters(url: URL): URLSearchParams {
-  const parameters = new URLSearchParams(url.search);
-  const hash = url.hash.startsWith('#') ? url.hash.slice(1) : url.hash;
-  const hashParameters = new URLSearchParams(hash);
+function readUnambiguousParameter(
+  name: string,
+  ...sources: URLSearchParams[]
+): string | null {
+  const values = sources
+    .flatMap((source) => source.getAll(name))
+    .map((value) => value.trim())
+    .filter(Boolean);
 
-  hashParameters.forEach((value, key) => {
-    if (!parameters.has(key)) {
-      parameters.set(key, value);
-    }
-  });
+  if (values.length === 0) {
+    return null;
+  }
 
-  return parameters;
+  const [firstValue] = values;
+  return values.every((value) => value === firstValue) ? firstValue : null;
 }
 
-export function parseSocialAuthCallback(url: string): SocialAuthCallback {
-  let parsedUrl: URL;
+function parseCallbackTokenPair(url: string): TokenPair | null {
   try {
-    parsedUrl = new URL(url);
+    const parsedUrl = new URL(url);
+    if (
+      parsedUrl.protocol !== 'keylorforge:' ||
+      parsedUrl.hostname !== 'auth' ||
+      parsedUrl.pathname !== '/oauth'
+    ) {
+      return null;
+    }
+
+    const queryParameters = parsedUrl.searchParams;
+    const hashParameters = new URLSearchParams(
+      parsedUrl.hash.startsWith('#') ? parsedUrl.hash.slice(1) : parsedUrl.hash,
+    );
+    const parameterSources = [queryParameters, hashParameters];
+
+    const hasProviderError = ['error', 'error_code', 'error_description'].some(
+      (name) =>
+        parameterSources.some((parameters) => Boolean(parameters.get(name))),
+    );
+    if (hasProviderError) {
+      return null;
+    }
+
+    const accessToken = readUnambiguousParameter(
+      'access_token',
+      ...parameterSources,
+    );
+    const refreshToken = readUnambiguousParameter(
+      'refresh_token',
+      ...parameterSources,
+    );
+    if (!accessToken || !refreshToken) {
+      return null;
+    }
+
+    return { accessToken, refreshToken };
   } catch {
-    return { kind: 'invalid' };
+    return null;
   }
-
-  if (
-    parsedUrl.protocol !== 'keylorforge:' ||
-    parsedUrl.hostname !== 'auth' ||
-    parsedUrl.pathname !== '/oauth'
-  ) {
-    return { kind: 'invalid' };
-  }
-
-  const parameters = callbackParameters(parsedUrl);
-  const providerError = parameters.get('error');
-  if (
-    providerError === 'access_denied' ||
-    (providerError?.toLowerCase().includes('cancel') ?? false)
-  ) {
-    return { kind: 'cancelled' };
-  }
-
-  if (
-    providerError ||
-    parameters.has('error_code') ||
-    parameters.has('error_description')
-  ) {
-    return { kind: 'providerError' };
-  }
-
-  const accessToken = parameters.get('access_token');
-  const refreshToken = parameters.get('refresh_token');
-  if (!accessToken || !refreshToken) {
-    return { kind: 'invalid' };
-  }
-
-  return { accessToken, kind: 'success', refreshToken };
 }
 
-export async function beginSocialAuth(
+export async function authenticateWithSocialProvider(
   client: MobileSupabaseClient,
   provider: SocialAuthProvider,
-  openUrl: OpenUrl = Linking.openURL,
-): Promise<SocialAuthActionResult> {
+): Promise<SocialAuthResult> {
   try {
     const { data, error } = await client.auth.signInWithOAuth({
       provider,
@@ -114,42 +117,38 @@ export async function beginSocialAuth(
         skipBrowserRedirect: true,
       },
     });
-
     if (error || !data.url) {
-      return { error: SOCIAL_AUTH_ERROR };
+      return { message: SOCIAL_AUTH_ERROR_MESSAGE, status: 'error' };
     }
 
-    await openUrl(data.url);
-    return {};
-  } catch {
-    return { error: SOCIAL_AUTH_ERROR };
-  }
-}
-
-export async function installSocialAuthSession(
-  client: MobileSupabaseClient,
-  callbackUrl: string,
-): Promise<SocialAuthSessionResult> {
-  const callback = parseSocialAuthCallback(callbackUrl);
-  if (callback.kind === 'cancelled') {
-    return { error: SOCIAL_AUTH_CANCELLED };
-  }
-  if (callback.kind !== 'success') {
-    return { error: SOCIAL_AUTH_ERROR };
-  }
-
-  try {
-    const { data, error } = await client.auth.setSession({
-      access_token: callback.accessToken,
-      refresh_token: callback.refreshToken,
-    });
-
-    if (error || !data.session) {
-      return { error: SOCIAL_AUTH_ERROR };
+    const browserResult = await WebBrowser.openAuthSessionAsync(
+      data.url,
+      SOCIAL_AUTH_CALLBACK_URL,
+    );
+    if (browserResult.type === 'cancel' || browserResult.type === 'dismiss') {
+      return { status: 'cancelled' };
     }
 
-    return { session: data.session };
+    if (browserResult.type !== 'success') {
+      return { message: SOCIAL_AUTH_ERROR_MESSAGE, status: 'error' };
+    }
+
+    const tokenPair = parseCallbackTokenPair(browserResult.url);
+    if (!tokenPair) {
+      return { message: SOCIAL_AUTH_ERROR_MESSAGE, status: 'error' };
+    }
+
+    const { data: sessionData, error: sessionError } =
+      await client.auth.setSession({
+        access_token: tokenPair.accessToken,
+        refresh_token: tokenPair.refreshToken,
+      });
+    if (sessionError || !sessionData.session) {
+      return { message: SOCIAL_AUTH_ERROR_MESSAGE, status: 'error' };
+    }
+
+    return { session: sessionData.session, status: 'success' };
   } catch {
-    return { error: SOCIAL_AUTH_ERROR };
+    return { message: SOCIAL_AUTH_ERROR_MESSAGE, status: 'error' };
   }
 }

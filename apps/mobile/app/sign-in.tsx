@@ -8,7 +8,7 @@ import { SocialAuthButtons } from '@/components/auth/social-auth-buttons';
 import { useAuth } from '@/lib/auth/auth-provider';
 
 function SignInScreen() {
-  const { feedback, signIn } = useAuth();
+  const { feedback, signIn, signInWithSocial } = useAuth();
   const { confirmed, passwordUpdated } = useLocalSearchParams<{
     confirmed?: string;
     passwordUpdated?: string;
@@ -33,7 +33,7 @@ function SignInScreen() {
         actionLabel="Sign in"
         onSubmit={({ email, password }) => signIn(email, password)}
       />
-      <SocialAuthButtons />
+      <SocialAuthButtons onSignIn={signInWithSocial} />
       <Link asChild href="/password-recovery">
         <Pressable
           accessibilityRole="link"

@@ -7,20 +7,27 @@ import {
   View,
 } from 'react-native';
 
-import { useAuth, type SocialAuthProvider } from '@/lib/auth/auth-provider';
+import {
+  getSocialAuthCapabilities,
+  type SocialAuthProvider,
+} from '@/lib/auth/social-auth';
+
+type SocialAuthButtonsProps = {
+  onSignIn: (provider: SocialAuthProvider) => Promise<unknown>;
+};
 
 const providers: { label: string; provider: SocialAuthProvider }[] = [
   { label: 'Continue with Google', provider: 'google' },
   { label: 'Continue with Apple', provider: 'apple' },
 ];
 
-export function SocialAuthButtons() {
-  const { signInWithSocial, socialAuthCapabilities } = useAuth();
+export function SocialAuthButtons({ onSignIn }: SocialAuthButtonsProps) {
+  const capabilities = getSocialAuthCapabilities();
   const [pendingProvider, setPendingProvider] =
     useState<SocialAuthProvider | null>(null);
 
   const availableProviders = providers.filter(
-    ({ provider }) => socialAuthCapabilities[provider],
+    ({ provider }) => capabilities[provider],
   );
 
   if (availableProviders.length === 0) {
@@ -34,7 +41,7 @@ export function SocialAuthButtons() {
 
     setPendingProvider(provider);
     try {
-      await signInWithSocial(provider);
+      await onSignIn(provider);
     } finally {
       setPendingProvider(null);
     }
