@@ -1,16 +1,14 @@
-import { Link } from 'expo-router';
+import { useRouter } from 'expo-router';
 import type { PropsWithChildren } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { KeylorForgeG4Mark } from '@/components/brand/keylorforge-g4-mark';
 
 export type ShellDestination =
   'home' | 'progress' | 'train' | 'social' | 'profile';
 
 type NavigationItem = {
   destination: ShellDestination;
-  glyph?: string;
+  glyph: string;
   href: '/home' | '/progress' | '/train' | '/social' | '/profile';
   label: string;
   primary?: boolean;
@@ -21,6 +19,7 @@ const navigationItems: readonly NavigationItem[] = [
   { destination: 'progress', glyph: '▥', href: '/progress', label: 'Progreso' },
   {
     destination: 'train',
+    glyph: '⚡︎',
     href: '/train',
     label: 'Entrenar',
     primary: true,
@@ -37,6 +36,8 @@ export function AuthenticatedShell({
   activeDestination,
   children,
 }: AuthenticatedShellProps) {
+  const router = useRouter();
+
   return (
     <View style={styles.root}>
       <SafeAreaView edges={['top']} style={styles.content}>
@@ -53,52 +54,50 @@ export function AuthenticatedShell({
             const isPrimary = item.primary === true;
 
             return (
-              <Link href={item.href} asChild key={item.destination}>
-                <Pressable
-                  accessibilityLabel={item.label}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: isActive }}
-                  testID={
-                    isPrimary ? 'primary-training-destination' : undefined
-                  }
-                  style={({ pressed }) => [
-                    styles.navigationItem,
-                    isPrimary && styles.primaryNavigationItem,
-                    pressed && styles.pressed,
+              <Pressable
+                accessibilityLabel={item.label}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: isActive }}
+                key={item.destination}
+                onPress={() => router.replace(item.href)}
+                testID={
+                  isPrimary ? 'primary-training-destination' : undefined
+                }
+                style={({ pressed }) => [
+                  styles.navigationItem,
+                  isPrimary && styles.primaryNavigationItem,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <View
+                  style={[
+                    styles.glyphContainer,
+                    isPrimary && styles.primaryGlyphContainer,
+                    !isPrimary && isActive && styles.activeGlyphContainer,
                   ]}
                 >
-                  <View
-                    style={[
-                      styles.glyphContainer,
-                      isPrimary && styles.primaryGlyphContainer,
-                      !isPrimary && isActive && styles.activeGlyphContainer,
-                    ]}
-                  >
-                    {isPrimary ? (
-                      <KeylorForgeG4Mark
-                        size={34}
-                        testID="primary-training-brand-mark"
-                      />
-                    ) : (
-                      <Text
-                        accessible={false}
-                        style={[styles.glyph, isActive && styles.activeText]}
-                      >
-                        {item.glyph}
-                      </Text>
-                    )}
-                  </View>
                   <Text
+                    accessible={false}
                     style={[
-                      styles.label,
+                      styles.glyph,
                       isActive && styles.activeText,
-                      isPrimary && styles.primaryLabel,
+                      isPrimary && styles.primaryGlyph,
                     ]}
+                    testID={isPrimary ? 'primary-training-icon' : undefined}
                   >
-                    {item.label}
+                    {item.glyph}
                   </Text>
-                </Pressable>
-              </Link>
+                </View>
+                <Text
+                  style={[
+                    styles.label,
+                    isActive && styles.activeText,
+                    isPrimary && styles.primaryLabel,
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </Pressable>
             );
           })}
         </View>
@@ -143,44 +142,50 @@ const styles = StyleSheet.create({
     borderTopColor: '#e8edf5',
     borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
-    minHeight: 76,
-    paddingHorizontal: 10,
-    paddingTop: 8,
+    minHeight: 68,
+    paddingHorizontal: 8,
+    paddingTop: 6,
+    width: '100%',
   },
   navigationItem: {
     alignItems: 'center',
-    flex: 1,
     justifyContent: 'center',
     minHeight: 56,
     minWidth: 48,
-    paddingHorizontal: 1,
+    paddingHorizontal: 0,
     paddingVertical: 2,
+    width: '20%',
   },
   pressed: {
     opacity: 0.64,
   },
+  primaryGlyph: {
+    color: '#ffffff',
+    fontSize: 29,
+    fontWeight: '800',
+    lineHeight: 32,
+  },
   primaryGlyphContainer: {
     backgroundColor: '#075bff',
     borderColor: '#ffffff',
-    borderRadius: 34,
-    borderWidth: 4,
-    elevation: 5,
-    height: 68,
-    minWidth: 68,
+    borderRadius: 29,
+    borderWidth: 3,
+    elevation: 4,
+    height: 58,
+    minWidth: 58,
     shadowColor: '#075bff',
-    shadowOffset: { height: 6, width: 0 },
-    shadowOpacity: 0.24,
-    shadowRadius: 10,
+    shadowOffset: { height: 4, width: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
   primaryLabel: {
     color: '#075bff',
     fontWeight: '800',
-    marginTop: 5,
+    marginTop: 3,
   },
   primaryNavigationItem: {
-    minHeight: 76,
-    paddingTop: 0,
-    transform: [{ translateY: -23 }],
+    minHeight: 68,
+    transform: [{ translateY: -14 }],
   },
   root: {
     backgroundColor: '#f6f8fc',
