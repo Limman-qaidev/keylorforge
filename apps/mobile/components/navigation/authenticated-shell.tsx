@@ -1,14 +1,16 @@
 import { useRouter } from 'expo-router';
 import type { PropsWithChildren } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+const trainingBolt = require('../../assets/icons/training-bolt-white.png');
 
 export type ShellDestination =
   'home' | 'progress' | 'train' | 'social' | 'profile';
 
 type NavigationItem = {
   destination: ShellDestination;
-  glyph: string;
+  glyph?: string;
   href: '/home' | '/progress' | '/train' | '/social' | '/profile';
   label: string;
   primary?: boolean;
@@ -19,7 +21,6 @@ const navigationItems: readonly NavigationItem[] = [
   { destination: 'progress', glyph: '▥', href: '/progress', label: 'Progreso' },
   {
     destination: 'train',
-    glyph: '⚡︎',
     href: '/train',
     label: 'Entrenar',
     primary: true,
@@ -74,17 +75,22 @@ export function AuthenticatedShell({
                     !isPrimary && isActive && styles.activeGlyphContainer,
                   ]}
                 >
-                  <Text
-                    accessible={false}
-                    style={[
-                      styles.glyph,
-                      isActive && styles.activeText,
-                      isPrimary && styles.primaryGlyph,
-                    ]}
-                    testID={isPrimary ? 'primary-training-icon' : undefined}
-                  >
-                    {item.glyph}
-                  </Text>
+                  {isPrimary ? (
+                    <Image
+                      accessible={false}
+                      resizeMode="contain"
+                      source={trainingBolt}
+                      style={styles.primaryGlyphImage}
+                      testID="primary-training-icon"
+                    />
+                  ) : (
+                    <Text
+                      accessible={false}
+                      style={[styles.glyph, isActive && styles.activeText]}
+                    >
+                      {item.glyph}
+                    </Text>
+                  )}
                 </View>
                 <Text
                   style={[
@@ -157,12 +163,6 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.64,
   },
-  primaryGlyph: {
-    color: '#ffffff',
-    fontSize: 29,
-    fontWeight: '800',
-    lineHeight: 32,
-  },
   primaryGlyphContainer: {
     backgroundColor: '#075bff',
     borderColor: '#ffffff',
@@ -175,6 +175,10 @@ const styles = StyleSheet.create({
     shadowOffset: { height: 4, width: 0 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
+  },
+  primaryGlyphImage: {
+    height: 30,
+    width: 30,
   },
   primaryLabel: {
     color: '#075bff',
