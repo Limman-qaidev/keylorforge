@@ -13,57 +13,136 @@ export function EmptyDestination({
 }: EmptyDestinationProps) {
   return (
     <View style={styles.container}>
-      <Text style={styles.eyebrow}>{eyebrow}</Text>
-      <Text accessibilityRole="header" style={styles.title}>
-        {title}
-      </Text>
-      <View style={styles.accent} />
-      <Text style={styles.message}>{message}</Text>
-      <Text style={styles.note}>
-        Esta sección todavía no contiene datos ni funciones de entrenamiento.
-      </Text>
+      <View style={styles.header}>
+        <View style={styles.brandMark}>
+          <Text accessible={false} style={styles.brandMarkText}>
+            ϟ
+          </Text>
+        </View>
+        <Text style={styles.brand}>KEYLORFORGE</Text>
+      </View>
+      <View style={styles.content}>
+        <Text style={styles.eyebrow}>{eyebrow}</Text>
+        <Text accessibilityRole="header" style={styles.title}>
+          {title}
+        </Text>
+        <Text style={styles.message}>{message}</Text>
+        <View accessibilityElementsHidden style={styles.visualPlaceholder}>
+          <View style={styles.placeholderIcon}>
+            <Text style={styles.placeholderIconText}>ϟ</Text>
+          </View>
+          <View style={styles.placeholderLineLong} />
+          <View style={styles.placeholderLineShort} />
+        </View>
+        <Text style={styles.note}>
+          Esta sección todavía no contiene datos ni funciones de entrenamiento.
+        </Text>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  accent: {
-    backgroundColor: '#00afa1',
-    borderRadius: 3,
-    height: 5,
-    marginTop: 18,
-    width: 54,
+  brand: {
+    color: '#12213a',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  brandMark: {
+    alignItems: 'center',
+    backgroundColor: '#075bff',
+    borderRadius: 13,
+    height: 28,
+    justifyContent: 'center',
+    width: 28,
+  },
+  brandMarkText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '800',
+    lineHeight: 21,
   },
   container: {
-    backgroundColor: '#f7f9fc',
+    backgroundColor: '#f6f8fc',
+    flex: 1,
+  },
+  content: {
     flex: 1,
     justifyContent: 'center',
-    padding: 28,
+    paddingHorizontal: 24,
+    paddingVertical: 32,
   },
   eyebrow: {
-    color: '#007f76',
-    fontSize: 12,
+    color: '#075bff',
+    fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 1.4,
+    letterSpacing: 1.1,
+  },
+  header: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 24,
+    paddingTop: 14,
   },
   message: {
-    color: '#344054',
-    fontSize: 17,
-    lineHeight: 25,
-    marginTop: 20,
-    maxWidth: 420,
+    color: '#46556d',
+    fontSize: 16,
+    lineHeight: 24,
+    marginTop: 14,
+    maxWidth: 370,
   },
   note: {
-    color: '#667085',
+    color: '#66758c',
     fontSize: 14,
-    lineHeight: 21,
-    marginTop: 12,
-    maxWidth: 420,
+    lineHeight: 20,
+    marginTop: 22,
+    maxWidth: 360,
   },
-  title: {
-    color: '#101828',
+  placeholderIcon: {
+    alignItems: 'center',
+    backgroundColor: '#eaf1ff',
+    borderRadius: 28,
+    height: 56,
+    justifyContent: 'center',
+    width: 56,
+  },
+  placeholderIconText: {
+    color: '#075bff',
     fontSize: 30,
     fontWeight: '800',
-    marginTop: 8,
+    lineHeight: 34,
+  },
+  placeholderLineLong: {
+    backgroundColor: '#dce5f4',
+    borderRadius: 4,
+    height: 8,
+    marginLeft: 14,
+    width: 142,
+  },
+  placeholderLineShort: {
+    backgroundColor: '#e8edf5',
+    borderRadius: 4,
+    height: 8,
+    marginLeft: 8,
+    width: 72,
+  },
+  visualPlaceholder: {
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: '#e3e9f3',
+    borderRadius: 18,
+    borderWidth: 1,
+    flexDirection: 'row',
+    marginTop: 28,
+    padding: 20,
+  },
+  title: {
+    color: '#12213a',
+    fontSize: 32,
+    fontWeight: '800',
+    letterSpacing: -0.7,
+    marginTop: 7,
   },
 });

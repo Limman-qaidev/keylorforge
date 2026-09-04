@@ -26,7 +26,7 @@ describe('AuthenticatedShell', () => {
       </AuthenticatedShell>,
     );
 
-    expect(getAllByRole('button')).toHaveLength(5);
+    expect(getAllByRole('tab')).toHaveLength(5);
     expect(getByLabelText('Inicio')).toBeTruthy();
     expect(getByLabelText('Progreso')).toBeTruthy();
     expect(getByLabelText('Entrenar')).toBeTruthy();
@@ -35,11 +35,12 @@ describe('AuthenticatedShell', () => {
   });
 
   it('routes every destination and keeps Entrenar as the primary action', async () => {
-    const { getByLabelText, getByTestId } = await render(
-      <AuthenticatedShell activeDestination="train">
-        <Text>training destination</Text>
-      </AuthenticatedShell>,
-    );
+    const { getByLabelText, getByTestId, getByText, queryByText } =
+      await render(
+        <AuthenticatedShell activeDestination="train">
+          <Text>training destination</Text>
+        </AuthenticatedShell>,
+      );
 
     expect(getByLabelText('route:/home')).toBeTruthy();
     expect(getByLabelText('route:/progress')).toBeTruthy();
@@ -47,6 +48,8 @@ describe('AuthenticatedShell', () => {
     expect(getByLabelText('route:/social')).toBeTruthy();
     expect(getByLabelText('route:/profile')).toBeTruthy();
     expect(getByTestId('primary-training-destination')).toBeTruthy();
+    expect(getByText('ϟ')).toBeTruthy();
+    expect(queryByText('+')).toBeNull();
     expect(getByLabelText('Entrenar').props.accessibilityState).toEqual({
       selected: true,
     });
