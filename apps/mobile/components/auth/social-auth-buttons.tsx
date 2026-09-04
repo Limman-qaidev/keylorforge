@@ -9,7 +9,7 @@ import {
 
 import { useAuth, type SocialAuthProvider } from '@/lib/auth/auth-provider';
 
-const providers: Array<{ label: string; provider: SocialAuthProvider }> = [
+const providers: { label: string; provider: SocialAuthProvider }[] = [
   { label: 'Continue with Google', provider: 'google' },
   { label: 'Continue with Apple', provider: 'apple' },
 ];
