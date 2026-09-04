@@ -17,7 +17,9 @@ export function EmptyDestination({
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.brandMark}>
-          <KeylorForgeG4Mark size={18} />
+          <View style={styles.brandMarkOpticalCenter}>
+            <KeylorForgeG4Mark size={18} />
+          </View>
         </View>
         <Text style={styles.brand}>KEYLORFORGE</Text>
       </View>
@@ -56,6 +58,9 @@ const styles = StyleSheet.create({
     height: 28,
     justifyContent: 'center',
     width: 28,
+  },
+  brandMarkOpticalCenter: {
+    transform: [{ translateX: 1 }],
   },
   container: {
     backgroundColor: '#f6f8fc',
