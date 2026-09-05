@@ -127,7 +127,8 @@ export async function authenticateWithSocialProvider(
     // Social auth is currently muted in the UI. Keep the native browser module
     // lazy so existing development builds that predate expo-web-browser can
     // still run the rest of the app without requiring a native rebuild.
-    const WebBrowser = await import('expo-web-browser');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const WebBrowser = require('expo-web-browser') as typeof import('expo-web-browser');
     const browserResult = await WebBrowser.openAuthSessionAsync(
       data.url,
       SOCIAL_AUTH_CALLBACK_URL,
