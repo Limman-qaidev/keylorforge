@@ -1,7 +1,6 @@
 import 'react-native-url-polyfill/auto';
 
 import type { Session } from '@supabase/supabase-js';
-import * as WebBrowser from 'expo-web-browser';
 
 import type { MobileSupabaseClient } from '@/lib/auth/supabase';
 
@@ -125,6 +124,10 @@ export async function authenticateWithSocialProvider(
       return { message: SOCIAL_AUTH_ERROR_MESSAGE, status: 'error' };
     }
 
+    // Social auth is currently muted in the UI. Keep the native browser module
+    // lazy so existing development builds that predate expo-web-browser can
+    // still run the rest of the app without requiring a native rebuild.
+    const WebBrowser = await import('expo-web-browser');
     const browserResult = await WebBrowser.openAuthSessionAsync(
       data.url,
       SOCIAL_AUTH_CALLBACK_URL,
