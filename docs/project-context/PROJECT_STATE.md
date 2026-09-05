@@ -1,20 +1,18 @@
 # KeylorForge project state
 
-Last updated: 2026-08-30
+Last updated: 2026-09-05
 
-This is the fast handoff for resuming work. It is intentionally operational and may become stale if not updated after merges; GitHub issues, PRs and `main` are the final authority for real-time status.
+This is the fast handoff for resuming work. GitHub issues, PRs and `main` remain the final authority for real-time status.
 
 ## Current milestone
 
-**M1 — Identity (planned; implementation not started)**
+**M1 — Identity (complete)**
 
-M0 Foundation is complete. M1 is the first user-facing product slice and is tracked by parent issue #36 and execution plan `docs/exec-plans/M1-identity.md`.
+M0 Foundation and M1 Identity are complete. M1 passed its final end-to-end, security, QA and physical-device exit gate on 2026-09-05. Issue #43 records the exit evidence and parent milestone #36 is closed as completed in the same exit sequence.
 
-M1 exit requires a real physical-device identity journey: signed-out launch, registration/login, authenticated app shell, FastAPI-backed profile, persisted profile editing, session restoration and refresh, logout/login, password recovery, account deletion, and independent QA/security acceptance.
+The next planned milestone is **M2 — Exercise Catalog**.
 
-The milestone must explicitly exercise access-token expiry with a valid refresh session, safe behavior when refresh fails, and post-deletion rejection of credentials issued before deletion so deleted identity state cannot be silently reprovisioned.
-
-Planned work:
+Completed M1 implementation/product-shell/acceptance work:
 
 - #37 IDN-001 identity contract and Supabase development configuration
 - #38 IDN-002 backend JWT validation and application-user/profile foundation
@@ -22,13 +20,74 @@ Planned work:
 - #40 IDN-004 authenticated profile API and mobile profile editing
 - #41 IDN-005 password recovery and auth deep-link handling
 - #42 IDN-006 account deletion and identity privacy flow
-- #43 IDN-007 M1 end-to-end, security and physical-device acceptance
+- #43 IDN-007 end-to-end, security and physical-device acceptance
+- #49 confirmation redirect physical-device fix
+- #51 M1 visual/product-shell foundation
+- #59 reliable development SMTP for Supabase Auth
+- #66 Google/Apple social-auth implementation
+- #67 authenticated five-destination product shell
 
-Dependency shape:
+Google/Apple external provider configuration and UI activation were explicitly deferred by the Product Owner on 2026-09-05. The implementation remains in the codebase, social controls are intentionally hidden, and #79 tracks future activation. This did not block M1.
 
-`#37 -> (#38 || #39) -> #40`; `#39 -> #41`; `#38 + #39 + #40 -> #42`; all implementation work -> #43.
+Production auth-callback hardening remains tracked separately in #58 (PKCE / verified app links) and is required before production/beta with real user data. It did not block the M1 development milestone.
 
-Do not start M2 until #43 passes and M1 completion evidence is recorded here.
+### M1 physical-device acceptance evidence
+
+On 2026-09-05 the Product Owner completed the required smoke on a physical Android device using the installed KeylorForge development build, local FastAPI, local PostgreSQL through Docker Compose, and Supabase Auth.
+
+Verified on device:
+
+- signed-out Welcome/Auth experience renders correctly
+- deferred Google/Apple controls are not rendered
+- email/password registration and confirmation succeed
+- authenticated five-destination shell is reachable
+- protected FastAPI identity/profile path succeeds
+- profile data loads, edits save, and edits persist
+- app restart restores the authenticated session
+- sign-out returns to auth and protected routes are inaccessible
+- sign-in succeeds again
+- password recovery succeeds and the new password can be used
+- disposable second-account deletion succeeds end-to-end
+- deleted identity can no longer be used normally
+
+Product Owner reports visual/device PASS. Evidence is recorded on #43.
+
+### Final QA and security acceptance
+
+Final independent M1 exit review reports **PASS with no M1-blocking findings**.
+
+The accepted evidence includes:
+
+- missing, malformed and invalid bearer credentials fail closed
+- protected identity/profile/delete operations derive ownership from the validated authenticated principal rather than client-supplied identifiers
+- terminal/deleted identities remain protected from normal profile access
+- account deletion durably commits the terminal/tombstone state before external provider deletion
+- provider deletion failure does not reactivate the application identity
+- provider diagnostics are reduced to safe application errors
+- the Supabase administrative credential is server-only and represented with a secret-aware type; it is not mobile configuration
+- the previously identified JWKS refresh/provider-outage security findings were fixed under #54 and independently accepted
+- dormant Google/Apple social authentication remains inaccessible through the M1 UI; its production callback hardening remains explicitly owned by #58
+- no new blocking security finding was identified during the final M1 synthesis
+
+### CI evidence
+
+The documentation exit PR #80 final reviewed head passed all repository workflows before merge:
+
+- Backend CI — success
+- Mobile CI — success
+- Database Migration CI — success
+- KeylorForge residual check — success
+
+The preceding `main` commit after PR #78 (`b0a4929d3c41d9b54d46ffd14074db8ab03d27bb`) also passed the three authoritative Backend, Mobile and Database Migration workflows.
+
+### M1 exit decision
+
+M1 satisfies its Definition of Done and is closed. Work may proceed to M2 Exercise Catalog.
+
+Deferred work remains explicitly outside the M1 exit:
+
+- #79 — configure/activate Google and Apple social authentication
+- #58 — migrate production auth callbacks to PKCE / verified app links before production/beta with real user data
 
 ## Completed M0 foundation
 
@@ -40,14 +99,14 @@ Do not start M2 until #43 passes and M1 completion evidence is recorded here.
 - FND-007A Backend CI branch-protection safety — merged via PR #30; backend path filters removed and real Backend/Mobile/Database CI all passed on the final PR head
 - FND-008 Mobile CI — merged via PR #22; real `Mobile CI / mobile-quality` GitHub Actions run passed
 - FND-009 Database migration CI — merged via PR #21; real `Database Migration CI / Database migration validation` GitHub Actions run passed and the integration migration test is guarded against skipping
-- FND-010 Mobile-to-API health integration — merged via PR #32; physical Android/Expo Go smoke passed with backend ON -> `API is healthy.`, backend OFF -> five-second `API health check failed: Health request timed out.`, then backend ON -> `API is healthy.` again
+- FND-010 Mobile-to-API health integration — merged via PR #32; physical Android smoke passed
 - FND-011 Foundation test architecture — merged via PR #31; the accepted smoke path and test taxonomy are recorded in `docs/architecture/foundation-test-architecture.md`
-- FND-012 Protect `main` — effective branch protection validated through disposable PR #34; pull requests, strict CI checks, and resolved conversations are required without a mandatory approving review
+- FND-012 Protect `main` — effective branch protection validated through disposable PR #34
 - DOC-001 durable project context — merged; future sessions must read `docs/project-context/`
 
 ## Effective branch protection and CI
 
-`main` is protected by classic GitHub branch protection; no repository ruleset also affects it.
+`main` is protected by classic GitHub branch protection.
 
 Authoritative pull-request workflow/job checks:
 
@@ -55,11 +114,7 @@ Authoritative pull-request workflow/job checks:
 - `Mobile CI / mobile-quality`
 - `Database Migration CI / Database migration validation`
 
-The policy requires a pull request, requires all three checks with strict up-to-date branches, and requires all review conversations to be resolved. It has zero required approvals, no CODEOWNERS or signed-commit requirement, and no bypass actors. Administrators are included in enforcement; normal direct/force pushes and deletion of `main` are blocked, while a repository administrator can still recover by editing repository settings.
-
-Disposable validation PR #34 proved the three checks appear while pending, block merging until green, and conversation resolution also blocks merging. After all checks passed and the temporary review thread was resolved, GitHub reported the PR merge-clean without an approving review requirement.
-
-M0 physical-device/API and branch-protection evidence is complete.
+The policy requires a pull request, requires all three checks with strict up-to-date branches, and requires all review conversations to be resolved. It has zero required approvals. Administrators are included in enforcement.
 
 ## Roadmap after M1
 
