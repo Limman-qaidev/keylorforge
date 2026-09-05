@@ -6,11 +6,13 @@ This is the fast handoff for resuming work. GitHub issues, PRs and `main` remain
 
 ## Current milestone
 
-**M1 — Identity (implementation complete; final exit gate in progress)**
+**M1 — Identity (complete)**
 
-M0 Foundation is complete. The M1 implementation issues are complete and the physical Android user journey has been exercised end-to-end. Parent issue #36 tracks the milestone and #43 is the remaining exit gate.
+M0 Foundation and M1 Identity are complete. M1 passed its final end-to-end, security, QA and physical-device exit gate on 2026-09-05. Issue #43 records the exit evidence and parent milestone #36 is closed as completed in the same exit sequence.
 
-Completed M1 implementation/product-shell work:
+The next planned milestone is **M2 — Exercise Catalog**.
+
+Completed M1 implementation/product-shell/acceptance work:
 
 - #37 IDN-001 identity contract and Supabase development configuration
 - #38 IDN-002 backend JWT validation and application-user/profile foundation
@@ -18,15 +20,16 @@ Completed M1 implementation/product-shell work:
 - #40 IDN-004 authenticated profile API and mobile profile editing
 - #41 IDN-005 password recovery and auth deep-link handling
 - #42 IDN-006 account deletion and identity privacy flow
+- #43 IDN-007 end-to-end, security and physical-device acceptance
 - #49 confirmation redirect physical-device fix
 - #51 M1 visual/product-shell foundation
 - #59 reliable development SMTP for Supabase Auth
 - #66 Google/Apple social-auth implementation
 - #67 authenticated five-destination product shell
 
-Google/Apple external provider configuration and UI activation were explicitly deferred by the Product Owner on 2026-09-05. The implementation remains in the codebase, social controls are intentionally hidden for M1, and #79 tracks future activation. This does not block M1.
+Google/Apple external provider configuration and UI activation were explicitly deferred by the Product Owner on 2026-09-05. The implementation remains in the codebase, social controls are intentionally hidden, and #79 tracks future activation. This did not block M1.
 
-Production auth-callback hardening remains tracked separately in #58 (PKCE / verified app links) and is required before production/beta with real user data; it does not block the M1 development milestone.
+Production auth-callback hardening remains tracked separately in #58 (PKCE / verified app links) and is required before production/beta with real user data. It did not block the M1 development milestone.
 
 ### M1 physical-device acceptance evidence
 
@@ -49,19 +52,42 @@ Verified on device:
 
 Product Owner reports visual/device PASS. Evidence is recorded on #43.
 
-### Current CI evidence
+### Final QA and security acceptance
 
-Current `main` after PR #78 is commit `b0a4929d3c41d9b54d46ffd14074db8ab03d27bb`.
+Final independent M1 exit review reports **PASS with no M1-blocking findings**.
 
-The three authoritative workflows all completed successfully on that commit:
+The accepted evidence includes:
+
+- missing, malformed and invalid bearer credentials fail closed
+- protected identity/profile/delete operations derive ownership from the validated authenticated principal rather than client-supplied identifiers
+- terminal/deleted identities remain protected from normal profile access
+- account deletion durably commits the terminal/tombstone state before external provider deletion
+- provider deletion failure does not reactivate the application identity
+- provider diagnostics are reduced to safe application errors
+- the Supabase administrative credential is server-only and represented with a secret-aware type; it is not mobile configuration
+- the previously identified JWKS refresh/provider-outage security findings were fixed under #54 and independently accepted
+- dormant Google/Apple social authentication remains inaccessible through the M1 UI; its production callback hardening remains explicitly owned by #58
+- no new blocking security finding was identified during the final M1 synthesis
+
+### CI evidence
+
+The documentation exit PR #80 final reviewed head passed all repository workflows before merge:
 
 - Backend CI — success
 - Mobile CI — success
 - Database Migration CI — success
+- KeylorForge residual check — success
 
-### Remaining M1 exit work
+The preceding `main` commit after PR #78 (`b0a4929d3c41d9b54d46ffd14074db8ab03d27bb`) also passed the three authoritative Backend, Mobile and Database Migration workflows.
 
-#43 stays open until its final independent QA/security sign-off is recorded and this project-state evidence is merged. Only after #43 passes may M1 be declared complete and M2 Exercise Catalog begin.
+### M1 exit decision
+
+M1 satisfies its Definition of Done and is closed. Work may proceed to M2 Exercise Catalog.
+
+Deferred work remains explicitly outside the M1 exit:
+
+- #79 — configure/activate Google and Apple social authentication
+- #58 — migrate production auth callbacks to PKCE / verified app links before production/beta with real user data
 
 ## Completed M0 foundation
 
