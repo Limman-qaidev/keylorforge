@@ -23,8 +23,14 @@ all `EXPO_PUBLIC_` values are visible in the client bundle.
 
 `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` configure
 the Supabase Auth client. They are public client configuration, not secrets.
-Never put a `sb_secret_...`, service-role credential, refresh token, or user
-password in `.env.example` or source control.
+Never put a `sb_secret_...`, service-role credential, refresh token, provider
+client secret, Apple signing key, or user password in `.env.example` or source
+control.
+
+`EXPO_PUBLIC_GOOGLE_AUTH_ENABLED` and `EXPO_PUBLIC_APPLE_AUTH_ENABLED` are only
+public UI capability flags. Leave each flag `false` until that provider is
+configured externally and ready for physical testing. These flags are not
+security controls and must never contain credentials.
 
 ### Connecting to the local API
 
@@ -62,9 +68,35 @@ the authenticated shell and can sign out. Session refresh is active only while
 the app is foregrounded. A definitive refresh failure clears the local
 authenticated state and returns to sign-in.
 
-For confirmation or password-recovery deep links, use a KeylorForge development
-build with the `keylorforge` scheme; Expo Go does not provide the stable callback
-URL required by the M1 contract.
+For confirmation, social-auth, or password-recovery deep links, use a
+KeylorForge development build with the `keylorforge` scheme; Expo Go does not
+provide the stable callback URL required by the M1 contract.
+
+### Social authentication configuration
+
+M1 social auth uses Supabase as the identity broker. The mobile app initiates a
+Google or Apple OAuth request with Supabase, opens the returned HTTPS provider
+URL, and accepts only the exact callback `keylorforge://auth/oauth`. A successful
+callback must contain both Supabase access and refresh tokens; the app installs
+that pair through the existing Supabase session store and does not create a
+second token store.
+
+Before enabling a provider button:
+
+1. Configure the provider in its external console (Google Cloud or Apple
+   Developer) and in the Supabase development project's Auth provider settings.
+2. Add `keylorforge://auth/oauth` to the Supabase Auth redirect allow list.
+3. Set only the corresponding public capability flag to `true` in the local
+   `.env` file and restart Metro.
+
+Google client secrets and Apple signing material remain external configuration.
+For Apple OAuth, keep the Apple signing key secure and follow Apple's/Supabase's
+required client-secret rotation process. Never place this material in Expo
+public environment variables.
+
+The current M1 callback uses the accepted custom application scheme. Future #58
+owns production hardening with PKCE and verified application links; do not treat
+this custom-scheme callback as the final production callback architecture.
 
 ### Physical Android confirmation acceptance
 

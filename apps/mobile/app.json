@@ -23,6 +23,11 @@
               "scheme": "keylorforge",
               "host": "auth",
               "pathPrefix": "/recovery"
+            },
+            {
+              "scheme": "keylorforge",
+              "host": "auth",
+              "pathPrefix": "/oauth"
             }
           ]
         }
