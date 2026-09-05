@@ -128,7 +128,8 @@ export async function authenticateWithSocialProvider(
     // lazy so existing development builds that predate expo-web-browser can
     // still run the rest of the app without requiring a native rebuild.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const WebBrowser = require('expo-web-browser') as typeof import('expo-web-browser');
+    const WebBrowser =
+      require('expo-web-browser') as typeof import('expo-web-browser');
     const browserResult = await WebBrowser.openAuthSessionAsync(
       data.url,
       SOCIAL_AUTH_CALLBACK_URL,
