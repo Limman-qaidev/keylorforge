@@ -12,6 +12,7 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     MetaData,
+    Boolean,
     String,
     UniqueConstraint,
     Uuid,
@@ -53,6 +54,22 @@ class ApplicationUserLifecycle(StrEnum):
     ACTIVE = "active"
     DELETION_IN_PROGRESS = "deletion_in_progress"
     DELETED = "deleted"
+
+
+class ExerciseMeasurementType(StrEnum):
+    """Supported primary measurement for a canonical exercise."""
+
+    REPS = "reps"
+    TIME = "time"
+    DISTANCE = "distance"
+
+
+class ExerciseMuscleRole(StrEnum):
+    """How a muscle participates in an exercise."""
+
+    PRIMARY = "primary"
+    SECONDARY = "secondary"
+    TERTIARY = "tertiary"
 
 
 class ApplicationUser(Base):
@@ -154,3 +171,175 @@ class ApplicationUserProfile(Base):
     )
 
     user: Mapped[ApplicationUser] = relationship(back_populates="profile")
+
+
+class CatalogExercise(Base):
+    """Application-owned canonical exercise imported from a traceable source."""
+
+    __tablename__ = "catalog_exercises"
+    __table_args__ = (UniqueConstraint("source", "source_id"),)
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    source: Mapped[str] = mapped_column(String(80), nullable=False)
+    source_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    measurement_type: Mapped[ExerciseMeasurementType] = mapped_column(
+        Enum(
+            ExerciseMeasurementType,
+            native_enum=False,
+            length=16,
+            values_callable=_enum_values,
+            validate_strings=True,
+        ),
+        nullable=False,
+    )
+    difficulty_level: Mapped[str | None] = mapped_column(String(32))
+    force_type: Mapped[str | None] = mapped_column(String(32))
+    mechanics: Mapped[str | None] = mapped_column(String(32))
+    category: Mapped[str | None] = mapped_column(String(64))
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    is_curated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_system: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    names: Mapped[list[CatalogExerciseName]] = relationship(
+        back_populates="exercise", cascade="save-update, merge"
+    )
+    muscles: Mapped[list[CatalogExerciseMuscle]] = relationship(
+        back_populates="exercise", cascade="save-update, merge"
+    )
+    equipment: Mapped[list[CatalogExerciseEquipment]] = relationship(
+        back_populates="exercise", cascade="save-update, merge"
+    )
+
+
+class CatalogExerciseName(Base):
+    """A localized display name for a canonical exercise."""
+
+    __tablename__ = "catalog_exercise_names"
+    __table_args__ = (UniqueConstraint("exercise_id", "locale"),)
+
+    exercise_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("catalog_exercises.id", ondelete="RESTRICT"),
+        primary_key=True,
+    )
+    locale: Mapped[str] = mapped_column(String(10), primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    exercise: Mapped[CatalogExercise] = relationship(back_populates="names")
+
+
+class CatalogMuscle(Base):
+    """Normalized muscle group with source provenance."""
+
+    __tablename__ = "catalog_muscles"
+    __table_args__ = (UniqueConstraint("source", "source_id"), UniqueConstraint("source", "slug"))
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    source: Mapped[str] = mapped_column(String(80), nullable=False)
+    source_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    slug: Mapped[str] = mapped_column(String(80), nullable=False)
+
+    names: Mapped[list[CatalogMuscleName]] = relationship(
+        back_populates="muscle", cascade="save-update, merge"
+    )
+    exercises: Mapped[list[CatalogExerciseMuscle]] = relationship(back_populates="muscle")
+
+
+class CatalogMuscleName(Base):
+    """A localized display name for a normalized muscle group."""
+
+    __tablename__ = "catalog_muscle_names"
+    __table_args__ = (UniqueConstraint("muscle_id", "locale"),)
+
+    muscle_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("catalog_muscles.id", ondelete="RESTRICT"), primary_key=True
+    )
+    locale: Mapped[str] = mapped_column(String(10), primary_key=True)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+
+    muscle: Mapped[CatalogMuscle] = relationship(back_populates="names")
+
+
+class CatalogEquipment(Base):
+    """Normalized equipment with source provenance."""
+
+    __tablename__ = "catalog_equipment"
+    __table_args__ = (UniqueConstraint("source", "source_id"),)
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    source: Mapped[str] = mapped_column(String(80), nullable=False)
+    source_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    equipment_type: Mapped[str | None] = mapped_column(String(32))
+    usage_type: Mapped[str | None] = mapped_column(String(32))
+
+    names: Mapped[list[CatalogEquipmentName]] = relationship(
+        back_populates="equipment", cascade="save-update, merge"
+    )
+    exercises: Mapped[list[CatalogExerciseEquipment]] = relationship(back_populates="equipment")
+
+
+class CatalogEquipmentName(Base):
+    """A localized display name for a normalized equipment item."""
+
+    __tablename__ = "catalog_equipment_names"
+    __table_args__ = (UniqueConstraint("equipment_id", "locale"),)
+
+    equipment_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("catalog_equipment.id", ondelete="RESTRICT"), primary_key=True
+    )
+    locale: Mapped[str] = mapped_column(String(10), primary_key=True)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+
+    equipment: Mapped[CatalogEquipment] = relationship(back_populates="names")
+
+
+class CatalogExerciseMuscle(Base):
+    """A role-bearing many-to-many association between exercise and muscle."""
+
+    __tablename__ = "catalog_exercise_muscles"
+
+    exercise_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("catalog_exercises.id", ondelete="RESTRICT"),
+        primary_key=True,
+    )
+    muscle_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("catalog_muscles.id", ondelete="RESTRICT"), primary_key=True
+    )
+    role: Mapped[ExerciseMuscleRole] = mapped_column(
+        Enum(
+            ExerciseMuscleRole,
+            native_enum=False,
+            length=16,
+            values_callable=_enum_values,
+            validate_strings=True,
+        ),
+        nullable=False,
+    )
+
+    exercise: Mapped[CatalogExercise] = relationship(back_populates="muscles")
+    muscle: Mapped[CatalogMuscle] = relationship(back_populates="exercises")
+
+
+class CatalogExerciseEquipment(Base):
+    """A many-to-many association between exercise and equipment."""
+
+    __tablename__ = "catalog_exercise_equipment"
+
+    exercise_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("catalog_exercises.id", ondelete="RESTRICT"),
+        primary_key=True,
+    )
+    equipment_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("catalog_equipment.id", ondelete="RESTRICT"), primary_key=True
+    )
+
+    exercise: Mapped[CatalogExercise] = relationship(back_populates="equipment")
+    equipment: Mapped[CatalogEquipment] = relationship(back_populates="exercises")
