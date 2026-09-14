@@ -229,7 +229,19 @@ def _upsert_relations(
     equipment_count = 0
     for item in sorted(data.exercises["en"], key=lambda exercise: exercise["id"]):
         exercise = exercises[item["id"]]
-        for reference in _normalized_muscle_references(item["muscleGroups"]):
+
+        muscle_references = _normalized_muscle_references(item["muscleGroups"])
+        desired_muscle_ids = {muscles[reference["id"]].id for reference in muscle_references}
+        existing_muscles = session.scalars(
+            select(CatalogExerciseMuscle).where(
+                CatalogExerciseMuscle.exercise_id == exercise.id
+            )
+        ).all()
+        for association in existing_muscles:
+            if association.muscle_id not in desired_muscle_ids:
+                session.delete(association)
+
+        for reference in muscle_references:
             muscle = muscles[reference["id"]]
             association = session.get(
                 CatalogExerciseMuscle, {"exercise_id": exercise.id, "muscle_id": muscle.id}
@@ -239,7 +251,21 @@ def _upsert_relations(
                 session.add(association)
             association.role = ExerciseMuscleRole(reference["type"])
             muscle_count += 1
-        for reference in sorted(item["equipment"], key=lambda entry: entry["id"]):
+
+        equipment_references = sorted(item["equipment"], key=lambda entry: entry["id"])
+        desired_equipment_ids = {
+            equipment[reference["id"]].id for reference in equipment_references
+        }
+        existing_equipment = session.scalars(
+            select(CatalogExerciseEquipment).where(
+                CatalogExerciseEquipment.exercise_id == exercise.id
+            )
+        ).all()
+        for association in existing_equipment:
+            if association.equipment_id not in desired_equipment_ids:
+                session.delete(association)
+
+        for reference in equipment_references:
             item_equipment = equipment[reference["id"]]
             association = session.get(
                 CatalogExerciseEquipment,
