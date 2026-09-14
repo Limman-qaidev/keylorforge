@@ -7,7 +7,10 @@ from uuid import UUID, uuid4
 import pytest
 from fastapi import HTTPException, status
 from fastapi.testclient import TestClient
-from keylorforge_database.identity import ApplicationUserRepository, TerminalIdentityError
+from keylorforge_database.identity import (
+    ApplicationUserRepository,
+    TerminalIdentityError,
+)
 
 from app.auth.dependencies import (
     get_database_session,
