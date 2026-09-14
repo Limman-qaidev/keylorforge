@@ -10,7 +10,10 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from keylorforge_database.config import DatabaseSettings
 from keylorforge_database.engine import create_session_factory
-from keylorforge_database.identity import ApplicationUserRepository, TerminalIdentityError
+from keylorforge_database.identity import (
+    ApplicationUserRepository,
+    TerminalIdentityError,
+)
 from keylorforge_database.models import AuthProvider
 from sqlalchemy.orm import Session, sessionmaker
 
