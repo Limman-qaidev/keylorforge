@@ -11,6 +11,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Index,
     MetaData,
     Boolean,
     String,
@@ -177,7 +178,10 @@ class CatalogExercise(Base):
     """Application-owned canonical exercise imported from a traceable source."""
 
     __tablename__ = "catalog_exercises"
-    __table_args__ = (UniqueConstraint("source", "source_id"),)
+    __table_args__ = (
+        UniqueConstraint("source", "source_id"),
+        Index("ix_catalog_exercises_active_category", "is_active", "category"),
+    )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     source: Mapped[str] = mapped_column(String(80), nullable=False)
@@ -221,7 +225,10 @@ class CatalogExerciseName(Base):
     """A localized display name for a canonical exercise."""
 
     __tablename__ = "catalog_exercise_names"
-    __table_args__ = (UniqueConstraint("exercise_id", "locale"),)
+    __table_args__ = (
+        UniqueConstraint("exercise_id", "locale"),
+        Index("ix_catalog_exercise_names_locale_name", "locale", "name"),
+    )
 
     exercise_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),
@@ -306,6 +313,7 @@ class CatalogExerciseMuscle(Base):
     """A role-bearing many-to-many association between exercise and muscle."""
 
     __tablename__ = "catalog_exercise_muscles"
+    __table_args__ = (Index("ix_catalog_exercise_muscles_muscle_id", "muscle_id"),)
 
     exercise_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),
@@ -334,6 +342,7 @@ class CatalogExerciseEquipment(Base):
     """A many-to-many association between exercise and equipment."""
 
     __tablename__ = "catalog_exercise_equipment"
+    __table_args__ = (Index("ix_catalog_exercise_equipment_equipment_id", "equipment_id"),)
 
     exercise_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),
