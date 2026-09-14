@@ -6,16 +6,23 @@ import os
 
 import pytest
 from keylorforge_database.catalog_importer import import_vendored_catalog
-from keylorforge_database.models import Base, ExerciseMuscleRole
+from keylorforge_database.models import (
+    Base,
+    CatalogEquipment,
+    CatalogExercise,
+    CatalogMuscle,
+    ExerciseMuscleRole,
+)
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from app.exercises.repository import ExerciseCatalogueRepository
 
+CatalogNamedEntity = CatalogExercise | CatalogMuscle | CatalogEquipment
 
-def _localized_name(entity: object, locale: str) -> str:
-    names = getattr(entity, "names")
-    return next(name.name for name in names if name.locale == locale)
+
+def _localized_name(entity: CatalogNamedEntity, locale: str) -> str:
+    return next(name.name for name in entity.names if name.locale == locale)
 
 
 def test_catalogue_repository_queries_run_against_postgresql() -> None:
