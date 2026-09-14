@@ -8,7 +8,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.auth.dependencies import get_authenticated_principal, get_database_session
+from app.auth.dependencies import (
+    get_authenticated_principal,
+    get_database_session,
+    require_active_application_user,
+)
 from app.exercises.schemas import CatalogueReference, ExerciseDetail, ExercisePage
 from app.exercises.service import (
     get_exercise,
@@ -19,7 +23,11 @@ from app.exercises.service import (
 
 Locale = Literal["es", "en"]
 router = APIRouter(
-    tags=["exercises"], dependencies=[Depends(get_authenticated_principal)]
+    tags=["exercises"],
+    dependencies=[
+        Depends(get_authenticated_principal),
+        Depends(require_active_application_user),
+    ],
 )
 
 
