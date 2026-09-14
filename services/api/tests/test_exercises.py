@@ -7,8 +7,12 @@ from uuid import UUID, uuid4
 import pytest
 from fastapi import HTTPException, status
 from fastapi.testclient import TestClient
+from keylorforge_database.identity import ApplicationUserRepository, TerminalIdentityError
 
-from app.auth.dependencies import get_database_session
+from app.auth.dependencies import (
+    get_database_session,
+    require_active_application_user,
+)
 from app.auth.jwt_verifier import AuthenticatedPrincipal
 from app.config import Settings
 from app.exercises import router as exercises_router
@@ -29,10 +33,12 @@ class _Verifier:
         return AuthenticatedPrincipal(uuid4())
 
 
-def _client() -> TestClient:
+def _client(*, enforce_lifecycle: bool = False) -> TestClient:
     app = create_app(Settings(supabase_project_url="https://example.supabase.co"))
     app.state.jwt_verifier = _Verifier()
     app.dependency_overrides[get_database_session] = lambda: iter((object(),))
+    if not enforce_lifecycle:
+        app.dependency_overrides[require_active_application_user] = lambda: None
     return TestClient(app)
 
 
@@ -56,6 +62,30 @@ def test_catalogue_routes_require_authentication(path: str) -> None:
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert response.headers["www-authenticate"] == "Bearer"
+
+
+@pytest.mark.parametrize(
+    "path", ["/exercises", f"/exercises/{uuid4()}", "/muscles", "/equipment"]
+)
+def test_catalogue_routes_reject_terminal_identity(
+    path: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def reject_terminal_identity(
+        self: ApplicationUserRepository, **_: object
+    ) -> None:
+        raise TerminalIdentityError("terminal identity")
+
+    monkeypatch.setattr(
+        ApplicationUserRepository,
+        "get_or_provision_active_user",
+        reject_terminal_identity,
+    )
+    response = _client(enforce_lifecycle=True).get(
+        path, headers={"Authorization": "Bearer valid-token"}
+    )
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+    assert response.json() == {"detail": "not authorized"}
 
 
 def test_exercises_default_to_spanish_and_forward_filters(
