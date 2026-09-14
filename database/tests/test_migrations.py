@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
 from threading import Barrier, Lock
 from uuid import UUID, uuid4
 
@@ -15,6 +16,12 @@ from sqlalchemy.orm import Session
 from keylorforge_database.identity import (
     ApplicationUserRepository,
     TerminalIdentityError,
+)
+from keylorforge_database.catalog_importer import (
+    CATALOG_SOURCE,
+    CatalogImportError,
+    import_vendored_catalog,
+    load_vendored_snapshot,
 )
 from keylorforge_database.models import (
     ApplicationUser,
@@ -49,7 +56,7 @@ def test_upgrade_clean_database_records_head(test_database_url: str) -> None:
             text("SELECT version_num FROM alembic_version")
         ).scalar_one()
 
-    assert revision == "20260831_0001"
+    assert revision == "20260913_0001"
 
     with engine.connect() as connection:
         display_name = connection.execute(
@@ -99,14 +106,135 @@ def test_upgrade_clean_database_records_head(test_database_url: str) -> None:
     assert direct_grants == []
 
 
-def test_display_name_migration_refuses_destructive_downgrade(
+def test_catalog_schema_is_private_and_has_expected_constraints(test_database_url: str) -> None:
+    """Catalogue tables are normalized, constrained and inaccessible through Data API roles."""
+    engine = create_engine(test_database_url)
+    catalogue_tables = [
+        "catalog_equipment",
+        "catalog_equipment_names",
+        "catalog_exercise_equipment",
+        "catalog_exercise_muscles",
+        "catalog_exercise_names",
+        "catalog_exercises",
+        "catalog_muscle_names",
+        "catalog_muscles",
+    ]
+    try:
+        with engine.connect() as connection:
+            rls = connection.execute(
+                text(
+                    "SELECT relation.relname, relation.relrowsecurity "
+                    "FROM pg_class AS relation "
+                    "JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace "
+                    "WHERE namespace.nspname = 'public' AND relation.relname LIKE 'catalog_%' "
+                    "ORDER BY relation.relname"
+                )
+            ).all()
+            constraints = connection.execute(
+                text(
+                    "SELECT conname FROM pg_constraint WHERE conname IN ("
+                    "'ck_catalog_exercises_catalog_exercise_measurement_type', "
+                    "'ck_catalog_exercise_muscles_catalog_exercise_muscle_role'"
+                    ") ORDER BY conname"
+                )
+            ).scalars().all()
+            direct_grants = connection.execute(
+                text(
+                    "SELECT table_name FROM information_schema.table_privileges "
+                    "WHERE table_schema = 'public' AND table_name LIKE 'catalog_%' "
+                    "AND grantee IN ('anon', 'authenticated', 'service_role')"
+                )
+            ).all()
+    finally:
+        engine.dispose()
+
+    assert rls == [(table, True) for table in catalogue_tables]
+    assert constraints == [
+        "ck_catalog_exercise_muscles_catalog_exercise_muscle_role",
+        "ck_catalog_exercises_catalog_exercise_measurement_type",
+    ]
+    assert direct_grants == []
+
+
+def test_vendored_catalog_import_is_complete_and_idempotent(test_database_url: str) -> None:
+    """The pinned EN/ES snapshot imports once and never duplicates its rows."""
+    snapshot = load_vendored_snapshot()
+    assert len(snapshot.exercises["en"]) == len(snapshot.exercises["es"]) == 899
+    assert len(snapshot.muscles["en"]) == len(snapshot.muscles["es"]) == 17
+    assert len(snapshot.equipment["en"]) == len(snapshot.equipment["es"]) == 36
+
+    engine = create_engine(test_database_url)
+    try:
+        with Session(engine) as session:
+            first = import_vendored_catalog(session, snapshot)
+            session.commit()
+        with Session(engine) as session:
+            second = import_vendored_catalog(session, snapshot)
+            session.commit()
+        assert first == second
+
+        with engine.connect() as connection:
+            counts = connection.execute(
+                text(
+                    "SELECT "
+                    "(SELECT count(*) FROM catalog_exercises), "
+                    "(SELECT count(*) FROM catalog_muscles), "
+                    "(SELECT count(*) FROM catalog_equipment), "
+                    "(SELECT count(*) FROM catalog_exercise_names), "
+                    "(SELECT count(*) FROM catalog_muscle_names), "
+                    "(SELECT count(*) FROM catalog_equipment_names), "
+                    "(SELECT count(*) FROM catalog_exercise_muscles), "
+                    "(SELECT count(*) FROM catalog_exercise_equipment)"
+                )
+            ).one()
+            locale_counts = connection.execute(
+                text(
+                    "SELECT locale, count(*) FROM catalog_exercise_names "
+                    "GROUP BY locale ORDER BY locale"
+                )
+            ).all()
+            source_count = connection.execute(
+                text("SELECT count(*) FROM catalog_exercises WHERE source = :source"),
+                {"source": CATALOG_SOURCE},
+            ).scalar_one()
+            invalid_roles = connection.execute(
+                text(
+                    "SELECT count(*) FROM catalog_exercise_muscles "
+                    "WHERE role NOT IN ('primary', 'secondary', 'tertiary')"
+                )
+            ).scalar_one()
+    finally:
+        engine.dispose()
+
+    assert counts == (899, 17, 36, 1798, 34, 72, first.exercise_muscles, first.exercise_equipment)
+    assert locale_counts == [("en", 899), ("es", 899)]
+    assert source_count == 899
+    assert invalid_roles == 0
+
+
+def test_catalog_import_rejects_broken_references_before_writing(test_database_url: str) -> None:
+    """Importer validation rejects source drift rather than persisting partial data."""
+    snapshot = load_vendored_snapshot()
+    invalid = deepcopy(snapshot)
+    invalid.exercises["en"][0]["muscleGroups"][0]["id"] = "missing-muscle"
+    engine = create_engine(test_database_url)
+    try:
+        with Session(engine) as session:
+            with pytest.raises(CatalogImportError, match="unknown ID"):
+                import_vendored_catalog(session, invalid)
+            session.rollback()
+    finally:
+        engine.dispose()
+
+
+def test_catalog_migration_refuses_destructive_downgrade(
     test_database_url: str,
 ) -> None:
     """The profile migration must not silently drop persisted display names."""
     config = Config("alembic.ini")
 
-    with pytest.raises(NotImplementedError, match="stores profile data"):
-        command.downgrade(config, "20260829_0001")
+    with pytest.raises(NotImplementedError, match="stores catalogue data"):
+        command.downgrade(config, "20260831_0001")
 
     engine = create_engine(test_database_url)
     try:
@@ -114,7 +242,7 @@ def test_display_name_migration_refuses_destructive_downgrade(
             revision = connection.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-        assert revision == "20260831_0001"
+        assert revision == "20260913_0001"
     finally:
         engine.dispose()
 
