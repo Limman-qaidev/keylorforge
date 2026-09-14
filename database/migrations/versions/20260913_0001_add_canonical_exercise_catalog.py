@@ -51,8 +51,8 @@ def upgrade() -> None:
         sa.Column("source_id", sa.String(length=80), nullable=False),
         sa.Column("slug", sa.String(length=80), nullable=False),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("source", "source_id"),
-        sa.UniqueConstraint("source", "slug"),
+        sa.UniqueConstraint("source", "source_id", name="uq_catalog_muscles_source_source_id"),
+        sa.UniqueConstraint("source", "slug", name="uq_catalog_muscles_source_slug"),
     )
     op.create_table(
         "catalog_equipment",

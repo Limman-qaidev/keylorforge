@@ -238,7 +238,10 @@ class CatalogMuscle(Base):
     """Normalized muscle group with source provenance."""
 
     __tablename__ = "catalog_muscles"
-    __table_args__ = (UniqueConstraint("source", "source_id"), UniqueConstraint("source", "slug"))
+    __table_args__ = (
+        UniqueConstraint("source", "source_id", name="uq_catalog_muscles_source_source_id"),
+        UniqueConstraint("source", "slug", name="uq_catalog_muscles_source_slug"),
+    )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     source: Mapped[str] = mapped_column(String(80), nullable=False)
