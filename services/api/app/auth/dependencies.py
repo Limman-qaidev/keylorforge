@@ -10,6 +10,8 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from keylorforge_database.config import DatabaseSettings
 from keylorforge_database.engine import create_session_factory
+from keylorforge_database.identity import ApplicationUserRepository, TerminalIdentityError
+from keylorforge_database.models import AuthProvider
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.auth.jwt_verifier import (
@@ -135,3 +137,21 @@ def get_database_session(request: Request) -> Generator[Session, None, None]:
         raise
     finally:
         session.close()
+
+
+def require_active_application_user(
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_authenticated_principal)],
+    session: Annotated[Session, Depends(get_database_session)],
+) -> AuthenticatedPrincipal:
+    """Require a non-terminal application identity for authenticated app access."""
+    try:
+        ApplicationUserRepository(session).get_or_provision_active_user(
+            auth_provider=AuthProvider.SUPABASE,
+            external_subject=principal.external_subject,
+        )
+    except TerminalIdentityError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="not authorized",
+        ) from exc
+    return principal
