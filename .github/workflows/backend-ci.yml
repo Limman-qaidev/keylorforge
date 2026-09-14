@@ -16,6 +16,22 @@ jobs:
     defaults:
       run:
         working-directory: services/api
+    services:
+      postgres:
+        image: postgres:17.11
+        env:
+          POSTGRES_DB: keylorforge_api_test
+          POSTGRES_USER: keylorforge
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U keylorforge -d keylorforge_api_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      KEYLORFORGE_TEST_DATABASE_URL: postgresql+psycopg://keylorforge:postgres@localhost:5432/keylorforge_api_test
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -43,4 +59,8 @@ jobs:
         run: mypy app
 
       - name: Test
-        run: pytest
+        run: pytest --junitxml=pytest-report.xml
+
+      - name: Verify PostgreSQL catalogue integration test executed
+        run: >-
+          python -c "import xml.etree.ElementTree as etree; root = etree.parse('pytest-report.xml').getroot(); cases = [case for case in root.iter('testcase') if case.get('name') == 'test_catalogue_repository_queries_run_against_postgresql']; assert len(cases) == 1, f'expected one PostgreSQL catalogue integration test, found {len(cases)}'; assert cases[0].find('skipped') is None, 'PostgreSQL catalogue integration test was skipped'"
