@@ -73,9 +73,7 @@ def test_catalogue_routes_require_authentication(path: str) -> None:
 def test_catalogue_routes_reject_terminal_identity(
     path: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    def reject_terminal_identity(
-        self: ApplicationUserRepository, **_: object
-    ) -> None:
+    def reject_terminal_identity(self: ApplicationUserRepository, **_: object) -> None:
         raise TerminalIdentityError("terminal identity")
 
     monkeypatch.setattr(
