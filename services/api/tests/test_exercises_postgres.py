@@ -22,7 +22,9 @@ def test_catalogue_repository_queries_run_against_postgresql() -> None:
     """Exercise search/filter/detail queries execute with real PostgreSQL semantics."""
     database_url = os.getenv("KEYLORFORGE_TEST_DATABASE_URL")
     if database_url is None:
-        pytest.skip("KEYLORFORGE_TEST_DATABASE_URL is required for PostgreSQL integration")
+        pytest.skip(
+            "KEYLORFORGE_TEST_DATABASE_URL is required for PostgreSQL integration"
+        )
 
     engine = create_engine(database_url)
     try:
