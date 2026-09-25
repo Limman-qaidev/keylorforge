@@ -59,9 +59,7 @@ describe('exercise catalogue API client', () => {
         ...exercise,
         force_type: 'push',
         mechanics: 'compound',
-        muscles: [
-          { id: 'muscle-1', name: 'Pectorales', role: 'primary' },
-        ],
+        muscles: [{ id: 'muscle-1', name: 'Pectorales', role: 'primary' }],
       }),
       ok: true,
       status: 200,

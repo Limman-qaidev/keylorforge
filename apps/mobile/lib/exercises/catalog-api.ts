@@ -103,9 +103,7 @@ function isExerciseDetail(payload: unknown): payload is ExerciseDetail {
       if (!isReference(muscle)) {
         return false;
       }
-      return (
-        typeof (muscle as Record<string, unknown>).role === 'string'
-      );
+      return typeof (muscle as Record<string, unknown>).role === 'string';
     })
   );
 }

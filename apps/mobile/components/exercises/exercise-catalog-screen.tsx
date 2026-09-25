@@ -1,7 +1,4 @@
-import {
-  useInfiniteQuery,
-  useQuery,
-} from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -60,10 +57,7 @@ async function runWithAuthRetry<T>(
     try {
       return await operation(refreshedAccessToken);
     } catch (retryError) {
-      if (
-        retryError instanceof CatalogApiError &&
-        retryError.kind === 'auth'
-      ) {
+      if (retryError instanceof CatalogApiError && retryError.kind === 'auth') {
         await context.invalidateSession();
       }
       throw retryError;
@@ -117,12 +111,7 @@ type FilterRowProps = {
   onSelect: (id: string | null) => void;
 };
 
-function FilterRow({
-  label,
-  onSelect,
-  options,
-  selectedId,
-}: FilterRowProps) {
+function FilterRow({ label, onSelect, options, selectedId }: FilterRowProps) {
   return (
     <View style={styles.filterGroup}>
       <Text style={styles.filterLabel}>{label}</Text>
@@ -153,7 +142,9 @@ function FilterRow({
           const selected = option.id === selectedId;
           return (
             <Pressable
-              accessibilityLabel={'Filtrar por ' + label.toLowerCase() + ' ' + option.name}
+              accessibilityLabel={
+                'Filtrar por ' + label.toLowerCase() + ' ' + option.name
+              }
               accessibilityRole="button"
               key={option.id}
               onPress={() => onSelect(option.id)}
@@ -186,10 +177,7 @@ function ExerciseCard({ exercise, onOpen }: ExerciseCardProps) {
       accessibilityLabel={'Abrir ' + exercise.name}
       accessibilityRole="button"
       onPress={() => onOpen(exercise.id)}
-      style={({ pressed }) => [
-        styles.exerciseRow,
-        pressed && styles.pressed,
-      ]}
+      style={({ pressed }) => [styles.exerciseRow, pressed && styles.pressed]}
     >
       <View style={styles.exerciseMain}>
         <Text style={styles.exerciseName}>{exercise.name}</Text>
@@ -340,13 +328,7 @@ export function ExerciseCatalogScreen() {
   const exercisesQuery = useInfiniteQuery({
     enabled: requestContext !== null,
     initialPageParam: 1,
-    queryKey: [
-      'exercise-catalog',
-      'es',
-      search,
-      primaryMuscleId,
-      equipmentId,
-    ],
+    queryKey: ['exercise-catalog', 'es', search, primaryMuscleId, equipmentId],
     queryFn: ({ pageParam }) => {
       if (!requestContext) {
         throw new CatalogApiError('auth', 'Tu sesión ha terminado.');
@@ -364,9 +346,7 @@ export function ExerciseCatalogScreen() {
       );
     },
     getNextPageParam: (lastPage) =>
-      lastPage.page < lastPage.total_pages
-        ? lastPage.page + 1
-        : undefined,
+      lastPage.page < lastPage.total_pages ? lastPage.page + 1 : undefined,
     retry: false,
   });
 

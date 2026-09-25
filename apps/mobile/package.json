@@ -10,7 +10,7 @@
     "web": "expo start --web",
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
-    "format:check": "prettier --write . && git diff -- .; exit 1",
+    "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "test": "jest"
   },

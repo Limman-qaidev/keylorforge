@@ -1,10 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import {
-  act,
-  fireEvent,
-  render,
-  waitFor,
-} from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 
 import { ExerciseCatalogScreen } from '@/components/exercises/exercise-catalog-screen';
 import { useAuth } from '@/lib/auth/auth-provider';
@@ -76,12 +71,12 @@ describe('ExerciseCatalogScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.mocked(useAuth).mockReturnValue(authValue());
-    jest.mocked(listMuscles).mockResolvedValue([
-      { id: 'muscle-1', name: 'Pectorales' },
-    ]);
-    jest.mocked(listEquipment).mockResolvedValue([
-      { id: 'equipment-1', name: 'Barra' },
-    ]);
+    jest
+      .mocked(listMuscles)
+      .mockResolvedValue([{ id: 'muscle-1', name: 'Pectorales' }]);
+    jest
+      .mocked(listEquipment)
+      .mockResolvedValue([{ id: 'equipment-1', name: 'Barra' }]);
     jest.mocked(listExercises).mockResolvedValue({
       items: [exercise],
       page: 1,
@@ -93,9 +88,7 @@ describe('ExerciseCatalogScreen', () => {
       ...exercise,
       force_type: 'push',
       mechanics: 'compound',
-      muscles: [
-        { id: 'muscle-1', name: 'Pectorales', role: 'primary' },
-      ],
+      muscles: [{ id: 'muscle-1', name: 'Pectorales', role: 'primary' }],
     });
   });
 
@@ -106,9 +99,7 @@ describe('ExerciseCatalogScreen', () => {
 
     await act(async () => {
       fireEvent.changeText(getByLabelText('Buscar ejercicios'), 'sentadilla');
-      fireEvent.press(
-        getByLabelText('Filtrar por músculo Pectorales'),
-      );
+      fireEvent.press(getByLabelText('Filtrar por músculo Pectorales'));
       fireEvent.press(getByLabelText('Filtrar por equipamiento Barra'));
       fireEvent.press(getByText('Buscar'));
     });
@@ -125,15 +116,13 @@ describe('ExerciseCatalogScreen', () => {
   });
 
   it('loads additional deterministic pages on demand', async () => {
-    jest.mocked(listExercises).mockImplementation(
-      async (_token, params) => ({
-        items: params.page === 2 ? [secondExercise] : [exercise],
-        page: params.page ?? 1,
-        page_size: 30,
-        total: 2,
-        total_pages: 2,
-      }),
-    );
+    jest.mocked(listExercises).mockImplementation(async (_token, params) => ({
+      items: params.page === 2 ? [secondExercise] : [exercise],
+      page: params.page ?? 1,
+      page_size: 30,
+      total: 2,
+      total_pages: 2,
+    }));
 
     const { findByText, getByText } = await renderScreen();
 
@@ -158,9 +147,11 @@ describe('ExerciseCatalogScreen', () => {
   });
 
   it('surfaces a retryable catalogue error and recovers', async () => {
-    jest.mocked(listExercises).mockRejectedValueOnce(
-      new CatalogApiError('network', 'Sin conexión temporal.'),
-    );
+    jest
+      .mocked(listExercises)
+      .mockRejectedValueOnce(
+        new CatalogApiError('network', 'Sin conexión temporal.'),
+      );
 
     const { findByText, getByText } = await renderScreen();
 
