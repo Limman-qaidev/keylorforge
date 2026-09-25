@@ -1,5 +1,6 @@
 import { render } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
+import { Text } from 'react-native';
 
 import ProgressRoute from '../progress';
 import SocialRoute from '../social';
@@ -11,6 +12,10 @@ jest.mock('@/components/auth/auth-guards', () => ({
 
 jest.mock('@/components/navigation/authenticated-shell', () => ({
   AuthenticatedShell: ({ children }: { children: ReactNode }) => children,
+}));
+
+jest.mock('@/components/exercises/exercise-catalog-screen', () => ({
+  ExerciseCatalogScreen: () => <Text>Catálogo de ejercicios</Text>,
 }));
 
 describe('authenticated product destinations', () => {
@@ -25,15 +30,10 @@ describe('authenticated product destinations', () => {
     ).toBeTruthy();
   });
 
-  it('renders a truthful Training placeholder without fake workouts', async () => {
+  it('renders the real exercise catalogue inside Entrenar', async () => {
     const { getByText } = await render(<TrainRoute />);
 
-    expect(getByText('Entrenar')).toBeTruthy();
-    expect(
-      getByText(
-        'Este será el punto de entrada para empezar, continuar y configurar entrenamientos cuando llegue su funcionalidad de dominio.',
-      ),
-    ).toBeTruthy();
+    expect(getByText('Catálogo de ejercicios')).toBeTruthy();
   });
 
   it('renders a truthful Social placeholder without fake rankings or friends', async () => {
