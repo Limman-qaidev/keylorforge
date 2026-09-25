@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
 import { ExerciseCatalogScreen } from '@/components/exercises/exercise-catalog-screen';
 import { useAuth } from '@/lib/auth/auth-provider';
@@ -97,12 +97,10 @@ describe('ExerciseCatalogScreen', () => {
 
     expect(await findByText('Press de banca')).toBeTruthy();
 
-    await act(async () => {
-      fireEvent.changeText(getByLabelText('Buscar ejercicios'), 'sentadilla');
-      fireEvent.press(getByLabelText('Filtrar por músculo Pectorales'));
-      fireEvent.press(getByLabelText('Filtrar por equipamiento Barra'));
-      fireEvent.press(getByText('Buscar'));
-    });
+    fireEvent.changeText(getByLabelText('Buscar ejercicios'), 'sentadilla');
+    fireEvent.press(getByLabelText('Filtrar por músculo Pectorales'));
+    fireEvent.press(getByLabelText('Filtrar por equipamiento Barra'));
+    fireEvent.press(getByText('Buscar'));
 
     await waitFor(() => {
       expect(listExercises).toHaveBeenLastCalledWith('current-token', {
@@ -127,9 +125,7 @@ describe('ExerciseCatalogScreen', () => {
     const { findByText, getByText } = await renderScreen();
 
     expect(await findByText('Press de banca')).toBeTruthy();
-    await act(async () => {
-      fireEvent.press(getByText('Cargar más'));
-    });
+    fireEvent.press(getByText('Cargar más'));
     expect(await findByText('Sentadilla')).toBeTruthy();
   });
 
@@ -137,9 +133,7 @@ describe('ExerciseCatalogScreen', () => {
     const { findByText, getByLabelText } = await renderScreen();
 
     await findByText('Press de banca');
-    await act(async () => {
-      fireEvent.press(getByLabelText('Abrir Press de banca'));
-    });
+    fireEvent.press(getByLabelText('Abrir Press de banca'));
 
     expect(await findByText('DETALLE DEL EJERCICIO')).toBeTruthy();
     expect(await findByText('Principal')).toBeTruthy();
@@ -165,9 +159,7 @@ describe('ExerciseCatalogScreen', () => {
       total_pages: 1,
     });
 
-    await act(async () => {
-      fireEvent.press(getByText('Reintentar'));
-    });
+    fireEvent.press(getByText('Reintentar'));
 
     expect(await findByText('Press de banca')).toBeTruthy();
   });

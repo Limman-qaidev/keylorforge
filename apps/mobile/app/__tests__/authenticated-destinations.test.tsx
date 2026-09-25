@@ -1,6 +1,5 @@
 import { render } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
-import { Text } from 'react-native';
 
 import ProgressRoute from '../progress';
 import SocialRoute from '../social';
@@ -14,9 +13,13 @@ jest.mock('@/components/navigation/authenticated-shell', () => ({
   AuthenticatedShell: ({ children }: { children: ReactNode }) => children,
 }));
 
-jest.mock('@/components/exercises/exercise-catalog-screen', () => ({
-  ExerciseCatalogScreen: () => <Text>Catálogo de ejercicios</Text>,
-}));
+jest.mock('@/components/exercises/exercise-catalog-screen', () => {
+  const { Text } = jest.requireActual('react-native');
+
+  return {
+    ExerciseCatalogScreen: () => <Text>Catálogo de ejercicios</Text>,
+  };
+});
 
 describe('authenticated product destinations', () => {
   it('renders a truthful Progress placeholder without fabricated metrics', async () => {
