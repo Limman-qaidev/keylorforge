@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from app.config import Settings
+from app.exercises.router import router as exercises_router
 from app.identity.router import router as identity_router
 from app.logging_config import configure_logging
 
@@ -24,6 +25,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application = FastAPI(title=resolved_settings.app_name)
     application.state.settings = resolved_settings
     application.include_router(identity_router)
+    application.include_router(exercises_router)
 
     @application.get("/health", response_model=HealthResponse)
     def health() -> HealthResponse:
