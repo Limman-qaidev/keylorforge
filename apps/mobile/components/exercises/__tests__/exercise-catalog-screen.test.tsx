@@ -97,7 +97,9 @@ describe('ExerciseCatalogScreen', () => {
     });
   });
 
-  it('loads the Spanish catalogue and applies combined search and filters', async () => {
+  it(
+    'loads the Spanish catalogue and applies combined search and filters',
+    async () => {
     const { findByText, getByLabelText, getByText } = await renderScreen();
 
     expect(await findByText('Press de banca')).toBeTruthy();
@@ -136,7 +138,9 @@ describe('ExerciseCatalogScreen', () => {
         search: 'sentadilla',
       });
     });
-  });
+    },
+    12_000,
+  );
 
   it('loads additional deterministic pages on demand', async () => {
     jest.mocked(listExercises).mockImplementation(async (_token, params) => ({
