@@ -1,5 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, userEvent, waitFor } from '@testing-library/react-native';
+import {
+  fireEvent,
+  render,
+  userEvent,
+  waitFor,
+} from '@testing-library/react-native';
 
 import { ExerciseCatalogScreen } from '@/components/exercises/exercise-catalog-screen';
 import { useAuth } from '@/lib/auth/auth-provider';
@@ -93,15 +98,34 @@ describe('ExerciseCatalogScreen', () => {
   });
 
   it('loads the Spanish catalogue and applies combined search and filters', async () => {
-    const user = userEvent.setup();
     const { findByText, getByLabelText, getByText } = await renderScreen();
 
     expect(await findByText('Press de banca')).toBeTruthy();
 
-    await user.type(getByLabelText('Buscar ejercicios'), 'sentadilla');
-    await user.press(getByLabelText('Filtrar por músculo Pectorales'));
-    await user.press(getByLabelText('Filtrar por equipamiento Barra'));
-    await user.press(getByText('Buscar'));
+    fireEvent.press(getByLabelText('Filtrar por músculo Pectorales'));
+    await waitFor(() => {
+      expect(listExercises).toHaveBeenLastCalledWith('current-token', {
+        equipmentId: undefined,
+        page: 1,
+        pageSize: 30,
+        primaryMuscleId: 'muscle-1',
+        search: undefined,
+      });
+    });
+
+    fireEvent.press(getByLabelText('Filtrar por equipamiento Barra'));
+    await waitFor(() => {
+      expect(listExercises).toHaveBeenLastCalledWith('current-token', {
+        equipmentId: 'equipment-1',
+        page: 1,
+        pageSize: 30,
+        primaryMuscleId: 'muscle-1',
+        search: undefined,
+      });
+    });
+
+    fireEvent.changeText(getByLabelText('Buscar ejercicios'), 'sentadilla');
+    fireEvent.press(getByText('Buscar'));
 
     await waitFor(() => {
       expect(listExercises).toHaveBeenLastCalledWith('current-token', {
