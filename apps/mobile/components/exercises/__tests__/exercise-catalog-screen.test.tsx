@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { render, userEvent, waitFor } from '@testing-library/react-native';
 
 import { ExerciseCatalogScreen } from '@/components/exercises/exercise-catalog-screen';
 import { useAuth } from '@/lib/auth/auth-provider';
@@ -93,14 +93,15 @@ describe('ExerciseCatalogScreen', () => {
   });
 
   it('loads the Spanish catalogue and applies combined search and filters', async () => {
+    const user = userEvent.setup();
     const { findByText, getByLabelText, getByText } = await renderScreen();
 
     expect(await findByText('Press de banca')).toBeTruthy();
 
-    fireEvent.changeText(getByLabelText('Buscar ejercicios'), 'sentadilla');
-    fireEvent.press(getByLabelText('Filtrar por músculo Pectorales'));
-    fireEvent.press(getByLabelText('Filtrar por equipamiento Barra'));
-    fireEvent.press(getByText('Buscar'));
+    await user.type(getByLabelText('Buscar ejercicios'), 'sentadilla');
+    await user.press(getByLabelText('Filtrar por músculo Pectorales'));
+    await user.press(getByLabelText('Filtrar por equipamiento Barra'));
+    await user.press(getByText('Buscar'));
 
     await waitFor(() => {
       expect(listExercises).toHaveBeenLastCalledWith('current-token', {
@@ -122,18 +123,20 @@ describe('ExerciseCatalogScreen', () => {
       total_pages: 2,
     }));
 
+    const user = userEvent.setup();
     const { findByText, getByText } = await renderScreen();
 
     expect(await findByText('Press de banca')).toBeTruthy();
-    fireEvent.press(getByText('Cargar más'));
+    await user.press(getByText('Cargar más'));
     expect(await findByText('Sentadilla')).toBeTruthy();
   });
 
   it('opens normalized exercise detail without images or instruction bodies', async () => {
+    const user = userEvent.setup();
     const { findByText, getByLabelText } = await renderScreen();
 
     await findByText('Press de banca');
-    fireEvent.press(getByLabelText('Abrir Press de banca'));
+    await user.press(getByLabelText('Abrir Press de banca'));
 
     expect(await findByText('DETALLE DEL EJERCICIO')).toBeTruthy();
     expect(await findByText('Principal')).toBeTruthy();
@@ -147,6 +150,7 @@ describe('ExerciseCatalogScreen', () => {
         new CatalogApiError('network', 'Sin conexión temporal.'),
       );
 
+    const user = userEvent.setup();
     const { findByText, getByText } = await renderScreen();
 
     expect(await findByText('Sin conexión temporal.')).toBeTruthy();
@@ -159,7 +163,7 @@ describe('ExerciseCatalogScreen', () => {
       total_pages: 1,
     });
 
-    fireEvent.press(getByText('Reintentar'));
+    await user.press(getByText('Reintentar'));
 
     expect(await findByText('Press de banca')).toBeTruthy();
   });
