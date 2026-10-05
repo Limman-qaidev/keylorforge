@@ -90,11 +90,44 @@ function roleLabel(value: string): string {
   return labels[value] ?? value;
 }
 
-function displayMetadata(value: string | null): string {
+const DIFFICULTY_LABELS: Record<string, string> = {
+  beginner: 'Principiante',
+  expert: 'Experto',
+  intermediate: 'Intermedio',
+};
+
+const FORCE_LABELS: Record<string, string> = {
+  pull: 'Tirón',
+  push: 'Empuje',
+  static: 'Estático',
+};
+
+const MECHANICS_LABELS: Record<string, string> = {
+  compound: 'Compuesto',
+  isolation: 'Aislamiento',
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  cardio: 'Cardio',
+  olympicWeightlifting: 'Halterofilia olímpica',
+  plyometrics: 'Pliometría',
+  powerlifting: 'Levantamiento de potencia',
+  strength: 'Fuerza',
+  stretching: 'Estiramientos',
+  strongman: 'Pruebas de fuerza',
+};
+
+function metadataLabel(
+  value: string | null,
+  labels: Record<string, string>,
+): string {
   if (!value) {
     return 'No especificado';
   }
-  return value.replace(/_/g, ' ');
+  return (
+    labels[value] ??
+    value.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ')
+  );
 }
 
 function referenceNames(values: CatalogueReference[]): string {
@@ -123,6 +156,7 @@ function FilterRow({ label, onSelect, options, selectedId }: FilterRowProps) {
         <Pressable
           accessibilityLabel={'Quitar filtro de ' + label.toLowerCase()}
           accessibilityRole="button"
+          accessibilityState={{ selected: selectedId === null }}
           onPress={() => onSelect(null)}
           style={[
             styles.filterChip,
@@ -146,6 +180,7 @@ function FilterRow({ label, onSelect, options, selectedId }: FilterRowProps) {
                 'Filtrar por ' + label.toLowerCase() + ' ' + option.name
               }
               accessibilityRole="button"
+              accessibilityState={{ selected }}
               key={option.id}
               onPress={() => onSelect(option.id)}
               style={[styles.filterChip, selected && styles.filterChipSelected]}
@@ -184,7 +219,7 @@ function ExerciseCard({ exercise, onOpen }: ExerciseCardProps) {
         <Text style={styles.exerciseMeta}>
           {measurementLabel(exercise.measurement_type)}
           {' · '}
-          {displayMetadata(exercise.category)}
+          {metadataLabel(exercise.category, CATEGORY_LABELS)}
         </Text>
         <Text style={styles.exerciseSecondary}>
           {referenceNames(exercise.primary_muscles)}
@@ -234,25 +269,25 @@ function DetailView({ detail, onBack }: DetailViewProps) {
         <View style={styles.metadataBlock}>
           <Text style={styles.metadataLabel}>Dificultad</Text>
           <Text style={styles.metadataValue}>
-            {displayMetadata(detail.difficulty_level)}
+            {metadataLabel(detail.difficulty_level, DIFFICULTY_LABELS)}
           </Text>
         </View>
         <View style={styles.metadataBlock}>
           <Text style={styles.metadataLabel}>Categoría</Text>
           <Text style={styles.metadataValue}>
-            {displayMetadata(detail.category)}
+            {metadataLabel(detail.category, CATEGORY_LABELS)}
           </Text>
         </View>
         <View style={styles.metadataBlock}>
           <Text style={styles.metadataLabel}>Mecánica</Text>
           <Text style={styles.metadataValue}>
-            {displayMetadata(detail.mechanics)}
+            {metadataLabel(detail.mechanics, MECHANICS_LABELS)}
           </Text>
         </View>
         <View style={styles.metadataBlock}>
           <Text style={styles.metadataLabel}>Fuerza</Text>
           <Text style={styles.metadataValue}>
-            {displayMetadata(detail.force_type)}
+            {metadataLabel(detail.force_type, FORCE_LABELS)}
           </Text>
         </View>
       </View>
@@ -425,6 +460,7 @@ export function ExerciseCatalogScreen() {
   const initialPending = exercisesQuery.isPending || filtersPending;
   const baseError =
     exercisesQuery.error ?? musclesQuery.error ?? equipmentQuery.error;
+  const filterError = musclesQuery.error ?? equipmentQuery.error;
   const isRefreshingResults =
     exercisesQuery.isPlaceholderData && exercisesQuery.isFetching;
   const items = exercisesQuery.isPlaceholderData
@@ -449,6 +485,10 @@ export function ExerciseCatalogScreen() {
       musclesQuery.refetch(),
       equipmentQuery.refetch(),
     ]);
+  };
+
+  const retryFilters = () => {
+    void Promise.all([musclesQuery.refetch(), equipmentQuery.refetch()]);
   };
 
   const header = (
@@ -493,6 +533,21 @@ export function ExerciseCatalogScreen() {
         options={equipmentQuery.data ?? []}
         selectedId={equipmentId}
       />
+
+      {filterError ? (
+        <View style={styles.inlineError}>
+          <Text accessibilityLiveRegion="polite" style={styles.inlineErrorText}>
+            {errorMessage(filterError)}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={retryFilters}
+            style={styles.inlineRetryButton}
+          >
+            <Text style={styles.inlineRetryButtonText}>Reintentar filtros</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       <View style={styles.resultsHeader}>
         <Text style={styles.resultsText}>
@@ -570,7 +625,23 @@ export function ExerciseCatalogScreen() {
         )
       }
       ListFooterComponent={
-        exercisesQuery.hasNextPage ? (
+        exercisesQuery.isFetchNextPageError ? (
+          <View style={styles.paginationError}>
+            <Text
+              accessibilityLiveRegion="polite"
+              style={styles.paginationErrorText}
+            >
+              {errorMessage(exercisesQuery.error)}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => void exercisesQuery.fetchNextPage()}
+              style={styles.loadMoreButton}
+            >
+              <Text style={styles.loadMoreText}>Reintentar carga</Text>
+            </Pressable>
+          </View>
+        ) : exercisesQuery.hasNextPage ? (
           <Pressable
             accessibilityRole="button"
             disabled={exercisesQuery.isFetchingNextPage}
@@ -748,6 +819,30 @@ const styles = StyleSheet.create({
   filterGroup: {
     marginTop: 18,
   },
+  inlineError: {
+    alignItems: 'flex-start',
+    backgroundColor: '#fff4f2',
+    borderColor: '#f5c2bc',
+    borderRadius: 10,
+    borderWidth: 1,
+    marginTop: 16,
+    padding: 14,
+  },
+  inlineErrorText: {
+    color: '#b42318',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  inlineRetryButton: {
+    justifyContent: 'center',
+    minHeight: 44,
+    marginTop: 4,
+  },
+  inlineRetryButtonText: {
+    color: '#075bff',
+    fontSize: 14,
+    fontWeight: '800',
+  },
   filterLabel: {
     color: '#1a2942',
     fontSize: 14,
@@ -805,6 +900,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     marginTop: 4,
+  },
+  paginationError: {
+    paddingTop: 8,
+  },
+  paginationErrorText: {
+    color: '#b42318',
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
   },
   pressed: {
     opacity: 0.64,
