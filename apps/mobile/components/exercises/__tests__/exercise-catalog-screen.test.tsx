@@ -102,10 +102,16 @@ describe('ExerciseCatalogScreen', () => {
     const { findByText, getByLabelText, getByText } = await renderScreen();
 
     expect(await findByText('Press de banca')).toBeTruthy();
+    expect(
+      getByLabelText('Quitar filtro de músculo').props.accessibilityState,
+    ).toEqual({ selected: true });
 
     await act(async () =>
       fireEvent.press(getByLabelText('Filtrar por músculo Pectorales')),
     );
+    expect(
+      getByLabelText('Filtrar por músculo Pectorales').props.accessibilityState,
+    ).toEqual({ selected: true });
     await waitFor(() => {
       expect(listExercises).toHaveBeenLastCalledWith('current-token', {
         equipmentId: undefined,
@@ -165,6 +171,74 @@ describe('ExerciseCatalogScreen', () => {
     expect(await findByText('Sentadilla')).toBeTruthy();
   });
 
+  it('surfaces a partial filter error and recovers without hiding exercises', async () => {
+    jest
+      .mocked(listMuscles)
+      .mockRejectedValueOnce(
+        new CatalogApiError(
+          'network',
+          'No se pudieron cargar los filtros del catálogo.',
+        ),
+      );
+
+    const user = userEvent.setup();
+    const { findByLabelText, findByText, getByText } = await renderScreen();
+
+    expect(await findByText('Press de banca')).toBeTruthy();
+    expect(
+      await findByText('No se pudieron cargar los filtros del catálogo.'),
+    ).toBeTruthy();
+
+    jest
+      .mocked(listMuscles)
+      .mockResolvedValue([{ id: 'muscle-1', name: 'Pectorales' }]);
+
+    await user.press(getByText('Reintentar filtros'));
+
+    expect(
+      await findByLabelText('Filtrar por músculo Pectorales'),
+    ).toBeTruthy();
+  });
+
+  it('surfaces a failed next page and retries it explicitly', async () => {
+    let secondPageAttempts = 0;
+    jest.mocked(listExercises).mockImplementation(async (_token, params) => {
+      if (params.page === 2) {
+        secondPageAttempts += 1;
+        if (secondPageAttempts === 1) {
+          throw new CatalogApiError(
+            'network',
+            'No se pudo cargar la siguiente página.',
+          );
+        }
+        return {
+          items: [secondExercise],
+          page: 2,
+          page_size: 30,
+          total: 2,
+          total_pages: 2,
+        };
+      }
+      return {
+        items: [exercise],
+        page: 1,
+        page_size: 30,
+        total: 2,
+        total_pages: 2,
+      };
+    });
+
+    const user = userEvent.setup();
+    const { findByText, getByText } = await renderScreen();
+
+    expect(await findByText('Press de banca')).toBeTruthy();
+    await user.press(getByText('Cargar más'));
+    expect(await findByText('No se pudo cargar la siguiente página.')).toBeTruthy();
+
+    await user.press(getByText('Reintentar carga'));
+    expect(await findByText('Sentadilla')).toBeTruthy();
+  });
+
   it('opens normalized exercise detail without images or instruction bodies', async () => {
     const user = userEvent.setup();
     const { findByText, getByLabelText } = await renderScreen();
@@ -174,6 +248,10 @@ describe('ExerciseCatalogScreen', () => {
 
     expect(await findByText('DETALLE DEL EJERCICIO')).toBeTruthy();
     expect(await findByText('Principal')).toBeTruthy();
+    expect(await findByText('Intermedio')).toBeTruthy();
+    expect(await findByText('Fuerza')).toBeTruthy();
+    expect(await findByText('Compuesto')).toBeTruthy();
+    expect(await findByText('Empuje')).toBeTruthy();
     expect(getExercise).toHaveBeenCalledWith('current-token', 'exercise-1');
   });
 
