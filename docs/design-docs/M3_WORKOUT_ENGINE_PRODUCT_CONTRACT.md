@@ -1,6 +1,6 @@
 # M3 Workout Engine — Product Contract
 
-- Status: Draft for Product Owner review
+- Status: Accepted by Product Owner
 - Milestone: M3 — Workout Engine
 - Issue: #91
 - Product authority: this document after approval/merge
@@ -8,6 +8,7 @@
 - Related product authority: `docs/project-context/PRODUCT_VISION.md`
 - Related catalogue follow-up: #89
 - Date: 2026-10-05
+- Product Owner approval: 2026-10-05
 
 ## Purpose
 
