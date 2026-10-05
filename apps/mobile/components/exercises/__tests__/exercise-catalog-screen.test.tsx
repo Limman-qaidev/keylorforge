@@ -159,17 +159,20 @@ describe('ExerciseCatalogScreen', () => {
     expect(await findByText('Sentadilla')).toBeTruthy();
   });
 
-  it('opens normalized exercise detail without images or instruction bodies', async () => {
-    const user = userEvent.setup();
-    const { findByText, getByLabelText } = await renderScreen();
+  it(
+    'opens normalized exercise detail without images or instruction bodies',
+    async () => {
+      const user = userEvent.setup();
+      const { findByText, getByLabelText } = await renderScreen();
 
-    await findByText('Press de banca');
-    await user.press(getByLabelText('Abrir Press de banca'));
+      await findByText('Press de banca');
+      await user.press(getByLabelText('Abrir Press de banca'));
 
-    expect(await findByText('DETALLE DEL EJERCICIO')).toBeTruthy();
-    expect(await findByText('Principal')).toBeTruthy();
-    expect(getExercise).toHaveBeenCalledWith('current-token', 'exercise-1');
-  });
+      expect(await findByText('DETALLE DEL EJERCICIO')).toBeTruthy();
+      expect(await findByText('Principal')).toBeTruthy();
+      expect(getExercise).toHaveBeenCalledWith('current-token', 'exercise-1');
+    },
+  );
 
   it('surfaces a retryable catalogue error and recovers', async () => {
     jest
