@@ -174,6 +174,29 @@ describe('ExerciseCatalogScreen', () => {
     },
   );
 
+  it('handles a missing exercise detail and allows returning to the catalogue', async () => {
+    jest.mocked(getExercise).mockRejectedValue(
+      new CatalogApiError(
+        'notFound',
+        'El ejercicio solicitado ya no está disponible.',
+      ),
+    );
+
+    const user = userEvent.setup();
+    const { findByText, getByLabelText, getByText } = await renderScreen();
+
+    await findByText('Press de banca');
+    await user.press(getByLabelText('Abrir Press de banca'));
+
+    expect(await findByText('No se pudo abrir el ejercicio')).toBeTruthy();
+    expect(
+      await findByText('El ejercicio solicitado ya no está disponible.'),
+    ).toBeTruthy();
+
+    await user.press(getByText('Volver al catálogo'));
+    expect(await findByText('Press de banca')).toBeTruthy();
+  });
+
   it('surfaces a retryable catalogue error and recovers', async () => {
     jest
       .mocked(listExercises)
