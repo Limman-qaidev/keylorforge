@@ -233,7 +233,9 @@ describe('ExerciseCatalogScreen', () => {
 
     expect(await findByText('Press de banca')).toBeTruthy();
     await user.press(getByText('Cargar más'));
-    expect(await findByText('No se pudo cargar la siguiente página.')).toBeTruthy();
+    expect(
+      await findByText('No se pudo cargar la siguiente página.'),
+    ).toBeTruthy();
 
     await user.press(getByText('Reintentar carga'));
     expect(await findByText('Sentadilla')).toBeTruthy();
