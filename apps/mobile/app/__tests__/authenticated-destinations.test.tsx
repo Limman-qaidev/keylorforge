@@ -13,6 +13,14 @@ jest.mock('@/components/navigation/authenticated-shell', () => ({
   AuthenticatedShell: ({ children }: { children: ReactNode }) => children,
 }));
 
+jest.mock('@/components/exercises/exercise-catalog-screen', () => {
+  const { Text } = jest.requireActual('react-native');
+
+  return {
+    ExerciseCatalogScreen: () => <Text>Catálogo de ejercicios</Text>,
+  };
+});
+
 describe('authenticated product destinations', () => {
   it('renders a truthful Progress placeholder without fabricated metrics', async () => {
     const { getByText } = await render(<ProgressRoute />);
@@ -25,15 +33,10 @@ describe('authenticated product destinations', () => {
     ).toBeTruthy();
   });
 
-  it('renders a truthful Training placeholder without fake workouts', async () => {
+  it('renders the real exercise catalogue inside Entrenar', async () => {
     const { getByText } = await render(<TrainRoute />);
 
-    expect(getByText('Entrenar')).toBeTruthy();
-    expect(
-      getByText(
-        'Este será el punto de entrada para empezar, continuar y configurar entrenamientos cuando llegue su funcionalidad de dominio.',
-      ),
-    ).toBeTruthy();
+    expect(getByText('Catálogo de ejercicios')).toBeTruthy();
   });
 
   it('renders a truthful Social placeholder without fake rankings or friends', async () => {
