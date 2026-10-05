@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
+  act,
   fireEvent,
   render,
   userEvent,
@@ -102,7 +103,9 @@ describe('ExerciseCatalogScreen', () => {
 
     expect(await findByText('Press de banca')).toBeTruthy();
 
-    fireEvent.press(getByLabelText('Filtrar por músculo Pectorales'));
+    await act(async () =>
+      fireEvent.press(getByLabelText('Filtrar por músculo Pectorales')),
+    );
     await waitFor(() => {
       expect(listExercises).toHaveBeenLastCalledWith('current-token', {
         equipmentId: undefined,
@@ -112,8 +115,11 @@ describe('ExerciseCatalogScreen', () => {
         search: undefined,
       });
     });
+    expect(await findByText('Press de banca')).toBeTruthy();
 
-    fireEvent.press(getByLabelText('Filtrar por equipamiento Barra'));
+    await act(async () =>
+      fireEvent.press(getByLabelText('Filtrar por equipamiento Barra')),
+    );
     await waitFor(() => {
       expect(listExercises).toHaveBeenLastCalledWith('current-token', {
         equipmentId: 'equipment-1',
@@ -123,9 +129,12 @@ describe('ExerciseCatalogScreen', () => {
         search: undefined,
       });
     });
+    expect(await findByText('Press de banca')).toBeTruthy();
 
-    fireEvent.changeText(getByLabelText('Buscar ejercicios'), 'sentadilla');
-    fireEvent.press(getByText('Buscar'));
+    await act(async () =>
+      fireEvent.changeText(getByLabelText('Buscar ejercicios'), 'sentadilla'),
+    );
+    await act(async () => fireEvent.press(getByText('Buscar')));
 
     await waitFor(() => {
       expect(listExercises).toHaveBeenLastCalledWith('current-token', {
@@ -136,6 +145,7 @@ describe('ExerciseCatalogScreen', () => {
         search: 'sentadilla',
       });
     });
+    expect(await findByText('Press de banca')).toBeTruthy();
   }, 12_000);
 
   it('loads additional deterministic pages on demand', async () => {
