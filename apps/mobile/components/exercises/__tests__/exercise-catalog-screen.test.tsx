@@ -6,9 +6,7 @@ import {
   waitFor,
 } from '@testing-library/react-native';
 
-import {
-  ExerciseCatalogScreen,
-} from '@/components/exercises/exercise-catalog-screen';
+import { ExerciseCatalogScreen } from '@/components/exercises/exercise-catalog-screen';
 import { useAuth } from '@/lib/auth/auth-provider';
 import {
   CatalogApiError,
@@ -99,50 +97,46 @@ describe('ExerciseCatalogScreen', () => {
     });
   });
 
-  it(
-    'loads the Spanish catalogue and applies combined search and filters',
-    async () => {
-      const { findByText, getByLabelText, getByText } = await renderScreen();
+  it('loads the Spanish catalogue and applies combined search and filters', async () => {
+    const { findByText, getByLabelText, getByText } = await renderScreen();
 
-      expect(await findByText('Press de banca')).toBeTruthy();
+    expect(await findByText('Press de banca')).toBeTruthy();
 
-      fireEvent.press(getByLabelText('Filtrar por músculo Pectorales'));
-      await waitFor(() => {
-        expect(listExercises).toHaveBeenLastCalledWith('current-token', {
-          equipmentId: undefined,
-          page: 1,
-          pageSize: 30,
-          primaryMuscleId: 'muscle-1',
-          search: undefined,
-        });
+    fireEvent.press(getByLabelText('Filtrar por músculo Pectorales'));
+    await waitFor(() => {
+      expect(listExercises).toHaveBeenLastCalledWith('current-token', {
+        equipmentId: undefined,
+        page: 1,
+        pageSize: 30,
+        primaryMuscleId: 'muscle-1',
+        search: undefined,
       });
+    });
 
-      fireEvent.press(getByLabelText('Filtrar por equipamiento Barra'));
-      await waitFor(() => {
-        expect(listExercises).toHaveBeenLastCalledWith('current-token', {
-          equipmentId: 'equipment-1',
-          page: 1,
-          pageSize: 30,
-          primaryMuscleId: 'muscle-1',
-          search: undefined,
-        });
+    fireEvent.press(getByLabelText('Filtrar por equipamiento Barra'));
+    await waitFor(() => {
+      expect(listExercises).toHaveBeenLastCalledWith('current-token', {
+        equipmentId: 'equipment-1',
+        page: 1,
+        pageSize: 30,
+        primaryMuscleId: 'muscle-1',
+        search: undefined,
       });
+    });
 
-      fireEvent.changeText(getByLabelText('Buscar ejercicios'), 'sentadilla');
-      fireEvent.press(getByText('Buscar'));
+    fireEvent.changeText(getByLabelText('Buscar ejercicios'), 'sentadilla');
+    fireEvent.press(getByText('Buscar'));
 
-      await waitFor(() => {
-        expect(listExercises).toHaveBeenLastCalledWith('current-token', {
-          equipmentId: 'equipment-1',
-          page: 1,
-          pageSize: 30,
-          primaryMuscleId: 'muscle-1',
-          search: 'sentadilla',
-        });
+    await waitFor(() => {
+      expect(listExercises).toHaveBeenLastCalledWith('current-token', {
+        equipmentId: 'equipment-1',
+        page: 1,
+        pageSize: 30,
+        primaryMuscleId: 'muscle-1',
+        search: 'sentadilla',
       });
-    },
-    12_000,
-  );
+    });
+  }, 12_000);
 
   it('loads additional deterministic pages on demand', async () => {
     jest.mocked(listExercises).mockImplementation(async (_token, params) => ({
@@ -161,46 +155,42 @@ describe('ExerciseCatalogScreen', () => {
     expect(await findByText('Sentadilla')).toBeTruthy();
   });
 
-  it(
-    'opens normalized exercise detail without images or instruction bodies',
-    async () => {
-      const user = userEvent.setup();
-      const { findByText, getByLabelText } = await renderScreen();
+  it('opens normalized exercise detail without images or instruction bodies', async () => {
+    const user = userEvent.setup();
+    const { findByText, getByLabelText } = await renderScreen();
 
-      await findByText('Press de banca');
-      await user.press(getByLabelText('Abrir Press de banca'));
+    await findByText('Press de banca');
+    await user.press(getByLabelText('Abrir Press de banca'));
 
-      expect(await findByText('DETALLE DEL EJERCICIO')).toBeTruthy();
-      expect(await findByText('Principal')).toBeTruthy();
-      expect(getExercise).toHaveBeenCalledWith('current-token', 'exercise-1');
-    },
-  );
+    expect(await findByText('DETALLE DEL EJERCICIO')).toBeTruthy();
+    expect(await findByText('Principal')).toBeTruthy();
+    expect(getExercise).toHaveBeenCalledWith('current-token', 'exercise-1');
+  });
 
-  it(
-    'handles a missing exercise detail and allows returning to the catalogue',
-    async () => {
-      jest.mocked(getExercise).mockRejectedValue(
+  it('handles a missing exercise detail and allows returning to the catalogue', async () => {
+    jest
+      .mocked(getExercise)
+      .mockRejectedValue(
         new CatalogApiError(
           'notFound',
           'El ejercicio solicitado ya no está disponible.',
         ),
       );
 
-      const user = userEvent.setup();
-      const { findByText, getByLabelText, getByText } = await renderScreen();
+    const user = userEvent.setup();
+    const { findByText, getByLabelText, getByText } = await renderScreen();
 
-      await findByText('Press de banca');
-      await user.press(getByLabelText('Abrir Press de banca'));
+    await findByText('Press de banca');
+    await user.press(getByLabelText('Abrir Press de banca'));
 
-      expect(await findByText('No se pudo abrir el ejercicio')).toBeTruthy();
-      expect(
-        await findByText('El ejercicio solicitado ya no está disponible.'),
-      ).toBeTruthy();
+    expect(await findByText('No se pudo abrir el ejercicio')).toBeTruthy();
+    expect(
+      await findByText('El ejercicio solicitado ya no está disponible.'),
+    ).toBeTruthy();
 
-      await user.press(getByText('Volver al catálogo'));
-      expect(await findByText('Press de banca')).toBeTruthy();
-    },
-  );
+    await user.press(getByText('Volver al catálogo'));
+    expect(await findByText('Press de banca')).toBeTruthy();
+  });
 
   it('surfaces a retryable catalogue error and recovers', async () => {
     jest
