@@ -465,7 +465,7 @@ Exact algorithms belong in Training Goal Policies and Decision Engine contracts.
 
 **Product intent:** adaptation is not limited to the start of a workout.
 
-If a user unexpectedly loses time after training has begun, the engine should be able to reprioritize the remaining work while preserving completed sets as immutable historical reality.
+If a user unexpectedly loses time after training has begun, the engine should be able to reprioritize the remaining work without automatically rewriting completed sets. Completed work is historical reality for adaptation purposes, but the user must still be able to explicitly correct or remove a set they entered incorrectly; those correction semantics belong in the Workout Domain Contract.
 
 ---
 
@@ -1201,7 +1201,8 @@ Must define conceptual entities and state machines for:
 - set types;
 - provenance;
 - session recovery;
-- what becomes immutable history.
+- automatic-history protection versus explicit user correction/removal semantics;
+- what becomes authoritative workout history.
 
 This contract must precede SQL schema design.
 
@@ -1223,7 +1224,33 @@ Must define:
 - Laya evaluation criteria;
 - fallback behavior.
 
-## 22.5 M3 User Journey
+## 22.5 Workout Sync Contract
+
+Proposed file:
+
+`docs/design-docs/M3_WORKOUT_SYNC_CONTRACT.md`
+
+ADR-003 already requires the detailed synchronization protocol to be designed before implementation.
+
+This contract must define at least:
+
+- client-generated mutation/entity identifiers;
+- retry identity and idempotency keys/semantics;
+- create/edit/remove synchronization behavior;
+- mutation ordering and dependency handling;
+- local versus remote synchronization states;
+- reconnect/retry behavior;
+- conflict detection and resolution;
+- deletion/tombstone behavior where needed;
+- server acknowledgement semantics;
+- restart/crash recovery;
+- which M3 operations may be last-write-wins, rejected, merged or require explicit user resolution.
+
+The Workout Domain Contract owns domain state semantics; the Workout Sync Contract owns transport/synchronization semantics. Neither mobile nor API implementation may invent these rules ad hoc.
+
+This contract is required before implementing offline mutation synchronization for workouts.
+
+## 22.6 M3 User Journey
 
 Proposed file:
 
@@ -1272,7 +1299,7 @@ The following are not settled by this contract and must not be guessed during im
 - exact session-state machine;
 - whether more than one active workout can exist;
 - exact cancel/discard semantics;
-- exact workout sync/conflict protocol;
+- exact workout sync/conflict protocol — must be resolved by the dedicated M3 Workout Sync Contract before offline mutation synchronization is implemented;
 - exact Free/Premium packaging and price;
 - whether Laya is adopted;
 - where any decision model is hosted;
@@ -1293,7 +1320,11 @@ After approval:
 1. merge this document;
 2. create the follow-up design-contract work in dependency order;
 3. design the full M3 user journey;
-4. only then derive the implementation backlog;
+4. derive implementation work incrementally only when the contracts required by that slice are approved;
 5. keep implementation issues traceable to an approved contract.
 
-No database migration, API contract or workout implementation should be treated as final merely because it was convenient to code before these domain decisions were made.
+The basic workout-recording vertical slice must not be blocked on advanced recommendation work that it does not depend on. Conversely, plan adaptation, fatigue automation, equipment-aware recommendation, or AI-assisted decisions must not be implemented before their specific governing contracts are approved.
+
+At minimum, authoritative Workout Domain and Workout Sync contracts plus the relevant User Journey must exist before finalizing the local-first session/set recording implementation. Training Goal Policies, Exercise/Equipment and Decision Engine contracts become prerequisites for the slices that depend on those behaviors.
+
+No database migration, API contract or workout implementation should be treated as final merely because it was convenient to code before the governing domain decisions were made.
