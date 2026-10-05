@@ -347,6 +347,7 @@ export function ExerciseCatalogScreen() {
     },
     getNextPageParam: (lastPage) =>
       lastPage.page < lastPage.total_pages ? lastPage.page + 1 : undefined,
+    placeholderData: (previousData) => previousData,
     retry: false,
   });
 
@@ -424,8 +425,14 @@ export function ExerciseCatalogScreen() {
   const initialPending = exercisesQuery.isPending || filtersPending;
   const baseError =
     exercisesQuery.error ?? musclesQuery.error ?? equipmentQuery.error;
-  const items = exercisesQuery.data?.pages.flatMap((page) => page.items) ?? [];
-  const total = exercisesQuery.data?.pages[0]?.total ?? 0;
+  const isRefreshingResults =
+    exercisesQuery.isPlaceholderData && exercisesQuery.isFetching;
+  const items = exercisesQuery.isPlaceholderData
+    ? []
+    : (exercisesQuery.data?.pages.flatMap((page) => page.items) ?? []);
+  const total = exercisesQuery.isPlaceholderData
+    ? 0
+    : (exercisesQuery.data?.pages[0]?.total ?? 0);
   const hasActiveFilters =
     Boolean(search) || primaryMuscleId !== null || equipmentId !== null;
 
@@ -539,21 +546,28 @@ export function ExerciseCatalogScreen() {
       data={items}
       keyExtractor={(item) => item.id}
       ListEmptyComponent={
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>No hay ejercicios</Text>
-          <Text style={styles.emptyText}>
-            Prueba otra búsqueda o cambia los filtros seleccionados.
-          </Text>
-          {hasActiveFilters ? (
-            <Pressable
-              accessibilityRole="button"
-              onPress={resetFilters}
-              style={styles.secondaryButton}
-            >
-              <Text style={styles.secondaryButtonText}>Limpiar filtros</Text>
-            </Pressable>
-          ) : null}
-        </View>
+        isRefreshingResults ? (
+          <View style={styles.emptyState}>
+            <ActivityIndicator accessibilityLabel="Cargando resultados" />
+            <Text style={styles.loadingText}>Cargando resultados…</Text>
+          </View>
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>No hay ejercicios</Text>
+            <Text style={styles.emptyText}>
+              Prueba otra búsqueda o cambia los filtros seleccionados.
+            </Text>
+            {hasActiveFilters ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={resetFilters}
+                style={styles.secondaryButton}
+              >
+                <Text style={styles.secondaryButtonText}>Limpiar filtros</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        )
       }
       ListFooterComponent={
         exercisesQuery.hasNextPage ? (
