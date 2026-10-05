@@ -100,44 +100,44 @@ describe('ExerciseCatalogScreen', () => {
   it(
     'loads the Spanish catalogue and applies combined search and filters',
     async () => {
-    const { findByText, getByLabelText, getByText } = await renderScreen();
+      const { findByText, getByLabelText, getByText } = await renderScreen();
 
-    expect(await findByText('Press de banca')).toBeTruthy();
+      expect(await findByText('Press de banca')).toBeTruthy();
 
-    fireEvent.press(getByLabelText('Filtrar por músculo Pectorales'));
-    await waitFor(() => {
-      expect(listExercises).toHaveBeenLastCalledWith('current-token', {
-        equipmentId: undefined,
-        page: 1,
-        pageSize: 30,
-        primaryMuscleId: 'muscle-1',
-        search: undefined,
+      fireEvent.press(getByLabelText('Filtrar por músculo Pectorales'));
+      await waitFor(() => {
+        expect(listExercises).toHaveBeenLastCalledWith('current-token', {
+          equipmentId: undefined,
+          page: 1,
+          pageSize: 30,
+          primaryMuscleId: 'muscle-1',
+          search: undefined,
+        });
       });
-    });
 
-    fireEvent.press(getByLabelText('Filtrar por equipamiento Barra'));
-    await waitFor(() => {
-      expect(listExercises).toHaveBeenLastCalledWith('current-token', {
-        equipmentId: 'equipment-1',
-        page: 1,
-        pageSize: 30,
-        primaryMuscleId: 'muscle-1',
-        search: undefined,
+      fireEvent.press(getByLabelText('Filtrar por equipamiento Barra'));
+      await waitFor(() => {
+        expect(listExercises).toHaveBeenLastCalledWith('current-token', {
+          equipmentId: 'equipment-1',
+          page: 1,
+          pageSize: 30,
+          primaryMuscleId: 'muscle-1',
+          search: undefined,
+        });
       });
-    });
 
-    fireEvent.changeText(getByLabelText('Buscar ejercicios'), 'sentadilla');
-    fireEvent.press(getByText('Buscar'));
+      fireEvent.changeText(getByLabelText('Buscar ejercicios'), 'sentadilla');
+      fireEvent.press(getByText('Buscar'));
 
-    await waitFor(() => {
-      expect(listExercises).toHaveBeenLastCalledWith('current-token', {
-        equipmentId: 'equipment-1',
-        page: 1,
-        pageSize: 30,
-        primaryMuscleId: 'muscle-1',
-        search: 'sentadilla',
+      await waitFor(() => {
+        expect(listExercises).toHaveBeenLastCalledWith('current-token', {
+          equipmentId: 'equipment-1',
+          page: 1,
+          pageSize: 30,
+          primaryMuscleId: 'muscle-1',
+          search: 'sentadilla',
+        });
       });
-    });
     },
     12_000,
   );
