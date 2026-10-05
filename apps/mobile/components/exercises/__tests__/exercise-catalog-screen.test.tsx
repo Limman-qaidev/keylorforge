@@ -243,7 +243,7 @@ describe('ExerciseCatalogScreen', () => {
 
   it('opens normalized exercise detail without images or instruction bodies', async () => {
     const user = userEvent.setup();
-    const { findByText, getByLabelText } = await renderScreen();
+    const { findByText, getAllByText, getByLabelText } = await renderScreen();
 
     await findByText('Press de banca');
     await user.press(getByLabelText('Abrir Press de banca'));
@@ -251,7 +251,7 @@ describe('ExerciseCatalogScreen', () => {
     expect(await findByText('DETALLE DEL EJERCICIO')).toBeTruthy();
     expect(await findByText('Principal')).toBeTruthy();
     expect(await findByText('Intermedio')).toBeTruthy();
-    expect(await findByText('Fuerza')).toBeTruthy();
+    expect(getAllByText('Fuerza')).toHaveLength(2);
     expect(await findByText('Compuesto')).toBeTruthy();
     expect(await findByText('Empuje')).toBeTruthy();
     expect(getExercise).toHaveBeenCalledWith('current-token', 'exercise-1');
