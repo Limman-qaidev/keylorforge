@@ -6,7 +6,9 @@ import {
   waitFor,
 } from '@testing-library/react-native';
 
-import { ExerciseCatalogScreen } from '@/components/exercises/exercise-catalog-screen';
+import {
+  ExerciseCatalogScreen,
+} from '@/components/exercises/exercise-catalog-screen';
 import { useAuth } from '@/lib/auth/auth-provider';
 import {
   CatalogApiError,
