@@ -347,7 +347,6 @@ export function ExerciseCatalogScreen() {
     },
     getNextPageParam: (lastPage) =>
       lastPage.page < lastPage.total_pages ? lastPage.page + 1 : undefined,
-    placeholderData: (previousData) => previousData,
     retry: false,
   });
 
