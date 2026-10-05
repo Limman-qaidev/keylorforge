@@ -202,7 +202,7 @@ Canonical exercise taxonomy, muscles/equipment, instructions and catalogue acces
 
 ### Workout engine
 
-Create/continue/complete sessions; add exercises; log sets; comments; resilient local recording.
+Create/continue/complete sessions; add exercises; log sets; comments; resilient local recording; curated/custom plans and reusable workout templates at the baseline needed to make the workout engine practical; first-class free workouts; basic rest timing; context/time-aware adaptation; and bounded, explainable recommendations under approved M3 policies.
 
 ### History and analytics
 
@@ -222,7 +222,7 @@ Posts, media, comments/reactions, workout sharing and privacy/moderation flows.
 
 ### Beta / advanced product
 
-Notifications, templates/routines, rest timers, advanced charts/goals, integrations such as Apple Health / Health Connect / Garmin, and later recommendation/ML possibilities.
+Notifications, advanced multi-month programming/periodization beyond the M3 plan/template baseline, advanced charts/goals, integrations such as Apple Health / Health Connect / Garmin, and later conversational/generative coaching or recommendation/ML capabilities beyond the bounded M3 decision engine.
 
 ## Explicit non-goal
 
