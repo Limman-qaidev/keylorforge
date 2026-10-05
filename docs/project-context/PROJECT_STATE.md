@@ -1,16 +1,128 @@
 # KeylorForge project state
 
-Last updated: 2026-09-05
+Last updated: 2026-10-05
 
 This is the fast handoff for resuming work. GitHub issues, PRs and `main` remain the final authority for real-time status.
 
 ## Current milestone
 
+**M2 — Exercise Catalog (complete)**
+
+M2 passed its final engineering, independent QA and physical-device exit gate on 2026-10-05. CAT-004 #85 records the final synthesis and Product Owner device evidence. Parent milestone #81 is ready to close with this documentation exit.
+
+The next planned milestone is **M3 — Workout Engine**. M3 may begin only after the CAT-004/M2 documentation exit PR is merged.
+
+Completed M2 work:
+
+- #82 CAT-001 canonical exercise model and deterministic Kinetic importer — merged via PR #86
+- #83 CAT-002 read-only authenticated exercise catalogue API — merged via PR #87
+- #84 CAT-003 mobile catalogue browse/search/filter/detail — merged via PR #88
+- #85 CAT-004 end-to-end, independent QA and physical-device acceptance — PASS
+
+### M2 canonical catalogue evidence
+
+KeylorForge owns the runtime catalogue. The bootstrap source is the vendored Kinetic Exercises DB snapshot:
+
+- source: `kinetic-place/exercises-db`
+- pinned commit: `1783421f145e546fa168c591a0e4d11cae6f23df`
+- license: upstream MIT notice retained in `database/src/keylorforge_database/catalog_data/KINETIC_LICENSE`
+- importer is offline/deterministic and does not call Kinetic at runtime
+- 899 exercises
+- 17 muscle groups
+- 36 equipment taxonomy entries
+- 2,629 exercise-muscle relations
+- 899 exercise-equipment relations
+- supported measurement types: `reps`, `time`, `distance`
+- muscle roles: `primary`, `secondary`, `tertiary`
+
+The importer/idempotency integration coverage verifies that re-running the pinned snapshot does not silently duplicate catalogue rows.
+
+### M2 API/mobile outcome
+
+Authenticated users can use the canonical catalogue through KeylorForge's own FastAPI/PostgreSQL path:
+
+- browse active system exercises in the existing `Entrenar` destination
+- search by Spanish exercise name
+- filter by primary muscle
+- filter by equipment
+- combine search and filters
+- page deterministically with explicit load-more behavior
+- open exercise detail
+- inspect localized name, measurement, difficulty/category, force/mechanics, muscle roles and equipment
+- encounter intentional loading, empty, partial-error, pagination-error and retry states
+- use the catalogue without images/media or untranslated English instruction bodies
+
+The mobile app and API have no runtime Kinetic dependency.
+
+### M2 physical-device acceptance evidence
+
+On 2026-10-05 the Product Owner completed the required smoke on a physical Android device using the installed KeylorForge development build, local FastAPI, local PostgreSQL through Docker Compose, and Supabase Auth.
+
+Verified on device:
+
+- authenticated launch and entry to `Entrenar`
+- catalogue loads through the local KeylorForge FastAPI/PostgreSQL path
+- 899 exercises are reported
+- browse and load-more pagination work
+- Spanish-name search works
+- primary-muscle filtering works
+- equipment filtering works
+- combined filters/search work
+- changed filters do not leave stale previous results visible
+- multiple distinct exercise detail views open and return correctly
+- text-only M2 presentation is coherent with no broken image placeholders or English instruction bodies
+- empty state and clear-filter recovery work
+- deliberate network failure shows a retryable error without losing the authenticated session
+- restoring connectivity and retrying recovers the catalogue
+- fully dismissing and reopening the Android app restores the authenticated session
+- re-entering `Entrenar` after restart reloads a coherent 899-exercise catalogue
+
+Product Owner reports physical-device **PASS**. Evidence is recorded on #85.
+
+### M2 independent QA acceptance
+
+Independent CAT-004 QA reports **PASS for M2/M3 entry**.
+
+Validated against the vendored EN/ES snapshot on `main`:
+
+- EN/ES exercise counts both equal 899 and use identical exercise ID sets
+- EN/ES muscle counts both equal 17 and use identical muscle ID sets
+- EN/ES equipment taxonomy counts both equal 36 and use identical equipment ID sets
+- no duplicate IDs exist in exercises, muscles or equipment
+- every Spanish exercise has at least one primary muscle
+- every Spanish exercise has at least one equipment relationship
+- every exercise uses a supported measurement type
+- no exercise-muscle or exercise-equipment relationship points outside its canonical taxonomy
+- embedded Spanish muscle/equipment names match canonical Spanish taxonomy names
+- EN/ES records preserve the same measurement/difficulty/force/mechanics/category and relationship IDs
+- all 17 primary-muscle categories are represented
+
+Three Spanish display-name collisions from the pinned upstream snapshot were identified. They are not importer-created duplicate rows and do not block M3 because each exercise preserves a distinct stable internal/source identity. Follow-up curation is tracked in #89 before analytics/rankings rely on cross-session exercise comparability.
+
+### M2 CI evidence
+
+All four repository workflows passed on the final implementation head of each M2 implementation PR:
+
+- CAT-001 / PR #86 head `6b2fba0d620d0c8c0f512c9bc42c15f2799a6ec3` — Backend CI, Mobile CI, Database Migration CI, residual check: success
+- CAT-002 / PR #87 head `3251e6e4b4f50d87137c9698df057f63bee53571` — Backend CI, Mobile CI, Database Migration CI, residual check: success
+- CAT-003 / PR #88 head `9041254a7589026f4743cddb9d77366f4e4688fa` — Backend CI, Mobile CI, Database Migration CI, residual check: success
+
+### M2 exit decision
+
+M2 satisfies its Definition of Done. Once this documentation exit is merged, #85 and parent milestone #81 can close and work may proceed to **M3 — Workout Engine**.
+
+Deferred/non-blocking catalogue work includes:
+
+- #89 — curate upstream exercise aliases and Spanish display-name collisions before derived analytics/rankings depend on comparability
+- exercise images/media and AI generation
+- translated execution instructions
+- user-created/custom exercises
+
+## Completed M1 identity
+
 **M1 — Identity (complete)**
 
 M0 Foundation and M1 Identity are complete. M1 passed its final end-to-end, security, QA and physical-device exit gate on 2026-09-05. Issue #43 records the exit evidence and parent milestone #36 is closed as completed in the same exit sequence.
-
-The next planned milestone is **M2 — Exercise Catalog**.
 
 Completed M1 implementation/product-shell/acceptance work:
 
@@ -116,7 +228,7 @@ Authoritative pull-request workflow/job checks:
 
 The policy requires a pull request, requires all three checks with strict up-to-date branches, and requires all review conversations to be resolved. It has zero required approvals. Administrators are included in enforcement.
 
-## Roadmap after M1
+## Roadmap
 
 - M2 Exercise Catalog
 - M3 Workout Engine
