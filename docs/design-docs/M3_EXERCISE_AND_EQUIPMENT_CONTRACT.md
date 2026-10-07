@@ -1,11 +1,12 @@
 # M3 Exercise Intelligence and Equipment Contract
 
-**Status:** Draft for Product Owner review  
+**Status:** Accepted by Product Owner  
 **Milestone:** M3 — Workout Engine  
 **Issue:** #95  
 **Parent authorities:** `M3_WORKOUT_ENGINE_PRODUCT_CONTRACT.md`, `M3_TRAINING_GOAL_POLICIES.md`  
 **Related catalogue follow-up:** #89  
-**Evidence review:** 2026-10-07
+**Evidence review:** 2026-10-07  
+**Product Owner approval:** 2026-10-07
 
 ## 1. Purpose
 
