@@ -28,12 +28,19 @@ An exercise can target multiple muscles with explicit roles such as primary and 
 ### 3. Workout recording
 Users can:
 - start a workout session
+- choose a suitable curated plan where supported
+- create reusable workout templates / custom workout structures
+- start a free workout without following a plan
+- adapt a planned workout to practical constraints such as available time or equipment where supported by the M3 contract
 - add exercises
 - add, edit and remove sets
 - record repetitions and weight where applicable
 - add comments
+- use the basic live-workout rest timing needed by the M3 experience
 - finish or cancel a session
 - continue recording when network connectivity is unavailable
+
+The workout engine may provide bounded, explainable recommendations and adaptations where their governing M3 contracts have been approved. It must not make basic logging depend on an AI service or on network availability.
 
 The data model must allow future exercise metrics such as duration, distance, assistance and other exercise-specific values without requiring a destructive redesign.
 
@@ -65,10 +72,10 @@ Arbitrary machine weights must not be treated as universally comparable strength
 - photos and media
 - reactions and comments
 - push notifications
-- routine/templates
+- advanced multi-month programming and complex periodization beyond the M3 plan/template baseline
 - advanced analytics
 - Apple Health / Health Connect / Garmin integrations
-- recommendation systems
+- unrestricted conversational/generative coaching and recommendation systems beyond the bounded, explainable M3 decision engine
 
 These later features must not block delivery of the workout core.
 
