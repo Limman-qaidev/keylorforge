@@ -1,8 +1,9 @@
 # M3 Training Goal and Recovery Policies
 
-**Status:** Draft for Product Owner review  
+**Status:** Accepted by Product Owner  
 **Parent authority:** `docs/design-docs/M3_WORKOUT_ENGINE_PRODUCT_CONTRACT.md`  
-**Evidence review:** 2026-10-07
+**Evidence review:** 2026-10-07  
+**Product Owner approval:** 2026-10-07
 
 ### Core rule
 
@@ -24,7 +25,27 @@ Body-goal modifiers:
 
 Body goals modify interpretation; they do not become separate workout engines.
 
-Primary goal controls exercise priority, progression metric, load/rep bias, rest priority, time-constrained trade-offs and fatigue interpretation. Secondary goals may influence compatible choices, but the primary goal wins on material conflict unless the user changes priorities.
+KeylorForge separates **user outcome priority** from **training-policy priority**.
+
+A body goal may be the user's primary overall objective without becoming the workout policy.
+
+Example:
+
+`primary_user_outcome = FAT_LOSS`  
+`primary_training_policy = STRENGTH`  
+`training_intent = preserve_or_improve_strength_while_losing_fat`
+
+In that case:
+
+- `STRENGTH` governs exercise specificity, load/rep bias, rest priority and session trade-offs;
+- `FAT_LOSS` modifies success interpretation and progression/recovery conservatism;
+- lack of new PRs is not automatically failure while strength is preserved.
+
+Within the training-policy dimension, one policy is primary and an optional secondary training policy may influence compatible choices. If two training policies materially conflict, the primary training policy wins unless the user changes priorities.
+
+Within the body-goal dimension, one current modifier is active for M3.
+
+Cross-dimension precedence is therefore not “training goal beats body goal” or vice versa: they have different responsibilities. Exact numerical weighting between multiple training policies is not approved.
 
 ### Shared rules
 
@@ -101,6 +122,17 @@ Evidence supports a lower-load/higher-repetition bias for relative muscular endu
 
 Progression may use reps, duration, distance, density or later load progression. Density must not mean “rest as little as possible”.
 
+Plateau response:
+1. verify that load, movement, duration/rest and equipment are comparable;
+2. inspect fatigue/readiness and whether density is already too aggressive;
+3. change one progression variable at a time where practical;
+4. if repetitions are capped, consider a small valid load increase and reset toward the lower end of the target;
+5. if duration/distance is the target, adjust that variable before adding unrelated volume;
+6. reduce accumulated stress when repeated underperformance and recovery signals converge;
+7. only later change exercise/program structure if the target remains stalled.
+
+Do not automatically shorten rest merely because repetitions stopped increasing.
+
 ### General fitness
 
 Priorities:
@@ -113,6 +145,16 @@ Priorities:
 ACSM 2026 supports consistency over unnecessary complexity for healthy adults.
 
 A coherent short session is better than cancelling because ideal duration cannot fit. A PR is not required for every successful workout.
+
+Plateau response:
+- stable performance with good consistency and broad useful work may require **no change**;
+- if an explicit user target is repeatedly stalled, first verify adherence and comparable conditions;
+- simplify rather than add complexity;
+- adjust one practical progression variable at a time;
+- change exercise selection only when fit, preference, equipment or persistent stagnation justifies it;
+- reduce stress first when fatigue/recovery evidence is poor.
+
+The engine must not manufacture a problem merely because metrics are stable.
 
 ### Body-goal modifiers
 
