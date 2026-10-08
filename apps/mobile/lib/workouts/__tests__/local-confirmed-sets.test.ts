@@ -58,6 +58,7 @@ class FakePerformedSQLite implements SqliteWorkoutPort {
   readonly sets = new Map<string, LocalPerformedSet>();
   failSetInsert = false;
   afterSetLookup: (() => void) | undefined;
+  duringSessionLookup: (() => void) | undefined;
 
   constructor() {
     this.sessions.set(A + ':' + SESSION, {
@@ -124,6 +125,7 @@ class FakePerformedSQLite implements SqliteWorkoutPort {
       }
     } else if (sql.includes('FROM local_workout_sessions')) {
       result = this.sessions.get(subject + ':' + String(params[1]));
+      this.duringSessionLookup?.();
     } else if (sql.includes('FROM local_workout_occurrences')) {
       result = this.occurrences.get(
         subject + ':' + String(params[1]) + ':' + String(params[2]),
@@ -313,6 +315,33 @@ describe('M3 actual confirmed workout history', () => {
         measurement: { measurementType: 'reps', reps: 13 },
       }),
     ).rejects.toMatchObject({ code: 'mutationConflict' });
+  });
+
+  it('freezes nested form and machine snapshots before SQLite awaits', async () => {
+    const db = new FakePerformedSQLite();
+    const mutable = JSON.parse(JSON.stringify(first)) as ConfirmLocalSetInput;
+    db.duringSessionLookup = () => {
+      if (mutable.measurement.measurementType === 'reps') {
+        mutable.measurement.reps = 99;
+      }
+      if (mutable.load) {
+        mutable.load.decimal = '999';
+      }
+      if (mutable.machine) {
+        mutable.machine.snapshot.label = 'mutated after START';
+      }
+    };
+    const result = await confirmLocalWorkoutSet(db, auth().access, mutable);
+    expect(result.reps).toBe(12);
+    expect(result.load_decimal).toBe('20.5');
+    expect(JSON.parse(result.machine_snapshot_json!)).toEqual({
+      label: 'Polea A',
+      ratio: 'unknown',
+    });
+    const payload = JSON.parse(db.outbox.get(A + ':' + first.mutationId)!.payload_json);
+    expect(payload.measurement.reps).toBe(12);
+    expect(payload.load.decimal).toBe('20.5');
+    expect(payload.machine.snapshot.label).toBe('Polea A');
   });
 
   it('rolls back occurrence and outbox when the set insert fails', async () => {
