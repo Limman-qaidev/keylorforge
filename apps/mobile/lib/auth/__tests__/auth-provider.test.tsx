@@ -216,6 +216,8 @@ async function expectPhase(
   });
 }
 
+const localSignOutKey = '@keylorforge/auth/explicit-local-sign-out';
+
 describe('AuthProvider', () => {
   beforeEach(async () => {
     await AsyncStorage.clear();
@@ -568,9 +570,7 @@ describe('AuthProvider', () => {
     // Protected routes lose their auth state before a provider response.
     expect(getByTestId('phase').props.children).toBe('signedOut');
     expect(getByTestId('access-token').props.children).toBe('');
-    await waitFor(() =>
-      expect(AsyncStorage.getItem('@keylorforge/auth/explicit-local-sign-out')).resolves.toBe('1'),
-    );
+    expect(await AsyncStorage.getItem(localSignOutKey)).toBe('1');
 
     await act(async () => {
       finishSignOut?.({ error: null });
@@ -602,7 +602,7 @@ describe('AuthProvider', () => {
       );
     });
     expect(getByTestId('access-token').props.children).toBe('');
-    expect(await AsyncStorage.getItem('@keylorforge/auth/explicit-local-sign-out')).toBe('1');
+    expect(await AsyncStorage.getItem(localSignOutKey)).toBe('1');
     expect(auth.client.auth.signOut).toHaveBeenCalledWith();
     expect(auth.client.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
 
@@ -644,13 +644,16 @@ describe('AuthProvider', () => {
       fireEvent.press(restarted.getByText('sign in'));
     });
     await expectPhase(restarted.getByTestId, 'signedIn');
-    expect(restarted.getByTestId('access-token').props.children).toBe('access-token');
-    expect(await AsyncStorage.getItem('@keylorforge/auth/explicit-local-sign-out')).toBeNull();
+    expect(restarted.getByTestId('access-token').props.children).toBe(
+      'access-token',
+    );
+    expect(await AsyncStorage.getItem(localSignOutKey)).toBeNull();
   });
 
   it('keeps local sign-out even if the provider throws', async () => {
     const { client } = createClient({ initialSession: session() });
-    jest.mocked(client.auth.signOut)
+    jest
+      .mocked(client.auth.signOut)
       .mockRejectedValueOnce(new Error('network failure with private details'))
       .mockRejectedValueOnce(new Error('local sign-out also unavailable'));
     const { getByText, getByTestId } = render(
@@ -673,7 +676,9 @@ describe('AuthProvider', () => {
 
   it('fails closed in memory and reports when the durable barrier cannot be saved', async () => {
     const { client } = createClient({ initialSession: session() });
-    jest.mocked(AsyncStorage.setItem).mockRejectedValueOnce(new Error('disk failed'));
+    jest
+      .mocked(AsyncStorage.setItem)
+      .mockRejectedValueOnce(new Error('disk failed'));
     const { getByText, getByTestId } = render(
       <AuthProvider client={client}>
         <AuthProbe />
