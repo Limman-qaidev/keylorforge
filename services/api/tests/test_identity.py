@@ -334,8 +334,13 @@ def test_delete_service_purges_workouts_before_provider_and_finalizes(
     )
 
     assert events == [
-        "prepared", "committed", "purged", "committed",
-        "provider", "finalized", "committed",
+        "prepared",
+        "committed",
+        "purged",
+        "committed",
+        "provider",
+        "finalized",
+        "committed",
     ]
 
 
@@ -365,7 +370,8 @@ def test_delete_service_keeps_committed_tombstone_on_provider_failure(
 
     monkeypatch.setattr(identity_service, "ApplicationUserRepository", _Repository)
     monkeypatch.setattr(
-        identity_service, "purge_account_workout_data",
+        identity_service,
+        "purge_account_workout_data",
         lambda *_: events.append("purged"),
     )
     with pytest.raises(HTTPException) as raised:
@@ -402,7 +408,8 @@ def test_delete_service_does_not_call_provider_on_purge_failure(
     db = _Session()
     monkeypatch.setattr(identity_service, "ApplicationUserRepository", _Repository)
     monkeypatch.setattr(
-        identity_service, "purge_account_workout_data",
+        identity_service,
+        "purge_account_workout_data",
         lambda *_: (_ for _ in ()).throw(RuntimeError("purge unavailable")),
     )
     with pytest.raises(RuntimeError, match="purge unavailable"):
