@@ -69,7 +69,7 @@ Initial `primary_intent_dimension`:
 
 If `primary_intent_dimension = BODY_GOAL`, `body_goal` is required and non-null.
 
-**Cold-start clarification (proposed by #121 / R2-02):** the *entity* Training Intent is optional before the user deliberately establishes a policy. No row/revision is created merely to satisfy a Free Workout relationship. When a revision exists, the required policy and priority constraints above still apply. Current declared experience/preferences belong to a separate optional Training Profile; the `experience/policy level` preserved here is historical context, not competing writable preference state.
+**Cold-start clarification (accepted by #121 / merged PR #122):** the *entity* Training Intent is optional before the user deliberately establishes a policy. No row/revision is created merely to satisfy a Free Workout relationship. When a revision exists, the required policy and priority constraints above still apply. Current declared experience/preferences belong to a separate optional Training Profile; the `experience/policy level` preserved here is historical context, not competing writable preference state.
 
 ### 2.2 Example
 
@@ -105,7 +105,7 @@ They belong to a future explicit target/goal entity.
 
 ## 2.5 Training Profile and per-session operational context (R2-02 amendment)
 
-The proposed `M3_TRAINING_PROFILE_AND_SESSION_CONTEXT_CONTRACT.md` (#121) defines a separate optional user-owned Training Profile for stable declared preferences and an optional session-owned operational context for time/gym/equipment availability. Neither can duplicate `primary_training_policy` or `body_goal` as its own authority. Materially used profile/context revisions must be traceable. Generic subjective readiness persistence still needs its separate G1/privacy decision, and sensitive cycle-specific persistence remains blocked by #116.
+The accepted `M3_TRAINING_PROFILE_AND_SESSION_CONTEXT_CONTRACT.md` (#121 / merged PR #122) defines a separate optional user-owned Training Profile for stable declared preferences and an optional session-owned operational context for time/gym/equipment availability. Neither can duplicate `primary_training_policy` or `body_goal` as its own authority. Materially used profile/context revisions must be traceable. Generic subjective readiness persistence still needs its separate G1/privacy decision, and sensitive cycle-specific persistence remains blocked by #116.
 
 ---
 
@@ -878,7 +878,7 @@ This contract requires later schema/API work to support:
 - coverage as derived/recomputable state;
 - occurrence creation atomically coupled with its first confirmed performed set;
 - durable applied agenda changes and immutable Finish/final-agenda snapshot as one failure-atomic terminal transition;
-- an explicit user-owned entity deletion path and FK/ownership graph that respects the proposed `M3_SERVER_DELETION_AND_RETENTION_CONTRACT.md` (#123), without deleting M1 terminal identity or system catalogue.
+- an explicit user-owned entity deletion path and FK/ownership graph that respects the accepted design contract `M3_SERVER_DELETION_AND_RETENTION_CONTRACT.md` (#123 / merged PR #124), without deleting M1 terminal identity or system catalogue.
 
 Exact table/column names remain implementation work.
 
@@ -898,7 +898,7 @@ Still deferred:
 - advanced set techniques beyond WARMUP/WORKING;
 - circuits beyond minimum SUPERSET;
 - M4 analytics formulas;
-- exact M3 server deletion executor, status API, server retry/job model, tombstone/receipt retention horizon, backups and external resource inventory — governed by proposed R2-03 / #123, not implicitly solved by this persistence contract.
+- exact M3 server deletion executor, status API, server retry/job model, tombstone/receipt retention horizon, backups and external resource inventory — governed by accepted R2-03 design / #123 (implementation/security gates still OPEN), not implicitly solved by this persistence contract.
 
 These may not be guessed in dependent implementation work.
 
