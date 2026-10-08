@@ -46,12 +46,16 @@ def test_protected_workout_endpoints_require_bearer(path: str) -> None:
         {"time_zone": "Unknown/Invented"},
         {"origin": "template"},
         {"owner_user_id": "foreign"},
+        {"protocol_version": 2},
+        {"started_at": "0001-01-01T00:00:00+14:00"},
+        {"started_at": "9999-12-31T23:59:59-14:00"},
     ],
 )
 def test_start_rejects_ambiguous_date_or_unapproved_fields(
-    mutation: dict[str, str],
+    mutation: dict[str, str | int],
 ) -> None:
     body = {
+        "protocol_version": 1,
         "session_id": str(uuid4()),
         "mutation_id": str(uuid4()),
         "started_at": "2026-10-08T12:30:00+00:00",
@@ -71,3 +75,18 @@ def test_start_and_resume_are_declared_in_openapi() -> None:
     assert "/workout-sessions/start" in paths
     assert "/workout-sessions/active" in paths
     assert paths["/workout-sessions/start"]["post"]["responses"]["201"]
+
+
+def test_start_requires_explicit_protocol_version() -> None:
+    body = {
+        "session_id": str(uuid4()),
+        "mutation_id": str(uuid4()),
+        "started_at": "2026-10-08T12:30:00+00:00",
+        "time_zone": "Europe/Madrid",
+    }
+    response = _client().post(
+        "/workout-sessions/start",
+        headers={"Authorization": "Bearer valid-token"},
+        json=body,
+    )
+    assert response.status_code == 422
