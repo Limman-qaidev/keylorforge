@@ -5,10 +5,7 @@ import {
   type LocalPerformedSet,
 } from '../local-confirmed-sets';
 import type { SqliteQueryPort, SqliteWorkoutPort } from '../local-schema';
-import type {
-  LocalSubjectAccess,
-  LocalWorkoutSession,
-} from '../local-store';
+import type { LocalSubjectAccess, LocalWorkoutSession } from '../local-store';
 
 const A = 'a3dbf764-e0e3-41aa-9895-6e58eadfbb14';
 const B = 'e426dd13-344a-4b69-8920-cb014715c6c1';
@@ -119,9 +116,9 @@ class FakePerformedSQLite implements SqliteWorkoutPort {
     let result: unknown = null;
     if (sql.includes('FROM local_workout_outbox')) {
       if (sql.includes('ORDER BY rowid DESC')) {
-        result = [...this.outbox.values()].reverse().find(
-          (r) => r.subject === subject && r.session_id === params[1],
-        );
+        result = [...this.outbox.values()]
+          .reverse()
+          .find((r) => r.subject === subject && r.session_id === params[1]);
       } else {
         result = this.outbox.get(subject + ':' + String(params[1]));
       }
@@ -134,7 +131,9 @@ class FakePerformedSQLite implements SqliteWorkoutPort {
     } else if (sql.includes('FROM local_workout_sets')) {
       result = this.sets.get(subject + ':' + String(params[1]));
       if (sql.includes('AND mutation_id = ?')) {
-        if ((result as LocalPerformedSet | undefined)?.mutation_id !== params[2]) {
+        if (
+          (result as LocalPerformedSet | undefined)?.mutation_id !== params[2]
+        ) {
           result = null;
         }
         this.afterSetLookup?.();
@@ -177,9 +176,25 @@ class FakePerformedSQLite implements SqliteWorkoutPort {
         throw new Error('SQLite disk full');
       }
       const [
-        subject, sessionId, setId, occurrenceId, role, measurement,
-        reps, duration, distance, distanceUnit, load, loadUnit, semantics,
-        machineId, machineConfigId, machineJson, targetJson, completed, mutationId,
+        subject,
+        sessionId,
+        setId,
+        occurrenceId,
+        role,
+        measurement,
+        reps,
+        duration,
+        distance,
+        distanceUnit,
+        load,
+        loadUnit,
+        semantics,
+        machineId,
+        machineConfigId,
+        machineJson,
+        targetJson,
+        completed,
+        mutationId,
       ] = params;
       const row: LocalPerformedSet = {
         subject: String(subject),
@@ -213,7 +228,9 @@ class FakePerformedSQLite implements SqliteWorkoutPort {
 function auth(initial: string | null = A) {
   let subject = initial;
   return {
-    access: { currentAuthenticatedSubject: () => subject } as LocalSubjectAccess,
+    access: {
+      currentAuthenticatedSubject: () => subject,
+    } as LocalSubjectAccess,
     change(next: string | null) {
       subject = next;
     },
@@ -250,7 +267,9 @@ describe('M3 actual confirmed workout history', () => {
       mutation_kind: 'CONFIRM_FIRST_SET_WITH_OCCURRENCE',
       depends_on_mutation_id: FIRST_MUTATION,
     });
-    expect(await readLocalConfirmedSet(db, auth().access, first.setId)).toEqual(row);
+    expect(await readLocalConfirmedSet(db, auth().access, first.setId)).toEqual(
+      row,
+    );
   });
 
   it('appends WORKING sets to the same occurrence with original machine/unit per set', async () => {
@@ -263,9 +282,9 @@ describe('M3 actual confirmed workout history', () => {
     expect(row.set_role).toBe('WORKING');
     expect(row.load_unit).toBe('lb');
     expect(row.machine_profile_id).toBe(next.machine?.profileId);
-    expect(db.outbox.get(A + ':' + next.mutationId)?.depends_on_mutation_id).toBe(
-      first.mutationId,
-    );
+    expect(
+      db.outbox.get(A + ':' + next.mutationId)?.depends_on_mutation_id,
+    ).toBe(first.mutationId);
   });
 
   it('replaying the same first set with uppercase UUIDs is idempotent', async () => {
@@ -299,9 +318,9 @@ describe('M3 actual confirmed workout history', () => {
   it('rolls back occurrence and outbox when the set insert fails', async () => {
     const db = new FakePerformedSQLite();
     db.failSetInsert = true;
-    await expect(confirmLocalWorkoutSet(db, auth().access, first)).rejects.toThrow(
-      'SQLite disk full',
-    );
+    await expect(
+      confirmLocalWorkoutSet(db, auth().access, first),
+    ).rejects.toThrow('SQLite disk full');
     expect(db.occurrences.size).toBe(0);
     expect(db.sets.size).toBe(0);
     expect(db.outbox.size).toBe(1);
@@ -309,7 +328,9 @@ describe('M3 actual confirmed workout history', () => {
 
   it('rejects an additional set without an existing performed occurrence', async () => {
     const db = new FakePerformedSQLite();
-    await expect(confirmLocalWorkoutSet(db, auth().access, next)).rejects.toMatchObject({
+    await expect(
+      confirmLocalWorkoutSet(db, auth().access, next),
+    ).rejects.toMatchObject({
       code: 'occurrenceMissing',
     });
     expect(db.outbox.size).toBe(1);
@@ -317,35 +338,50 @@ describe('M3 actual confirmed workout history', () => {
 
   it('refuses confirmed work for a session owned by another account', async () => {
     const db = new FakePerformedSQLite();
-    await expect(confirmLocalWorkoutSet(db, auth(B).access, first)).rejects.toMatchObject({
+    await expect(
+      confirmLocalWorkoutSet(db, auth(B).access, first),
+    ).rejects.toMatchObject({
       code: 'sessionNotActive',
     });
-    expect(await readLocalConfirmedSet(db, auth(B).access, first.setId)).toBeNull();
+    expect(
+      await readLocalConfirmedSet(db, auth(B).access, first.setId),
+    ).toBeNull();
   });
 
   it.each([
     { measurement: { measurementType: 'reps', reps: -2 } },
     { measurement: { measurementType: 'reps', reps: 1.5 } },
-    { measurement: { measurementType: 'distance', distanceDecimal: '3e8', distanceUnit: 'km' } },
+    {
+      measurement: {
+        measurementType: 'distance',
+        distanceDecimal: '3e8',
+        distanceUnit: 'km',
+      },
+    },
     { load: { decimal: '-10', unit: 'kg', entrySemantics: 'assistance' } },
     { completedAtUtc: 'not-a-date' },
-  ])('rejects invalid performed measurements before writing: %j', async (changes) => {
-    const db = new FakePerformedSQLite();
-    await expect(
-      confirmLocalWorkoutSet(db, auth().access, {
-        ...first,
-        ...changes,
-      } as ConfirmLocalSetInput),
-    ).rejects.toMatchObject({ code: 'invalidInput' });
-    expect(db.outbox.size).toBe(1);
-    expect(db.occurrences.size).toBe(0);
-  });
+  ])(
+    'rejects invalid performed measurements before writing: %j',
+    async (changes) => {
+      const db = new FakePerformedSQLite();
+      await expect(
+        confirmLocalWorkoutSet(db, auth().access, {
+          ...first,
+          ...changes,
+        } as ConfirmLocalSetInput),
+      ).rejects.toMatchObject({ code: 'invalidInput' });
+      expect(db.outbox.size).toBe(1);
+      expect(db.occurrences.size).toBe(0);
+    },
+  );
 
   it('fences logout or account switch in the final database await and rolls back', async () => {
     const db = new FakePerformedSQLite();
     const account = auth();
     db.afterSetLookup = () => account.change(B);
-    await expect(confirmLocalWorkoutSet(db, account.access, first)).rejects.toMatchObject({
+    await expect(
+      confirmLocalWorkoutSet(db, account.access, first),
+    ).rejects.toMatchObject({
       code: 'notAuthenticated',
     });
     expect(db.occurrences.size).toBe(0);
