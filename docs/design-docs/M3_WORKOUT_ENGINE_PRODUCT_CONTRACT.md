@@ -211,11 +211,11 @@ rather than treating “fat loss” as the workout policy itself.
 
 Examples:
 
-- primary hypertrophy, secondary strength;
-- primary fat loss, secondary strength preservation;
-- primary general fitness, secondary muscular endurance.
+- primary training policy hypertrophy, secondary training policy strength;
+- primary overall outcome fat loss while strength remains the training policy used to govern workout decisions;
+- primary training policy general fitness, secondary training policy muscular endurance.
 
-The exact weighting model is provisional and belongs in the Training Goal Policies contract.
+The accepted Training Goal Policies contract separates overall outcome priority from training-policy priority and body-goal context. Exact persistence of that priority remains a prerequisite to be closed by the M3 persistence/data-model remediation; implementation must not guess it.
 
 ## 3.3 Goals change over time
 
@@ -1281,31 +1281,43 @@ before mobile implementation begins.
 
 ---
 
-# 23. Decisions still intentionally unresolved
+# 23. Downstream decision status
 
-The following are not settled by this contract and must not be guessed during implementation:
+Several questions that were intentionally open in this original Product Contract have now been resolved by accepted downstream M3 contracts.
+
+## Resolved downstream
+
+- session lifecycle: `ACTIVE / COMPLETED / CANCELLED`;
+- one logical active workout per user in M3;
+- finish-early versus cancel semantics;
+- minimum set-role distinction: `WARMUP` versus `WORKING`;
+- exercise/machine separation and machine-native load semantics;
+- user-controlled recommendations, abstention and model boundary;
+- workout sync correctness baseline: local-first outbox, idempotency, causal dependencies, optimistic concurrency, tombstones and explicit conflict handling;
+- end-to-end Entrenar/workout journey.
+
+## Still intentionally open or only partially closed
+
+These must not be guessed in implementation:
 
 - exact onboarding questions/order;
-- exact plan library;
-- exact goal taxonomy beyond the initial families;
-- precise body-goal representation/history;
-- exact training-goal numeric policies;
-- exact fatigue thresholds/scoring;
-- exact deload prescriptions;
+- exact curated plan library;
+- persistence shape for overall outcome priority / Training Intent;
+- exact training-goal numeric thresholds and evidence windows;
+- exact fatigue scoring and deload prescriptions;
 - exact exercise substitution ranking;
-- exact machine-profile data model;
-- exact automatic machine-calibration logic;
-- exact set-type enumeration;
-- exact session-state machine;
-- whether more than one active workout can exist;
-- exact cancel/discard semantics;
-- exact workout sync/conflict protocol — must be resolved by the dedicated M3 Workout Sync Contract before offline mutation synchronization is implemented;
+- final Machine Profile / Gym Context persistence schema;
+- automatic cross-machine calibration formula/confidence;
+- advanced set/execution techniques beyond the accepted WARMUP/WORKING baseline;
+- plan/template revision and historical snapshot representation;
+- Plan Step coverage/fulfillment semantics;
+- offline read/cache model required to start/train without network;
+- final measurement-unit/timezone persistence details;
 - exact Free/Premium packaging and price;
-- whether Laya is adopted;
-- where any decision model is hosted;
-- exact UI surfaces and wording.
+- whether Laya is adopted and where any optional decision model is hosted;
+- final pixel-level UI surfaces and wording.
 
-These questions should be resolved in the appropriate follow-up contract rather than opportunistically inside implementation PRs.
+Open items are resolved in focused remediation/design work and must not be invented opportunistically inside implementation PRs.
 
 ---
 
