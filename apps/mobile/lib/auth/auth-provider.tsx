@@ -221,7 +221,8 @@ export function AuthProvider({
       ]);
     } catch {
       if (operationVersion === sessionOperationVersion.current) {
-        isInitialRestorationComplete.current = true;
+        // Storage state is unknown: do not allow provider events to unlock it.
+        isInitialRestorationComplete.current = false;
         updateAuthState({
           confirmationEmail: null,
           feedback: {
@@ -346,7 +347,7 @@ export function AuthProvider({
       if (signOutInProgress.current) {
         return { error: 'Sign-out is still finishing. Please try again.' };
       }
-      const operationVersion = sessionOperationVersion.current;
+      const operationVersion = ++sessionOperationVersion.current;
       const { data, error } = await client.auth.signInWithPassword({
         email,
         password,
@@ -373,6 +374,7 @@ export function AuthProvider({
         };
       }
       hasExplicitLocalSignOut.current = false;
+      isInitialRestorationComplete.current = true;
       updateAuthState(stateForSession(data.session));
       return {};
     },
@@ -389,7 +391,7 @@ export function AuthProvider({
       if (signOutInProgress.current) {
         return { error: 'Sign-out is still finishing. Please try again.' };
       }
-      const operationVersion = sessionOperationVersion.current;
+      const operationVersion = ++sessionOperationVersion.current;
       const result = await authenticateWithSocialProvider(client, provider);
       if (operationVersion !== sessionOperationVersion.current) {
         return { error: 'Sign-in was interrupted. Please try again.' };
@@ -414,6 +416,7 @@ export function AuthProvider({
         };
       }
       hasExplicitLocalSignOut.current = false;
+      isInitialRestorationComplete.current = true;
       updateAuthState(stateForSession(result.session));
       return {};
     },
@@ -430,7 +433,7 @@ export function AuthProvider({
       if (signOutInProgress.current) {
         return { error: 'Sign-out is still finishing. Please try again.' };
       }
-      const operationVersion = sessionOperationVersion.current;
+      const operationVersion = ++sessionOperationVersion.current;
       const { data, error } = await client.auth.signUp({
         email,
         password,
@@ -459,6 +462,7 @@ export function AuthProvider({
           };
         }
         hasExplicitLocalSignOut.current = false;
+        isInitialRestorationComplete.current = true;
         updateAuthState(stateForSession(data.session));
         return {};
       }
@@ -642,27 +646,29 @@ export function AuthProvider({
         // The durable application barrier still blocks local access.
       }
     } finally {
-      signOutInProgress.current = false;
       try {
         await AsyncStorage.removeItem(pendingConfirmationEmailKey);
       } catch {
         // Confirmation UI is already cleared from in-memory auth state.
       }
+      signOutInProgress.current = false;
     }
 
-    if (!barrierSaved) {
-      return {
-        error:
-          'Local sign-out could not be saved. Please try again before restarting the app.',
-      };
+    const errorMessage = !barrierSaved
+      ? 'Local sign-out could not be saved. Please try again before restarting the app.'
+      : providerFailed
+        ? 'Signed out on this device. The authentication service could not confirm remote sign-out.'
+        : null;
+
+    if (errorMessage && hasExplicitLocalSignOut.current) {
+      // Home redirects as soon as phase becomes signedOut. Keep the warning
+      // in provider state so the welcome/sign-in screens can actually show it.
+      updateAuthState({
+        ...stateRef.current,
+        feedback: { kind: 'transient', message: errorMessage },
+      });
     }
-    if (providerFailed) {
-      return {
-        error:
-          'Signed out on this device. The authentication service could not confirm remote sign-out.',
-      };
-    }
-    return {};
+    return errorMessage ? { error: errorMessage } : {};
   }, [clientResult.client, updateAuthState]);
 
   /**
