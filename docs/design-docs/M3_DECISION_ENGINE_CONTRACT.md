@@ -446,12 +446,12 @@ Cold-start decisions should rely on:
 
 - approved curated plan;
 - stated training goal;
-- experience level;
-- available frequency/time/equipment;
+- explicitly declared experience level and available frequency/time/equipment when known;
+- optional Training Profile/preferences or per-session operational context from their actual versioned inputs;
 - conservative defaults;
 - user-selected loads/effort feedback.
 
-Do not pretend personalization exists before data exists.
+Do not pretend personalization exists before data exists. **No configured Training Intent** is an admissible context for Free Workout: do not fabricate an implicit primary policy or use an unvalidated body goal as training-policy authority. With insufficient goal/profile/history evidence, abstain from policy-specific recommendations while preserving all logging and basic deterministic UX. The proposed R2-02 Profile/Context contract owns these inputs; generic subjective readiness stays behind G1 and cycle-specific persistence stays behind #116.
 
 Progressive personalization begins as actual workout evidence accumulates.
 
