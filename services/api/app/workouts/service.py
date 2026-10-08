@@ -9,7 +9,10 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException, status
-from keylorforge_database.identity import ApplicationUserRepository, TerminalIdentityError
+from keylorforge_database.identity import (
+    ApplicationUserRepository,
+    TerminalIdentityError,
+)
 from keylorforge_database.models import (
     ApplicationUser,
     ApplicationUserLifecycle,
@@ -39,7 +42,10 @@ def _active_owner(
         locked = session.get(
             ApplicationUser, owner.id, with_for_update=True, populate_existing=True
         )
-        if locked is None or locked.lifecycle_state is not ApplicationUserLifecycle.ACTIVE:
+        if (
+            locked is None
+            or locked.lifecycle_state is not ApplicationUserLifecycle.ACTIVE
+        ):
             raise HTTPException(status_code=403, detail="not authorized")
         return locked
     return owner
@@ -62,12 +68,16 @@ def _intent_hash(request: StartFreeWorkoutRequest) -> str:
     # Stable across semantically identical timestamp timezone offsets.
     body = request.model_dump(mode="json")
     body["started_at"] = request.started_at.astimezone(UTC).isoformat()
-    normalized = json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    normalized = json.dumps(
+        body, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    )
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
 def start_free_workout(
-    *, session: Session, principal: AuthenticatedPrincipal,
+    *,
+    session: Session,
+    principal: AuthenticatedPrincipal,
     request: StartFreeWorkoutRequest,
 ) -> WorkoutSessionResponse:
     """START_SESSION: one owner lock, one row, one immutable retry receipt."""
