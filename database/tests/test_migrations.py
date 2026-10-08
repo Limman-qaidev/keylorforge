@@ -244,7 +244,7 @@ def test_catalog_migration_refuses_destructive_downgrade(
             revision = connection.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-        assert revision == "20261008_0001"
+        assert revision == "20261008_0002"
     finally:
         engine.dispose()
 
