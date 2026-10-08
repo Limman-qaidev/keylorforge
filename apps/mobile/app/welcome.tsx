@@ -12,10 +12,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { RequireSignedOut } from '@/components/auth/auth-guards';
 import { KeylorForgeBrand } from '@/components/brand/keylorforge-brand';
+import { useAuth } from '@/lib/auth/auth-provider';
 
 const welcomeHero = require('../assets/images/welcome-hero.png');
 
 export default function WelcomeRoute() {
+  const { feedback } = useAuth();
+
   return (
     <RequireSignedOut>
       <ImageBackground
@@ -41,6 +44,11 @@ export default function WelcomeRoute() {
               </Text>
             </View>
             <View style={styles.actions}>
+              {feedback ? (
+                <Text accessibilityRole="alert" style={styles.authFeedback}>
+                  {feedback.message}
+                </Text>
+              ) : null}
               <Link asChild href="/sign-up">
                 <Pressable
                   accessibilityRole="button"
@@ -70,6 +78,14 @@ export default function WelcomeRoute() {
 
 const styles = StyleSheet.create({
   actions: { gap: 4, paddingBottom: 8 },
+  authFeedback: {
+    backgroundColor: 'rgba(130, 18, 18, 0.88)',
+    borderRadius: 8,
+    color: '#ffffff',
+    fontSize: 14,
+    marginBottom: 12,
+    padding: 12,
+  },
   brandArea: { paddingTop: 18 },
   content: {
     flex: 1,

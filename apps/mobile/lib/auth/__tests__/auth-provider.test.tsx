@@ -7,6 +7,10 @@ import { useState } from 'react';
 import { AuthProvider, useAuth, type AuthPhase } from '../auth-provider';
 import type { MobileSupabaseClient } from '../supabase';
 
+type GetSessionResult = Awaited<
+  ReturnType<MobileSupabaseClient['auth']['getSession']>
+>;
+
 type AuthListener = (
   event: 'SIGNED_IN' | 'SIGNED_OUT' | 'TOKEN_REFRESHED',
   session: Session | null,
@@ -137,6 +141,7 @@ function AuthProbe() {
     signUp,
   } = useAuth();
   const [callbackResult, setCallbackResult] = useState('');
+  const [logoutResult, setLogoutResult] = useState('');
 
   return (
     <>
@@ -144,6 +149,7 @@ function AuthProbe() {
       <Text testID="confirmation">{confirmationEmail ?? ''}</Text>
       <Text testID="feedback">{feedback?.message ?? ''}</Text>
       <Text testID="callback-result">{callbackResult}</Text>
+      <Text testID="logout-result">{logoutResult}</Text>
       <Text testID="access-token">{currentSession?.access_token ?? ''}</Text>
       <Pressable
         onPress={() => void signIn('person@example.com', 'password123')}
@@ -188,7 +194,11 @@ function AuthProbe() {
       <Pressable onPress={() => void clearConfirmation()}>
         <Text>clear confirmation</Text>
       </Pressable>
-      <Pressable onPress={() => void signOut()}>
+      <Pressable
+        onPress={() =>
+          void signOut().then((result) => setLogoutResult(result.error ?? 'ok'))
+        }
+      >
         <Text>sign out</Text>
       </Pressable>
       <Pressable onPress={() => void invalidateSession()}>
@@ -210,7 +220,14 @@ async function expectPhase(
   });
 }
 
+const localSignOutKey = '@keylorforge/auth/explicit-local-sign-out';
+
 describe('AuthProvider', () => {
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+    jest.clearAllMocks();
+  });
+
   it('restores the persisted session before exposing the signed-in shell', async () => {
     const { client } = createClient({ initialSession: session() });
     const { getByTestId } = await render(
@@ -532,6 +549,213 @@ describe('AuthProvider', () => {
       fireEvent.press(getByText('sign out'));
     });
     await expectPhase(getByTestId, 'signedOut');
+  });
+
+  it('blocks local access immediately while remote sign-out remains pending', async () => {
+    const { client } = createClient({ initialSession: session() });
+    let finishSignOut: ((value: { error: null }) => void) | undefined;
+    jest.mocked(client.auth.signOut).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishSignOut = resolve;
+        }),
+    );
+    const { getByText, getByTestId } = await render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedIn');
+    await act(async () => {
+      fireEvent.press(getByText('sign out'));
+    });
+
+    // Protected routes lose their auth state before a provider response.
+    expect(getByTestId('phase').props.children).toBe('signedOut');
+    expect(getByTestId('access-token').props.children).toBe('');
+    expect(await AsyncStorage.getItem(localSignOutKey)).toBe('1');
+
+    await act(async () => {
+      finishSignOut?.({ error: null });
+    });
+    await waitFor(() => {
+      expect(getByTestId('logout-result').props.children).toBe('ok');
+    });
+  });
+
+  it('stays locally signed out when remote revocation fails and blocks stale auth events', async () => {
+    const auth = createClient({
+      initialSession: session(),
+      signOutError: new Error('network failed: secret-provider-details'),
+    });
+    const { getByText, getByTestId } = await render(
+      <AuthProvider client={auth.client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedIn');
+    await act(async () => {
+      fireEvent.press(getByText('sign out'));
+    });
+    await expectPhase(getByTestId, 'signedOut');
+    await waitFor(() => {
+      expect(getByTestId('logout-result').props.children).toBe(
+        'Signed out on this device. The authentication service could not confirm remote sign-out.',
+      );
+    });
+    expect(getByTestId('access-token').props.children).toBe('');
+    expect(getByTestId('feedback').props.children).toBe(
+      'Signed out on this device. The authentication service could not confirm remote sign-out.',
+    );
+    expect(await AsyncStorage.getItem(localSignOutKey)).toBe('1');
+    expect(auth.client.auth.signOut).toHaveBeenCalledWith();
+    expect(auth.client.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+
+    await act(async () => {
+      auth.emit('SIGNED_IN', session('stale-token'));
+      auth.emit('TOKEN_REFRESHED', session('stale-token'));
+    });
+    expect(getByTestId('phase').props.children).toBe('signedOut');
+    expect(getByTestId('access-token').props.children).toBe('');
+  });
+
+  it('keeps cached provider sessions quarantined after restart until explicit sign-in', async () => {
+    const first = createClient({
+      initialSession: session('old-token'),
+      signOutError: new Error('network failed'),
+    });
+    const initial = await render(
+      <AuthProvider client={first.client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+    await expectPhase(initial.getByTestId, 'signedIn');
+    await act(async () => {
+      fireEvent.press(initial.getByText('sign out'));
+    });
+    await expectPhase(initial.getByTestId, 'signedOut');
+    await initial.unmount();
+
+    const restored = createClient({ initialSession: session('old-token') });
+    const restarted = await render(
+      <AuthProvider client={restored.client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+    await expectPhase(restarted.getByTestId, 'signedOut');
+    expect(restarted.getByTestId('access-token').props.children).toBe('');
+
+    await act(async () => {
+      fireEvent.press(restarted.getByText('sign in'));
+    });
+    await expectPhase(restarted.getByTestId, 'signedIn');
+    expect(restarted.getByTestId('access-token').props.children).toBe(
+      'access-token',
+    );
+    expect(await AsyncStorage.getItem(localSignOutKey)).toBeNull();
+  });
+
+  it('keeps local sign-out even if the provider throws', async () => {
+    const { client } = createClient({ initialSession: session() });
+    jest
+      .mocked(client.auth.signOut)
+      .mockRejectedValueOnce(new Error('network failure with private details'))
+      .mockRejectedValueOnce(new Error('local sign-out also unavailable'));
+    const { getByText, getByTestId } = await render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+    await expectPhase(getByTestId, 'signedIn');
+    await act(async () => {
+      fireEvent.press(getByText('sign out'));
+    });
+    await expectPhase(getByTestId, 'signedOut');
+    await waitFor(() =>
+      expect(getByTestId('logout-result').props.children).toBe(
+        'Signed out on this device. The authentication service could not confirm remote sign-out.',
+      ),
+    );
+    expect(getByTestId('access-token').props.children).toBe('');
+  });
+
+  it('fails closed in memory and reports when the durable barrier cannot be saved', async () => {
+    const { client } = createClient({ initialSession: session() });
+    jest
+      .mocked(AsyncStorage.setItem)
+      .mockRejectedValueOnce(new Error('disk failed'));
+    const { getByText, getByTestId } = await render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+    await expectPhase(getByTestId, 'signedIn');
+    await act(async () => {
+      fireEvent.press(getByText('sign out'));
+    });
+    await expectPhase(getByTestId, 'signedOut');
+    await waitFor(() =>
+      expect(getByTestId('logout-result').props.children).toBe(
+        'Local sign-out could not be saved. Please try again before restarting the app.',
+      ),
+    );
+    expect(getByTestId('feedback').props.children).toBe(
+      'Local sign-out could not be saved. Please try again before restarting the app.',
+    );
+  });
+
+  it('ignores provider events if the persistent logout barrier cannot be read', async () => {
+    const auth = createClient({ initialSession: session() });
+    jest
+      .mocked(AsyncStorage.getItem)
+      .mockRejectedValueOnce(new Error('storage not readable'));
+    const { getByTestId } = await render(
+      <AuthProvider client={auth.client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedOut');
+    expect(getByTestId('feedback').props.children).toBe(
+      'Local authentication state could not be restored. Please try again.',
+    );
+    await act(async () => {
+      auth.emit('SIGNED_IN', session('cached-old-account'));
+      auth.emit('TOKEN_REFRESHED', session('cached-old-account'));
+    });
+    expect(getByTestId('phase').props.children).toBe('signedOut');
+    expect(getByTestId('access-token').props.children).toBe('');
+  });
+
+  it('does not let a stale restoration overwrite an explicit new sign-in', async () => {
+    const { client } = createClient();
+    let releaseRestore: ((result: GetSessionResult) => void) | undefined;
+    jest.mocked(client.auth.getSession).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseRestore = resolve;
+        }),
+    );
+    const { getByText, getByTestId } = await render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await act(async () => {
+      fireEvent.press(getByText('sign in'));
+    });
+    await expectPhase(getByTestId, 'signedIn');
+    await act(async () => {
+      releaseRestore?.({
+        data: { session: session('old-restored-token') },
+        error: null,
+      });
+    });
+    expect(getByTestId('phase').props.children).toBe('signedIn');
+    expect(getByTestId('access-token').props.children).toBe('access-token');
   });
 
   it('fails closed locally when terminal API auth invalidation cannot revoke remotely', async () => {
