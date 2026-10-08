@@ -313,7 +313,6 @@ export function listEquipment(
   return listReferences(accessToken, '/equipment');
 }
 
-
 /**
  * Resolve an old cached exercise identifier from the canonical catalogue page.
  * The caller must provide the complete locally cached catalogue, not one page.
