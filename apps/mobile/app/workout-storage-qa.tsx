@@ -149,7 +149,11 @@ function StorageDiagnosticScreen() {
       "SELECT COUNT(*) AS total FROM local_workout_outbox WHERE subject = ? AND delivery_state = 'pending'",
       subject.toLowerCase(),
     );
-    const initialSet = await readLocalConfirmedSet(db, access, QA_FIRST_SET_UUID);
+    const initialSet = await readLocalConfirmedSet(
+      db,
+      access,
+      QA_FIRST_SET_UUID,
+    );
     const subsequentSet = await readLocalConfirmedSet(
       db,
       access,
@@ -219,7 +223,9 @@ function StorageDiagnosticScreen() {
           : 'Primera serie WARMUP + ocurrencia guardadas juntas en SQLite.',
       );
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'No se pudo confirmar.');
+      setMessage(
+        error instanceof Error ? error.message : 'No se pudo confirmar.',
+      );
     } finally {
       setBusy(false);
     }
@@ -341,17 +347,26 @@ function StorageDiagnosticScreen() {
           {(firstSet ? 1 : 0) + (secondSet ? 1 : 0)} serie(s)
         </Text>
         {firstSet ? (
-          <Text style={styles.detail}>WARMUP: {firstSet.reps} reps · {firstSet.load_decimal} {firstSet.load_unit} · Polea A</Text>
+          <Text style={styles.detail}>
+            WARMUP: {firstSet.reps} reps · {firstSet.load_decimal}{' '}
+            {firstSet.load_unit} · Polea A
+          </Text>
         ) : null}
         {secondSet ? (
-          <Text style={styles.detail}>WORKING: {secondSet.reps} reps · {secondSet.load_decimal} {secondSet.load_unit} · Polea B</Text>
+          <Text style={styles.detail}>
+            WORKING: {secondSet.reps} reps · {secondSet.load_decimal}{' '}
+            {secondSet.load_unit} · Polea B
+          </Text>
         ) : null}
       </View>
       <Pressable
         accessibilityRole="button"
         disabled={busy || !active || Boolean(firstSet)}
         onPress={() => void onConfirmSet(false)}
-        style={[styles.button, (busy || !active || firstSet) && styles.disabled]}
+        style={[
+          styles.button,
+          (busy || !active || firstSet) && styles.disabled,
+        ]}
       >
         <Text style={styles.buttonText}>
           Confirmar 1.ª serie WARMUP (20,5 kg · Polea A)
@@ -361,7 +376,10 @@ function StorageDiagnosticScreen() {
         accessibilityRole="button"
         disabled={busy || !active || !firstSet || Boolean(secondSet)}
         onPress={() => void onConfirmSet(true)}
-        style={[styles.button, (busy || !active || !firstSet || secondSet) && styles.disabled]}
+        style={[
+          styles.button,
+          (busy || !active || !firstSet || secondSet) && styles.disabled,
+        ]}
       >
         <Text style={styles.buttonText}>
           Confirmar 2.ª serie WORKING (27,5 lb · Polea B)
