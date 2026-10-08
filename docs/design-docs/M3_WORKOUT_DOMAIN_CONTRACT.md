@@ -591,7 +591,7 @@ Completing a session does not permanently lock it against user correction.
 
 It does, however, lock it against automatic plan/engine rewrites.
 
-### 13.4 Correction that removes all performed work
+### 13.4 Correction that removes the final qualifying WORKING set
 
 A `COMPLETED` session must retain at least one completed qualifying `WORKING` set under the initial M3 qualification policy.
 
@@ -604,6 +604,10 @@ If a correction removes **or reclassifies** the last qualifying `WORKING` set, e
 - never silently rewrite other performed sets.
 
 The precise mutation packaging is governed by Sync and Persistence contracts. A `WARMUP`-only completed session is invalid just as an empty completed session is invalid.
+
+### 13.5 Revision/audit
+
+The implementation retains mutation/revision semantics sufficient for offline sync correctness, safe conflict detection and debugging. A user-visible full revision history is not required in M3. Deletion, tombstone and conflict behavior belongs to the Workout Sync Contract.
 
 ---
 
@@ -762,8 +766,6 @@ From `ACTIVE`:
 No automatic terminal transition from app close/network loss.
 
 ### Set
-
-`create/edit pending -> PENDING`
 
 Local Set Draft: `create/edit draft -> local unconfirmed values` (not performed history, no remote `WorkoutSet.PENDING`).
 
