@@ -143,7 +143,9 @@ def get_active_free_workout(
 ) -> WorkoutSessionResponse | None:
     """Fetch the caller's active session; never enumerate another owner's data."""
 
-    owner = _active_owner(session, principal, lock=False)
+    # The lock is held through the request transaction, serializing against
+    # account deletion so a stale token cannot read data after terminalization.
+    owner = _active_owner(session, principal, lock=True)
     row = session.scalar(
         select(WorkoutSession).where(
             WorkoutSession.owner_user_id == owner.id,
