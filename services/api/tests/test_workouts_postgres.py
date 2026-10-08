@@ -97,7 +97,9 @@ def test_free_session_start_resume_idempotency_isolation_and_purge() -> None:
         )
         versioned = {**payload_a, "protocol_version": 2}
         assert (
-            client.post("/workout-sessions/start", headers=a, json=versioned).status_code
+            client.post(
+                "/workout-sessions/start", headers=a, json=versioned
+            ).status_code
             == 422
         )
         # Different new start cannot silently create a second active session.
