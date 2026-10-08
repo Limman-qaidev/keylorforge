@@ -26,9 +26,7 @@ import {
 } from '@/lib/workouts/local-confirmed-sets';
 import {
   getActiveLocalWorkout,
-  getPendingLocalWorkoutMutations,
   startLocalFreeWorkout,
-  type LocalOutboxItem,
   type LocalStartWorkoutInput,
   type LocalWorkoutSession,
   type LocalSubjectAccess,
@@ -135,7 +133,6 @@ function StorageDiagnosticScreen() {
     [],
   );
   const [active, setActive] = useState<LocalWorkoutSession | null>(null);
-  const [pending, setPending] = useState<LocalOutboxItem[]>([]);
   const [totalPending, setTotalPending] = useState(0);
   const [firstSet, setFirstSet] = useState<LocalPerformedSet | null>(null);
   const [secondSet, setSecondSet] = useState<LocalPerformedSet | null>(null);
@@ -148,7 +145,6 @@ function StorageDiagnosticScreen() {
     }
     const db = await openDiagnosticWorkoutDatabase(subject);
     const current = await getActiveLocalWorkout(db, access);
-    const outbox = await getPendingLocalWorkoutMutations(db, access);
     const count = await db.getFirstAsync<{ total: number }>(
       "SELECT COUNT(*) AS total FROM local_workout_outbox WHERE subject = ? AND delivery_state = 'pending'",
       subject.toLowerCase(),
@@ -161,7 +157,6 @@ function StorageDiagnosticScreen() {
     );
     if (subjectRef.current === subject) {
       setActive(current);
-      setPending(outbox);
       setTotalPending(count?.total ?? 0);
       setFirstSet(initialSet);
       setSecondSet(subsequentSet);
