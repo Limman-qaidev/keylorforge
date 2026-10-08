@@ -1,8 +1,9 @@
 # M3 Server Deletion and Retention Contract
 
-**Status:** Proposed for Product Owner and Security approval — NOT ACCEPTED  
+**Status:** Accepted by Product Owner (PR #124 merged) — runtime security/privacy approval and implementation STILL REQUIRED  
 **Milestone:** M3 — Workout Engine  
 **Issue:** #123 — R2-03 / second audit #117, N-P1-03 and G3  
+**Approval evidence:** PR #124, squash merge `1dd51d87eeef147b46bf7d182c795e69d5274b7a`  
 **Date:** 2026-10-08  
 **Parent authorities:** M1 Identity Contract / IDN-006/007, ADR-002, `M3_PERSISTENCE_AND_DATA_MODEL_CONTRACT.md` (#110), `M3_LOCAL_DATA_AND_IDENTITY_CONTINUITY_CONTRACT.md` (#112), `M3_TRAINING_PROFILE_AND_SESSION_CONTEXT_CONTRACT.md` (#122), `M3_WORKOUT_SYNC_CONTRACT.md`; sensitive persistence gate #116.
 
@@ -219,9 +220,9 @@ Regulatory retention duties/exceptions, deadlines and notice text are **privacy/
 - Product, engineering and privacy/security agree on finite retention, backup, log and external system policies.
 - M3 no longer claims deletion complete on a mere provider deletion when server-owned personal data remains.
 
-## 9. Decision requested
+## 9. Product Owner acceptance (PR #124)
 
-Approval of R2-03 accepts:
+Product Owner approval through PR #124 accepts the following **design-level** requirements:
 
 1. Hard-delete-by-default policy for **all account-owned M3 personal rows and derivatives**, while preserving shared system records and minimal reviewed M1 anti-reprovision tombstone.
 2. A server **durable idempotent deletion operation** that blocks writes first, purges M3 user data, deletes provider identity and only then reports confirmed terminal deletion.
