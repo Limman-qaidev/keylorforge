@@ -592,7 +592,7 @@ Cancel versus concurrent remote edits/finish may conflict.
 
 ---
 
-## 19. Correction that removes the final set
+## 19. Correction removing or reclassifying the final qualifying WORKING set
 
 A completed normal M3 workout must retain at least one authoritative completed qualifying `WORKING` set. This is stronger than “at least one completed set”: remaining warm-ups do **not** qualify.
 
