@@ -455,8 +455,8 @@ export function AuthProvider({
           await AsyncStorage.removeItem(explicitLocalSignOutKey);
         } catch {
           return {
-          error: 'Local sign-in state could not be saved. Please try again.',
-        };
+            error: 'Local sign-in state could not be saved. Please try again.',
+          };
         }
         hasExplicitLocalSignOut.current = false;
         updateAuthState(stateForSession(data.session));
