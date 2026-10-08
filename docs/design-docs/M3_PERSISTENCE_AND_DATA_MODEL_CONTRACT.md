@@ -853,7 +853,7 @@ This contract requires later schema/API work to support:
 
 - immutable revisions or equivalent historical version semantics;
 - **nullable session Training Intent provenance**, preserving strict validation for any existing intent revision;
-- optional account-owned Training Profile with versioned preference/context snapshots and per-session operational context, as proposed by R2-02;
+- optional account-owned Training Profile with versioned preference/context snapshots and per-session operational context, as accepted by R2-02 / merged PR #122;
 - stable client-generated IDs;
 - session-owned prescription snapshots;
 - user-owned Machine Profiles/Configurations;
@@ -862,7 +862,8 @@ This contract requires later schema/API work to support:
 - local Set Draft separate from remote performed WorkoutSet;
 - execution groups;
 - timestamps + local-day context;
-- coverage as derived/recomputable state.
+- coverage as derived/recomputable state;
+- an explicit user-owned entity deletion path and FK/ownership graph that respects the proposed `M3_SERVER_DELETION_AND_RETENTION_CONTRACT.md` (#123), without deleting M1 terminal identity or system catalogue.
 
 Exact table/column names remain implementation work.
 
@@ -881,7 +882,8 @@ Still deferred:
 - custom-exercise implementation;
 - advanced set techniques beyond WARMUP/WORKING;
 - circuits beyond minimum SUPERSET;
-- M4 analytics formulas.
+- M4 analytics formulas;
+- exact M3 server deletion executor, status API, server retry/job model, tombstone/receipt retention horizon, backups and external resource inventory — governed by proposed R2-03 / #123, not implicitly solved by this persistence contract.
 
 These may not be guessed in dependent implementation work.
 
