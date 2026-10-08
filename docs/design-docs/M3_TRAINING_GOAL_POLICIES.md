@@ -1,7 +1,7 @@
 # M3 Training Goal and Recovery Policies
 
 **Status:** Accepted by Product Owner  
-**Parent authority:** `docs/design-docs/M3_WORKOUT_ENGINE_PRODUCT_CONTRACT.md`  
+**Parent authorities:** `docs/design-docs/M3_WORKOUT_ENGINE_PRODUCT_CONTRACT.md`, `docs/design-docs/M3_PERSISTENCE_AND_DATA_MODEL_CONTRACT.md` (accepted Training Intent representation)  
 **Evidence review:** 2026-10-07  
 **Product Owner approval:** 2026-10-07
 
@@ -31,9 +31,11 @@ A body goal may be the user's primary overall objective without becoming the wor
 
 Example:
 
-`primary_user_outcome = FAT_LOSS`  
 `primary_training_policy = STRENGTH`  
-`training_intent = preserve_or_improve_strength_while_losing_fat`
+`body_goal = FAT_LOSS`  
+`primary_intent_dimension = BODY_GOAL`
+
+The stored `body_goal` value is not duplicated under another `primary_user_outcome` field. A versioned Training Intent records these dimensions together when configured.
 
 In that case:
 
@@ -43,7 +45,7 @@ In that case:
 
 Within the training-policy dimension, one policy is primary and an optional secondary training policy may influence compatible choices. If two training policies materially conflict, the primary training policy wins unless the user changes priorities.
 
-Within the body-goal dimension, one current modifier is active for M3.
+Within the body-goal dimension, at most one current modifier is active. A body goal is **optional**; its absence is represented by null/no value, never an `UNSPECIFIED` enum. `primary_intent_dimension = BODY_GOAL` is valid only when `body_goal` is non-null. When Training Intent exists, `primary_training_policy` is required.
 
 Cross-dimension precedence is therefore not “training goal beats body goal” or vice versa: they have different responsibilities. Exact numerical weighting between multiple training policies is not approved.
 

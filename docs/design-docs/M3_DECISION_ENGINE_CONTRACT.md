@@ -98,12 +98,13 @@ Potential context includes:
 
 ### User/training intent
 
-- primary user outcome;
-- primary training policy;
-- optional secondary training policy;
-- body-goal modifier;
-- experience/policy level;
-- user preferences/dislikes where relevant.
+- `primary_training_policy` from the applicable versioned Training Intent revision, when one exists;
+- optional `secondary_training_policy`;
+- optional `body_goal` (null means absent);
+- `primary_intent_dimension = TRAINING_POLICY | BODY_GOAL`, distinguishing overall priority without duplicate `primary_user_outcome` persistence;
+- experience/policy level and user preferences/dislikes where available.
+
+A body-goal-primary context requires an actual non-null body goal. The context must not fabricate a user outcome or training policy when cold-start data is unavailable (R2-02 defines the persistence/bootstrap path).
 
 ### Plan/prescription
 

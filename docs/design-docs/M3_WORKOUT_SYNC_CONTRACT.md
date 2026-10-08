@@ -153,8 +153,8 @@ M3 should prefer semantic mutations/commands over blind replacement of an entire
 Conceptual mutation families include:
 
 - create/start session;
-- create exercise occurrence;
-- create/complete set;
+- create an authoritative exercise occurrence when performed history is established (the exact pre-first-set lifecycle remains R2-04);
+- confirm a performed set (local Set Draft is **not** a remote WorkoutSet mutation);
 - correct completed set;
 - remove set;
 - update actual machine/context where supported;
@@ -175,7 +175,9 @@ Offline operations frequently depend on earlier local operations.
 
 Example:
 
-`create session -> create exercise occurrence -> create set -> complete session`
+`create session -> create performed-work occurrence/set -> complete session`
+
+Draft values and untouched agenda exercise selections remain local active-workout state, not remote `WorkoutSet.PENDING` records. The exact occurrence boundary is tracked by R2-04; do not infer that tapping Add exercise creates remote performed history.
 
 The sync layer must represent this causal relationship.
 
@@ -193,7 +195,7 @@ For mutations belonging to the same workout session, the M3 client may process t
 
 This intentionally favors correctness and simplicity over maximum parallel throughput.
 
-Independent session/account work may progress independently.
+Independent session/account work may progress independently **only if no declared causal dependency exists**. An offline-created Machine Profile must sync before dependent sets; likewise, a still-unsynced locally created Template revision must sync before a session that references it, even if these mutations belong to different sessions/entities or local queues. All dependencies remain scoped to the correct account.
 
 ### 7.3 Dependent failure
 
@@ -540,7 +542,7 @@ A server-side unique/invariant mechanism is expected, but exact SQL implementati
 
 ### 17.1 Local completion is immediate
 
-When the user explicitly finishes offline:
+When the user explicitly finishes offline **and the accepted qualifying-performed-work rule is met locally**:
 
 - local session becomes `COMPLETED`;
 - UI may show the locally completed workout immediately;
@@ -552,14 +554,14 @@ The completion mutation must not be applied remotely before all prior local muta
 
 Example:
 
-sets A/B/C pending -> completion waits.
+outbox mutations for performed sets A/B/C pending -> completion waits. A local unconfirmed Set Draft is not a performed-set mutation.
 
 ### 17.3 Server validation
 
 Server validates domain invariants, including:
 
 - session currently permits completion;
-- at least one authoritative completed set remains;
+- at least one authoritative qualifying completed `WORKING` set remains for a normal M3 workout (completed `WARMUP` sets alone are insufficient);
 - relevant concurrency conditions hold.
 
 ### 17.4 Conflict does not erase local completion
@@ -590,24 +592,19 @@ Cancel versus concurrent remote edits/finish may conflict.
 
 ---
 
-## 19. Correction that removes the final set
+## 19. Correction removing or reclassifying the final qualifying WORKING set
 
-The Workout Domain says an empty `COMPLETED` session is invalid.
+A completed normal M3 workout must retain at least one authoritative completed qualifying `WORKING` set. This is stronger than “at least one completed set”: remaining warm-ups do **not** qualify.
 
-Sync must preserve that invariant.
+If a correction **deletes or reclassifies** the last qualifying `WORKING` set (even when warm-ups still remain):
 
-If a correction removes the final completed set:
+- local transaction captures explicit user confirmation and the required transition to cancelled/discarded-training semantics;
+- corrections and the lifecycle transition reach the server atomically or through causally linked operations with transactionally validated invariants;
+- neither device nor server may settle with a `COMPLETED` session lacking qualifying work;
+- completion-derived Plan Step coverage, session effects and later analytics are recomputed/reversed;
+- preserve other performed history without silent edits and preserve unsynced work under conflict.
 
-- local transaction also records the required session transition to cancelled/discarded-training semantics;
-- mutation dependencies ensure the server never settles into an authoritative empty `COMPLETED` state;
-- derived plan/attendance effects are reversed after acknowledgement.
-
-Exact API packaging may be:
-
-- one atomic domain command; or
-- causally linked mutations processed transactionally/serially.
-
-The final server state must satisfy the domain invariant.
+Exact API packaging may be one atomic domain command or a reviewed equivalent transactional sequence. An unconfirmed correction cannot silently invalidate a completed historical session.
 
 ---
 
@@ -885,10 +882,13 @@ Implementation must include at least:
 13. session completed on device A while B adds offline sets preserves B's local work and conflicts;
 14. two offline active sessions are not silently merged;
 15. conflict in one session does not block independent queue work;
-16. correction deleting final set cannot produce empty completed server session;
+16. deletion/reclassification of final qualifying `WORKING` set (with `WARMUP` sets remaining) cannot leave a `COMPLETED` session;
 17. cancellation reverses derived completion effects;
 18. app crash during `SENDING` safely retries;
-19. model/decision-engine availability is irrelevant to core sync correctness.
+19. model/decision-engine availability is irrelevant to core sync correctness;
+20. server rejects warm-up-only completion, including a stale concurrent finish;
+21. locally created unsynced Machine Profile or Template revision is acknowledged before any dependent set/session across entity and session boundaries;
+22. local Set Draft editing never creates a remote `WorkoutSet.PENDING` row.
 
 ---
 
