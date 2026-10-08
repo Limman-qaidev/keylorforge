@@ -7,6 +7,10 @@ import { useState } from 'react';
 import { AuthProvider, useAuth, type AuthPhase } from '../auth-provider';
 import type { MobileSupabaseClient } from '../supabase';
 
+type GetSessionResult = Awaited<
+  ReturnType<MobileSupabaseClient['auth']['getSession']>
+>;
+
 type AuthListener = (
   event: 'SIGNED_IN' | 'SIGNED_OUT' | 'TOKEN_REFRESHED',
   session: Session | null,
@@ -556,7 +560,7 @@ describe('AuthProvider', () => {
           finishSignOut = resolve;
         }),
     );
-    const { getByText, getByTestId } = render(
+    const { getByText, getByTestId } = await render(
       <AuthProvider client={client}>
         <AuthProbe />
       </AuthProvider>,
@@ -585,7 +589,7 @@ describe('AuthProvider', () => {
       initialSession: session(),
       signOutError: new Error('network failed: secret-provider-details'),
     });
-    const { getByText, getByTestId } = render(
+    const { getByText, getByTestId } = await render(
       <AuthProvider client={auth.client}>
         <AuthProbe />
       </AuthProvider>,
@@ -622,7 +626,7 @@ describe('AuthProvider', () => {
       initialSession: session('old-token'),
       signOutError: new Error('network failed'),
     });
-    const initial = render(
+    const initial = await render(
       <AuthProvider client={first.client}>
         <AuthProbe />
       </AuthProvider>,
@@ -632,10 +636,10 @@ describe('AuthProvider', () => {
       fireEvent.press(initial.getByText('sign out'));
     });
     await expectPhase(initial.getByTestId, 'signedOut');
-    initial.unmount();
+    await initial.unmount();
 
     const restored = createClient({ initialSession: session('old-token') });
-    const restarted = render(
+    const restarted = await render(
       <AuthProvider client={restored.client}>
         <AuthProbe />
       </AuthProvider>,
@@ -659,7 +663,7 @@ describe('AuthProvider', () => {
       .mocked(client.auth.signOut)
       .mockRejectedValueOnce(new Error('network failure with private details'))
       .mockRejectedValueOnce(new Error('local sign-out also unavailable'));
-    const { getByText, getByTestId } = render(
+    const { getByText, getByTestId } = await render(
       <AuthProvider client={client}>
         <AuthProbe />
       </AuthProvider>,
@@ -682,7 +686,7 @@ describe('AuthProvider', () => {
     jest
       .mocked(AsyncStorage.setItem)
       .mockRejectedValueOnce(new Error('disk failed'));
-    const { getByText, getByTestId } = render(
+    const { getByText, getByTestId } = await render(
       <AuthProvider client={client}>
         <AuthProbe />
       </AuthProvider>,
@@ -707,7 +711,7 @@ describe('AuthProvider', () => {
     jest
       .mocked(AsyncStorage.getItem)
       .mockRejectedValueOnce(new Error('storage not readable'));
-    const { getByTestId } = render(
+    const { getByTestId } = await render(
       <AuthProvider client={auth.client}>
         <AuthProbe />
       </AuthProvider>,
@@ -727,16 +731,14 @@ describe('AuthProvider', () => {
 
   it('does not let a stale restoration overwrite an explicit new sign-in', async () => {
     const { client } = createClient();
-    let releaseRestore:
-      | ((result: { data: { session: Session | null }; error: null }) => void)
-      | undefined;
+    let releaseRestore: ((result: GetSessionResult) => void) | undefined;
     jest.mocked(client.auth.getSession).mockImplementationOnce(
       () =>
         new Promise((resolve) => {
           releaseRestore = resolve;
         }),
     );
-    const { getByText, getByTestId } = render(
+    const { getByText, getByTestId } = await render(
       <AuthProvider client={client}>
         <AuthProbe />
       </AuthProvider>,
