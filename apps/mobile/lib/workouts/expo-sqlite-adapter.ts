@@ -81,9 +81,15 @@ export function openDiagnosticWorkoutDatabase(
   subject: string,
 ): Promise<SqliteWorkoutPort> {
   if (!__DEV__) {
-    throw new Error('M3 diagnostic storage is not available in release builds.');
+    throw new Error(
+      'M3 diagnostic storage is not available in release builds.',
+    );
   }
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(subject)) {
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      subject,
+    )
+  ) {
     throw new Error('A valid authenticated subject is required.');
   }
   const databaseName = `keylorforge-m3-qa-${subject.toLowerCase()}.db`;
@@ -99,4 +105,3 @@ export function openDiagnosticWorkoutDatabase(
   }
   return openedForSubject;
 }
-
