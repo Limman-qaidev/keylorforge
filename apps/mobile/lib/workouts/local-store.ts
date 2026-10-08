@@ -162,8 +162,8 @@ export async function startLocalFreeWorkout(
   const subject = activeSubject(access);
   const normalized = {
     ...input,
-    sessionId: normalized.sessionId.toLowerCase(),
-    mutationId: normalized.mutationId.toLowerCase(),
+    sessionId: input.sessionId.toLowerCase(),
+    mutationId: input.mutationId.toLowerCase(),
   };
   validateInput(normalized);
   const payload = startPayload(normalized);
