@@ -32,6 +32,7 @@ class FakeTransactionalSQLite implements SqliteWorkoutPort {
   schema = '';
   failOutboxInsert = false;
   onSessionInsert: (() => void) | undefined;
+  onSessionLookup: (() => void) | undefined;
 
   async execAsync(sql: string): Promise<void> {
     this.schema = sql;
@@ -75,6 +76,9 @@ class FakeTransactionalSQLite implements SqliteWorkoutPort {
             (row) =>
               row.subject === subject && row.lifecycle_state === 'active',
           );
+    if (sql.includes('FROM local_workout_sessions') && sql.includes('AND session_id = ?')) {
+      this.onSessionLookup?.();
+    }
     return (found ?? null) as T | null;
   }
 
@@ -168,7 +172,7 @@ describe('M3 account-partitioned local workout transaction', () => {
     const auth = accountAccess();
     await startLocalFreeWorkout(db, auth.access, input);
     await expect(
-      startLocalFreeWorkout(db, auth.access, { ...input, timeZone: 'UTC' }),
+      startLocalFreeWorkout(db, auth.access, { ...input, startedAtUtc: '2026-10-08T15:30:00.000Z' }),
     ).rejects.toMatchObject({ code: 'mutationConflict' });
     await expect(
       startLocalFreeWorkout(db, auth.access, {
@@ -178,6 +182,38 @@ describe('M3 account-partitioned local workout transaction', () => {
       }),
     ).rejects.toMatchObject({ code: 'activeSessionExists' });
     expect(db.outbox.size).toBe(1);
+  });
+
+  it('normalizes UUID letter case for replay instead of creating another identity', async () => {
+    const db = new FakeTransactionalSQLite();
+    const auth = accountAccess();
+    await startLocalFreeWorkout(db, auth.access, input);
+    const replay = await startLocalFreeWorkout(db, auth.access, {
+      ...input,
+      sessionId: input.sessionId.toUpperCase(),
+      mutationId: input.mutationId.toUpperCase(),
+    });
+    expect(replay.session_id).toBe(input.sessionId);
+    expect(db.sessions.size).toBe(1);
+    expect(db.outbox.size).toBe(1);
+  });
+
+  it.each([
+    { timeZone: 'Not/A_Timezone' },
+    { localDate: '2026-99-99' },
+    { localDate: '2026-10-07' },
+    { utcOffsetMinutes: -60 },
+    { timeZone: 'UTC' },
+  ])('refuses a timezone/day mismatch before writing: %j', async (override) => {
+    const db = new FakeTransactionalSQLite();
+    await expect(
+      startLocalFreeWorkout(db, accountAccess().access, {
+        ...input,
+        ...override,
+      }),
+    ).rejects.toMatchObject({ code: 'invalidInput' });
+    expect(db.sessions.size).toBe(0);
+    expect(db.outbox.size).toBe(0);
   });
 
   it('keeps user A data invisible when switching to user B or signing out', async () => {
@@ -217,4 +253,28 @@ describe('M3 account-partitioned local workout transaction', () => {
     expect(db.sessions.size).toBe(0);
     expect(db.outbox.size).toBe(0);
   });
+
+  it('rolls back if account changes during the FINAL session lookup', async () => {
+    const db = new FakeTransactionalSQLite();
+    const auth = accountAccess();
+    db.onSessionLookup = () => auth.setSubject(subjectB);
+    await expect(
+      startLocalFreeWorkout(db, auth.access, input),
+    ).rejects.toMatchObject({ code: 'notAuthenticated' });
+    expect(db.sessions.size).toBe(0);
+    expect(db.outbox.size).toBe(0);
+  });
+
+  it('refuses replay results if the subject changes during the final lookup', async () => {
+    const db = new FakeTransactionalSQLite();
+    const auth = accountAccess();
+    await startLocalFreeWorkout(db, auth.access, input);
+    db.onSessionLookup = () => auth.setSubject(subjectB);
+    await expect(
+      startLocalFreeWorkout(db, auth.access, input),
+    ).rejects.toMatchObject({ code: 'notAuthenticated' });
+    expect(db.sessions.size).toBe(1);
+    expect(db.outbox.size).toBe(1);
+  });
+
 });
