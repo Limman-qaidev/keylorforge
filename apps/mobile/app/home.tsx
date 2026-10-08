@@ -69,7 +69,10 @@ function HomeScreen() {
           accessibilityLabel="Abrir diagnóstico SQLite M3"
           accessibilityRole="button"
           onPress={() => router.push('/workout-storage-qa')}
-          style={({ pressed }) => [styles.profileLink, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.profileLink,
+            pressed && styles.pressed,
+          ]}
         >
           <Text style={styles.profileLinkText}>
             QA M3 · Probar almacenamiento offline
