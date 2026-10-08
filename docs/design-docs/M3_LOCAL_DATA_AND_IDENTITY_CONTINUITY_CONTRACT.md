@@ -333,9 +333,9 @@ The deletion-pending marker must survive process death/restart and must not depe
 
 ### 13.3 Confirmed deletion
 
-After the backend has confirmed terminal account deletion:
+Only after backend status confirms **both** account-owned server M3 purge and external provider deletion (including mandatory external live-copy steps) can the client treat deletion as terminal. A provider-only success is insufficient under the proposed R2-03 authority.
 
-purge the deleted subject's local account-owned partition, including:
+After confirmed terminal account deletion, purge the deleted subject's local account-owned partition, including:
 
 - workout/session/set data;
 - Set Drafts;
@@ -354,17 +354,15 @@ The app must not resurrect normal use of a deletion-pending/terminal local parti
 
 A special deletion-reconciliation path must exist because the provider identity may already have been removed and therefore ordinary authenticated refresh may no longer be possible.
 
-Acceptable implementation strategies include:
+The proposed `M3_SERVER_DELETION_AND_RETENTION_CONTRACT.md` (#123 / R2-03) requires two reviewed **status-only** credentials: a device-generated request receipt stored **before** the authenticated Delete Account request, and an independently **pre-enrolled per-device recovery credential** registered while the account is still authenticated (including an explicit migration path for previously bootstrapped devices). Both are subject-scoped, high-entropy and server-digest-stored. A narrow status query may then confirm terminal deletion after normal provider authentication becomes unavailable. G3 requires security approval of expiry/revocation, non-enumeration, device-secret storage and bounded retention; **neither credential authorizes account access or cancellation**. Until accepted, these are proposed semantics, **not** implemented APIs.
 
-- backend deletion operation returns/uses an idempotent opaque deletion operation ID that can be queried without restoring normal account access;
-- a durable server-side terminal application-identity response can be recognized from the deletion retry path;
-- or another explicitly reviewed terminal-deletion receipt/status mechanism.
+If neither status credential is usable (including an unenrolled older second device), the client must keep the account partition quarantined and cannot automatically treat a refresh failure or unknown status as terminal proof. It must offer a separate explicit **local-only “Remove this account's data from this device”** action, with irreversible warning about unsynced work, scoped solely to the selected subject's local data and credentials. This device action **does not claim or perform remote account deletion**. A separately verified remote recovery/support flow may be used when available. An absent/expired receipt or unverifiable status cannot authorize *automatic* account deletion confirmation.
 
 If the device is locally `DELETION_PENDING` and subsequent auth refresh is definitively rejected, the client must **not** infer ordinary logout and reactivate/preserve the partition indefinitely. It enters a deletion-reconciliation state and resolves the terminal deletion outcome through the dedicated mechanism.
 
 After confirmed terminal deletion, local purge is mandatory.
 
-If deletion is proven not to have completed, the user must explicitly recover/re-authenticate before normal account use resumes.
+If it is authoritatively proven that the deletion request **never reached/was never accepted by the backend** and the account is still `ACTIVE`, the user may explicitly recover/re-authenticate before normal account use resumes. If the backend **accepted** deletion and committed `DELETION_IN_PROGRESS`, the operation remains irrevocably terminalizing (even during DB/provider retries); normal account access must **never** resume. Absence/expiry of a status receipt alone cannot prove either condition.
 
 ---
 
@@ -525,7 +523,7 @@ Initial M3 local cache should serve:
 
 Sensitive menstrual/cycle-specific data is not added to local/server persistence until the separate privacy/security decision required by the Product Contract is completed.
 
-Training Profile stable preferences and operational Session Context (time/gym/equipment) have their proposed data-ownership/minimization contract in `M3_TRAINING_PROFILE_AND_SESSION_CONTEXT_CONTRACT.md` (#121); absence of either never blocks logging.
+Training Profile stable preferences and operational Session Context (time/gym/equipment) have their accepted data-ownership/minimization contract in `M3_TRAINING_PROFILE_AND_SESSION_CONTEXT_CONTRACT.md` (#121 / merged PR #122); absence of either never blocks logging.
 
 Generic **subjective readiness observations** may be persisted only after a narrower G1 purpose/field/retention and privacy decision. No symptom/menstrual payload may bypass #116 through generic Profile/Context JSON.
 
@@ -601,6 +599,8 @@ At minimum:
 13. confirmed account deletion removes local A partition/outbox;
 14. server completes deletion but response is lost -> restart stays deletion-pending and terminal deletion can still be reconciled without normal refresh;
 15. restart during deletion does not resume normal workout mode for that partition;
+16. second previously bootstrapped device with its own pre-enrolled deletion-status credential can verify terminal deletion after provider Auth credentials are gone;
+17. device with no valid receipt or recovery credential remains quarantined, with an explicit subject-scoped **local-only** removal option that cannot falsely confirm server deletion;
 16. stale cached plan state A session retains A provenance after server B exists;
 17. inactive exercise remains valid historical reference;
 18. Save as Template works offline and syncs later;
