@@ -18,10 +18,16 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-from keylorforge_database.catalog_curation import (
-    CANONICAL_SOURCE_ALIASES,
-    SPANISH_NAME_OVERRIDES,
-)
+# Frozen migration data: do not import live catalogue policy here. Changing
+# future alias curation must not reinterpret an already deployed migration.
+MIGRATION_CANONICAL_SOURCE_ALIASES = {
+    "710d2013-c457-4b36-afff-bd1e0d4ee129": "3fade67e-d00a-4428-8c59-1be4e62779bf",
+    "95bc6cf9-f5f0-42bc-8f22-1f4b825257b7": "b921879c-7b32-45b4-9d4c-06456223b2ef",
+}
+MIGRATION_SPANISH_NAME_OVERRIDES = {
+    "dc59aedc-619a-4b9b-9806-6aae4d913496": "Skipping rápido",
+    "274698d4-0a8e-47d6-8a85-d279729dc657": "Salto rápido",
+}
 
 revision: str = "20261008_0001"
 down_revision: str | None = "20260913_0001"
@@ -54,7 +60,7 @@ def upgrade() -> None:
     )
 
     bind = op.get_bind()
-    for alias_source_id, canonical_source_id in sorted(CANONICAL_SOURCE_ALIASES.items()):
+    for alias_source_id, canonical_source_id in sorted(MIGRATION_CANONICAL_SOURCE_ALIASES.items()):
         bind.execute(
             sa.text(
                 """
@@ -73,7 +79,7 @@ def upgrade() -> None:
             },
         )
 
-    for source_id, spanish_name in sorted(SPANISH_NAME_OVERRIDES.items()):
+    for source_id, spanish_name in sorted(MIGRATION_SPANISH_NAME_OVERRIDES.items()):
         bind.execute(
             sa.text(
                 """
