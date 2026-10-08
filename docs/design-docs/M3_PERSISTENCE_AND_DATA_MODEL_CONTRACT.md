@@ -287,7 +287,17 @@ Exact enum names are implementation detail.
 
 Completed Workout Sets remain separate authoritative performed history.
 
+An exercise/agenda selection before the first confirmed performed set is **agenda/draft state only**. Under proposed R2-04 (#125), the first confirmed WARMUP or WORKING set creates the Workout Exercise Occurrence and WorkoutSet together in one failure-atomic operation; removing an untouched item creates no performed occurrence. A WARMUP occurrence is real work but does **not** meet normal session completion qualification.
+
 Changing agenda does not rewrite completed work.
+
+### 7.1 Applied agenda revisions and immutable final snapshot (R2-04 proposal)
+
+Material **accepted/applied** changes to remaining intent (add/remove/substitute/reorder/target/equipment/superset) require a durable ordered `AppliedAgendaChange` or equivalent semantically versioned record, with stable IDs, agenda revision before/after, structured changed values, source/known reason and evidence of user acceptance where applicable. Rejected/unapplied proposals are not accepted changes; G2 retains authority over full decision traces.
+
+At explicit Finish, a single server transaction must commit both `COMPLETED` lifecycle and an immutable `SessionCompletionAgendaSnapshot` holding the final agenda revision, ordered final per-item statuses and original prescription/change/actual-occurrence references. A merely mutable current agenda or a set history alone cannot satisfy this durable provenance obligation. A valid Free Workout may start with an empty original agenda; the final snapshot still records added/performed/unperformed items without creating phantom occurrences. Correction of completed history must not silently rewrite the original finalized snapshot; preserve explicit revision/correction provenance.
+
+Exact PostgreSQL/SQLite structure, endpoint payloads and indexing remain deferred. See proposed `M3_EXERCISE_OCCURRENCE_AND_ADAPTATION_PROVENANCE_CONTRACT.md` (#125).
 
 ---
 
@@ -746,9 +756,11 @@ User
      ├─ SessionOperationalContext* (revision/snapshot)
      ├─ SessionPrescriptionSnapshot
      ├─ ActiveSessionAgenda
-     │   ├─ AgendaItem*
+     │   ├─ AgendaItem* (may be unperformed)
      │   └─ ExecutionGroup*
-     └─ WorkoutExerciseOccurrence*
+     ├─ AppliedAgendaChange* (durable accepted material changes)
+     ├─ SessionCompletionAgendaSnapshot? (immutable on valid Finish)
+     └─ WorkoutExerciseOccurrence* (created with first performed set)
          └─ WorkoutSet*
 ```
 
@@ -823,6 +835,7 @@ May recompute:
 - Training Profile preference edits/revisions and user-declared session operational context, when captured;
 - plan/template revisions;
 - session start/provenance snapshots;
+- accepted/material agenda-change provenance and immutable final agenda snapshot (under proposed R2-04);
 - actual session lifecycle;
 - actual exercise occurrence;
 - actual completed sets;
@@ -863,6 +876,8 @@ This contract requires later schema/API work to support:
 - execution groups;
 - timestamps + local-day context;
 - coverage as derived/recomputable state;
+- occurrence creation atomically coupled with its first confirmed performed set;
+- durable applied agenda changes and immutable Finish/final-agenda snapshot as one failure-atomic terminal transition;
 - an explicit user-owned entity deletion path and FK/ownership graph that respects the proposed `M3_SERVER_DELETION_AND_RETENTION_CONTRACT.md` (#123), without deleting M1 terminal identity or system catalogue.
 
 Exact table/column names remain implementation work.
