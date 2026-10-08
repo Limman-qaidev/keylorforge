@@ -362,7 +362,7 @@ If the device is locally `DELETION_PENDING` and subsequent auth refresh is defin
 
 After confirmed terminal deletion, local purge is mandatory.
 
-If deletion is proven not to have completed, the user must explicitly recover/re-authenticate before normal account use resumes.
+If it is authoritatively proven that the deletion request **never reached/was never accepted by the backend** and the account is still `ACTIVE`, the user may explicitly recover/re-authenticate before normal account use resumes. If the backend **accepted** deletion and committed `DELETION_IN_PROGRESS`, the operation remains irrevocably terminalizing (even during DB/provider retries); normal account access must **never** resume. Absence/expiry of a status receipt alone cannot prove either condition.
 
 ---
 
