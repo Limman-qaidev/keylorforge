@@ -34,17 +34,17 @@ Current focused remediation after audit #117:
 2. **R2-02 / issue #121 / PR #122 — MERGED** (commit `6b1989d4`) — optional Training Profile, cold-start Free Workout and per-session context accepted at contract level; CI 4/4 after P1 reviewer fix.
 3. **R2-03 / issue #123 / PR #124 — MERGED** (commit `1dd51d87`) — server deletion/retention and G3 recovery **contract accepted**, Codex 2 P1 + 1 P2 closed; runtime purge/ledger/security review still not implemented.
 4. **R2-04 / issue #125 / PR #126 — MERGED** (commit `7b2986f9`) — accepted first-performed-set occurrence boundary, applied agenda changes and immutable final snapshot; SQL/API/mobile behavior still **not implemented**.
-5. **#89 — OPEN:** curate authoritative exercise aliases and Spanish name collisions **before final history FK/identity freeze**.
-6. **G4 / audit #117 — IN IMPLEMENTATION:** fix explicit mobile logout local-access failure path and test stale provider session restoration. This is the first new *runtime code* slice; track it in the existing audit rather than spawning a duplicate issue.
+5. **#89 — IMPLEMENTATION IN REVIEW:** 2 reviewed true-alias redirects and 2 intentionally distinct Spanish names; no existing source or application IDs may be removed. CI and physical Android catalogue acceptance are separate mandatory gates **before merge**.
+6. **G4 / audit #117 / PR #127 — MERGED** (commit `2b4c4121`) — local logout barrier, stale restoration fencing and regression tests integrated. Confirmed CI; does not by itself prove new M3 offline features on device.
 
 ### M3 implementation execution queue (no new issues for already-tracked work)
 
-The following is execution order and dependency tracking, **not another round of contracts**. Each implementation PR must include code and tests, remain scoped, and require Product Owner approval before merge.
+The following is execution order and dependency tracking, **not another round of contracts**. Each implementation PR must include code and tests, remain scoped, and require **physical Android validation of its user-visible flow and explicit Product Owner approval before merge**. CI/Codex alone are insufficient.
 
 | Order | Deliverable | Concrete Done/verification | Dependencies / tracking |
 | --- | --- | --- | --- |
 | 1 | **G4 local logout barrier** | Local protected navigation closes immediately; provider error/restart/stale auth event cannot expose the old account; Jest/CI green | Audit #117 (G4); current implementation branch |
-| 2 | **Canonical exercise identity cleanup** | Curated real source aliases and deliberate Spanish collisions; stable existing exercise IDs/redirect strategy; importer/API tests | Existing #89; required before history schema freeze |
+| 2 | **Canonical exercise identity cleanup** | Keep 899 source identities; collapse 2 true semantic aliases into 897 visible canonical results; disambiguate the 2 distinct ES jumping movements; test API/import/migration and run physical Android catalogue acceptance **on PR branch before merge** | Existing #89; required before history schema freeze |
 | 3 | **M3 database/API foundation** | Owner-scoped Session → performed Occurrence → Set, native measures, snapshot/correction invariants, idempotent mutation and FK migrations with PostgreSQL integration tests | Accepted #110/#122/#124/#126; server deletion executor/retention implementation tracked in existing #123 |
 | 4 | **Mobile offline foundation** | Subject-partitioned SQLite, correctly seeded M2 read catalogue, local domain+outbox transaction, persistent one-active-session and safe restore | #112, #117; depends on G4 and canonical catalogue IDs |
 | 5 | **First Free Workout end-to-end** | On device: add/select exercise → confirm working set → explicit Finish → durable history → sync/retry; works after lost network and relaunch without forced goals | Data/API and offline slices; warmup-only cannot Finish |
