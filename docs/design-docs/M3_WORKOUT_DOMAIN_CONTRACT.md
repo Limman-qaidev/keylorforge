@@ -50,18 +50,20 @@ M3 needs to preserve the context under which a workout was prescribed/performed.
 
 A current Training Intent conceptually includes:
 
-- primary user outcome where relevant;
-- primary training policy;
-- optional secondary training policy;
-- body-goal modifier;
-- experience level or policy-relevant training level;
-- effective period/version.
+- a required `primary_training_policy` for any existing Training Intent revision;
+- optional `secondary_training_policy`;
+- optional `body_goal` (null means not specified);
+- `primary_intent_dimension = TRAINING_POLICY | BODY_GOAL`, expressing the overall priority dimension without a duplicate outcome field;
+- experience/policy level where configured;
+- effective period and immutable historical revision identity.
+
+If `primary_intent_dimension = BODY_GOAL`, the `body_goal` must be non-null. The accepted persistence authority is `M3_PERSISTENCE_AND_DATA_MODEL_CONTRACT.md`; its Training Intent entity must not be confused with a separate, not-yet-designed Training Profile (R2-02).
 
 Example:
 
-`user outcome = FAT_LOSS`  
-`training policy = STRENGTH`  
-`body modifier = FAT_LOSS`
+`primary_training_policy = STRENGTH`  
+`body_goal = FAT_LOSS`  
+`primary_intent_dimension = BODY_GOAL`
 
 ### Historical rule
 
@@ -73,7 +75,7 @@ If the user later changes from hypertrophy to strength, old workouts must not be
 
 When an Actual Workout Session starts, it should retain a snapshot/reference sufficient to know the policy/body-goal context active at that time.
 
-Exact persistence (effective-dated rows versus version references versus snapshot fields) is deferred to implementation design.
+Accepted persistence requires versioned Training Intent revisions with stable historical meaning. Session provenance retains the applicable revision/snapshot when one exists; the exact SQL/SQLite representation remains implementation design. Whether and how a new user may begin a Free Workout before configuring Training Intent is a separate R2-02 cold-start schema gate.
 
 ---
 
@@ -300,15 +302,15 @@ Multi-device offline races are a synchronization-conflict problem for the Workou
 
 A session becomes `COMPLETED` only from an explicit user completion action.
 
-A completed session should contain at least one completed performance set.
+A normal M3 session may enter `COMPLETED` only after an explicit Finish action **and** at least one confirmed qualifying `WORKING` set. `WARMUP`-only work does not qualify. Future modalities may define additional qualifying roles through a reviewed policy; do not permanently hard-code `WORKING` as the only conceivable role.
 
-M3 should not count an empty shell as a completed gym visit.
+An empty or warm-up-only session cannot become a normal completed gym visit.
 
 ### 7.6 Finishing early
 
 A user may explicitly finish a workout before completing the initial agenda.
 
-This is still a valid `COMPLETED` workout.
+This is a valid `COMPLETED` workout **only when completion qualification is satisfied**; finishing early does not imply sufficient Plan Step coverage.
 
 Performed work is preserved.
 
@@ -430,7 +432,7 @@ The original bench prescription remains provenance/context.
 
 Actual order should be preservable because order can matter for later interpretation.
 
-Superset/interleaving may require more than one simple linear display order; exact representation is provisional.
+Superset/interleaving may require more than one simple linear display order. The minimum `ExecutionGroup(type = SUPERSET)` grouping identity and ordered agenda/template members are accepted; the final UI and broader circuit taxonomy remain provisional.
 
 ---
 
@@ -473,15 +475,9 @@ Exact UUID/idempotency rules belong in the Workout Sync Contract.
 
 ### 11.2 Set lifecycle
 
-Conceptually:
+A **local Set Draft** contains editable/unconfirmed values in active-workout SQLite/UI state. It is not an authoritative `WorkoutSet`, does not count as performed work, and is not synchronized as a remote historical row. Saving a draft must not create remote `WorkoutSet.PENDING`.
 
-- `PENDING` — local/active set row or editor state not yet counted as performed;
-- `COMPLETED` — explicitly confirmed performed set;
-- removed/deleted through an explicit mutation when correcting data.
-
-Only `COMPLETED` sets count as performed training work.
-
-A pending set must not inflate volume, adherence, PRs or fatigue.
+Confirming performance atomically creates an authoritative `WorkoutSet` with a stable client ID and a corresponding outbox mutation; only confirmed performed sets count for volume, coverage and recommendations. Corrections/removals of performed sets are explicit version-protected domain mutations. The outbox's separate `PENDING` state refers to transport/mutation delivery, **not** set lifecycle.
 
 ### 11.3 Measurements
 
@@ -597,67 +593,45 @@ It does, however, lock it against automatic plan/engine rewrites.
 
 ### 13.4 Correction that removes all performed work
 
-A `COMPLETED` session must always retain at least one `COMPLETED` set.
+A `COMPLETED` session must retain at least one completed qualifying `WORKING` set under the initial M3 qualification policy.
 
-If an explicit correction would remove the final completed set:
+If a correction removes **or reclassifies** the last qualifying `WORKING` set, even when completed `WARMUP` sets remain:
 
 - the session may not remain `COMPLETED`;
-- the product must warn that the correction will make the workout empty;
-- the user must explicitly confirm the destructive consequence;
-- on confirmation, the session transitions to `CANCELLED` / discarded-training semantics rather than remaining a completed workout;
-- any derived effects of completion, including plan-step advancement, attendance/session counts and later analytics, must be recomputed/reversed from the corrected raw history.
+- warn that correcting this performed work invalidates ordinary completion, and obtain explicit user confirmation for the destructive effect;
+- atomically transition to the approved cancelled/discarded-training semantics with the correction;
+- recompute/reverse Plan Step coverage and all completion-derived effects;
+- never silently rewrite other performed sets.
 
-The product may alternatively require the user to cancel/discard the empty workout as a separate confirmation step, but it must never persist an empty `COMPLETED` session.
-
-This is a domain invariant; exact UI wording and sync mutation sequencing belong in later contracts.
-
-### 13.4 Revision/audit
-
-The implementation should retain enough mutation/revision semantics for safe sync and debugging.
-
-This contract does not require user-visible version history.
-
-Deletion/tombstone/conflict behavior belongs in the Workout Sync Contract.
+The precise mutation packaging is governed by Sync and Persistence contracts. A `WARMUP`-only completed session is invalid just as an empty completed session is invalid.
 
 ---
 
 ## 14. Plan progress and workout completion
 
-The plan must not be advanced merely because a proposal was shown or a workout was started.
+The plan must not advance merely because a proposal was shown, a workout started, or a planned-origin session was marked `COMPLETED`.
 
-### 14.1 Planned session completion
+### 14.1 Session lifecycle versus Plan Step coverage
 
-A completed Actual Workout Session that originated from a Plan Step provides a completed exposure against that step.
+The session state (`ACTIVE / COMPLETED / CANCELLED`) describes whether the real workout ended. Plan Step coverage (`SUFFICIENT / PARTIAL / NOT_COVERED / NOT_EVALUATED`) describes how much intended stimulus was fulfilled. A `COMPLETED` session can have `PARTIAL` or `NOT_COVERED` coverage.
 
-Plan progression should react on **completion**, not start.
+Source plan, immutable plan revision and stable logical `plan_step_id` are preserved where applicable. The Decision Engine computes the next proposal from actual completed work, source step, coverage, free/out-of-order work and relevant recovery/context. **Never implement** `completed -> current_step += 1`.
 
 ### 14.2 Finishing early
 
-Finishing early can still advance the baseline plan sequence because the user explicitly completed that session.
-
-However, the next proposal may adapt based on what was actually completed versus omitted.
+Finishing early can end a valid workout with qualifying work, but cannot itself grant sufficient Plan Step coverage or force an increment. The next recommendation may repeat, adapt or move forward based on evidence.
 
 ### 14.3 Cancelled session
 
-A cancelled session does not advance plan progress.
+A cancelled session does not receive completed-workout credit or advance Plan Step coverage as if the prescription was fulfilled.
 
 ### 14.4 Free workout
 
-A free workout does not silently mark a Plan Step as completed merely because muscles overlap.
-
-It may influence what the Decision Engine recommends next.
-
-If the product later offers:
-
-> Treat this workout as covering today's planned session
-
-that must be an explicit, explainable action/recommendation.
+A free workout does not automatically mark a Plan Step as covered because muscles overlap. It may influence the next proposal. Any explicit future action to treat Free work as covering a Plan Step must be explained and user-controlled.
 
 ### 14.5 Out-of-sequence plan workout
 
-If the user explicitly chooses another Plan Step/session from the current plan, the actual session should retain which step was selected.
-
-The next recommended step is a Decision Engine concern and must consider actual history rather than blindly incrementing a weekday/index.
+An explicitly selected alternative Plan Step retains its stable logical and revision-specific IDs. The next recommendation depends on actual history and derived coverage, not a weekday index.
 
 ---
 
@@ -685,19 +659,17 @@ Exact timer pause/notification behavior belongs in the User Journey/mobile imple
 
 ## 16. Supersets and execution groups
 
-Superset/circuit behavior, when used, belongs to **relationships/grouping between agenda/template exercise items**.
+Supersets are a relationship/grouping between agenda or template exercise items, **not** a `WorkoutSet.set_type`.
 
-It is not a `WorkoutSet.set_type`.
+The approved minimum `ExecutionGroup` representation contains:
 
-M3 should leave room for structures such as:
+- stable `execution_group_id`;
+- `type = SUPERSET`;
+- ordered member agenda/template item IDs;
+- optional rest between members;
+- optional rest between rounds.
 
-- sequential exercise;
-- superset;
-- later circuit/group forms.
-
-Exact grouping taxonomy and UI are provisional.
-
-A time-adaptation engine must not need to corrupt set semantics merely to create a superset.
+This minimum grouping is accepted in `M3_PERSISTENCE_AND_DATA_MODEL_CONTRACT.md`. Sequential items need not be forced into a superset. Additional circuit taxonomies, exact rest behaviors and UI presentation remain future design. A time-adaptation engine must not corrupt set-role semantics to assemble a superset.
 
 ---
 
@@ -793,12 +765,15 @@ No automatic terminal transition from app close/network loss.
 
 `create/edit pending -> PENDING`
 
-`confirm performed -> COMPLETED`
+Local Set Draft: `create/edit draft -> local unconfirmed values` (not performed history, no remote `WorkoutSet.PENDING`).
 
-From `COMPLETED`:
+On explicit confirmation: `Set Draft -> authoritative performed WorkoutSet` with stable ID + atomic outbox mutation.
 
-- explicit user correction -> `COMPLETED` with corrected authoritative values;
-- explicit removal -> removed/deleted mutation.
+From performed WorkoutSet:
+
+- explicit correction -> updated authoritative values under optimistic concurrency;
+- explicit removal -> deletion/tombstone mutation;
+- correction of final qualifying `WORKING` set -> atomic session qualification revalidation.
 
 Engine recommendations cannot perform a historical correction.
 
@@ -867,28 +842,21 @@ If the user changes from Cable B to Cable C between sets, machine context must r
 
 ## 25. Explicitly unresolved / provisional
 
-Do not hard-code yet:
+**Already settled semantically by the approved persistence/local-data contracts:** canonical Training Intent representation, stable logical Plan Step IDs, immutable plan/template revisions, session-start and per-set prescription snapshots, separate Plan Step coverage, minimum SUPERSET `ExecutionGroup`, local Set Draft (not remote `WorkoutSet.PENDING`), and machine/context ownership and offline continuity. Do not re-open these choices through implementation shortcuts.
 
-- final SQL table names/shape;
-- exact Training Intent persistence;
-- whether Today’s Proposal has a durable server identity;
-- exact plan-revision strategy;
-- exact Plan Step data model;
-- exact agenda persistence representation;
-- exact target/prescription snapshot format;
-- exact exercise-occurrence lifecycle beyond performed-history rules;
-- exact machine-context inheritance schema;
-- advanced set technique modeling;
-- superset/circuit taxonomy;
-- actual rest-duration persistence;
-- session pause model;
-- exact completed-session deletion/retention behavior;
-- exact user-visible correction/audit history;
-- exact next-plan-step algorithm;
-- multi-device active-session conflict resolution;
-- social visibility schema.
+Still requiring **implementation shape or separately scoped decisions**:
 
-These belong in implementation design, Decision Engine, Sync Contract and User Journey as appropriate.
+- final PostgreSQL/SQLite tables, migration sequencing, API payloads and indexes;
+- exact Today’s Proposal durability and final agenda/adaptation-provenance representation (R2-04);
+- exact exercise-occurrence pre-first-set lifecycle (R2-04);
+- Training Profile/cold-start ownership and optional intent semantics (R2-02);
+- server-side M3 account deletion/retention policy (R2-03);
+- choice of revision/snapshot SQL storage and correction history, **not** whether immutable historical meaning is required;
+- advanced set techniques beyond WARMUP/WORKING;
+- circuit grouping beyond the accepted minimal SUPERSET type;
+- exact rest-duration/pause semantics;
+- exact next-plan-step algorithm/evidence windows;
+- multi-device active-session conflict UX and social visibility schema.
 
 ---
 
