@@ -37,7 +37,9 @@ describe('M3 Expo SQLite native database binding', () => {
       ),
     ).toBe(true);
     expect(queries).toContain('PRAGMA user_version = 1;');
-    expect(queries.some((sql) => sql.includes('CREATE TABLE local_workout_sets'))).toBe(true);
+    expect(
+      queries.some((sql) => sql.includes('CREATE TABLE local_workout_sets')),
+    ).toBe(true);
     expect(queries).toContain('PRAGMA user_version = 2; COMMIT;');
     expect(queries[queries.length - 1]).toBe('PRAGMA foreign_keys = ON;');
     expect(database.closeAsync).not.toHaveBeenCalled();
