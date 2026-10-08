@@ -194,7 +194,8 @@ export function AuthProvider({
   }, [updateAuthState]);
 
   const restoreSession = useCallback(async () => {
-    if (!clientResult.client) {
+    const client = clientResult.client;
+    if (!client) {
       updateAuthState({
         confirmationEmail: null,
         feedback: {
@@ -209,13 +210,13 @@ export function AuthProvider({
 
     const operationVersion = sessionOperationVersion.current;
     let restoration: [
-      Awaited<ReturnType<typeof clientResult.client.auth.getSession>>,
+      Awaited<ReturnType<typeof client.auth.getSession>>,
       string | null,
       string | null,
     ];
     try {
       restoration = await Promise.all([
-        clientResult.client.auth.getSession(),
+        client.auth.getSession(),
         AsyncStorage.getItem(pendingConfirmationEmailKey),
         AsyncStorage.getItem(explicitLocalSignOutKey),
       ]);
