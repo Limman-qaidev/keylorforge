@@ -263,7 +263,12 @@ export async function confirmLocalWorkoutSet(
 ): Promise<LocalPerformedSet> {
   const subject = authenticatedSubject(access);
   validate(raw);
-  const input = normalized(raw);
+  // Materialize a deep, JSON-safe command snapshot BEFORE the first await.
+  // Callers may edit nested draft/form objects while a SQLite query is pending:
+  // outbox intent and performed history must always use the same frozen values.
+  const input = JSON.parse(
+    JSON.stringify(normalized(raw)),
+  ) as ConfirmLocalSetInput;
   const payload = immutablePayload(input);
   const kind = input.firstSet
     ? 'CONFIRM_FIRST_SET_WITH_OCCURRENCE'
