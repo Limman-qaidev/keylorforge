@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from uuid import uuid4
-
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, text
