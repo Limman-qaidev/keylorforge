@@ -136,8 +136,7 @@ def test_catalogue_repository_queries_run_against_postgresql() -> None:
                 )
                 assert count == len(results)
                 exact_name_matches = [
-                    item for item in results
-                    if _localized_name(item, "es") == expected_es_name
+                    item for item in results if _localized_name(item, "es") == expected_es_name
                 ]
                 assert len(exact_name_matches) == 1
                 assert exact_name_matches[0].id == exercise.id
