@@ -226,7 +226,8 @@ export function AuthProvider({
           confirmationEmail: null,
           feedback: {
             kind: 'transient',
-            message: 'Local authentication state could not be restored. Please try again.',
+            message:
+              'Local authentication state could not be restored. Please try again.',
           },
           phase: 'signedOut',
           session: null,
@@ -367,7 +368,9 @@ export function AuthProvider({
       try {
         await AsyncStorage.removeItem(explicitLocalSignOutKey);
       } catch {
-        return { error: 'Local sign-in state could not be saved. Please try again.' };
+        return {
+          error: 'Local sign-in state could not be saved. Please try again.',
+        };
       }
       hasExplicitLocalSignOut.current = false;
       updateAuthState(stateForSession(data.session));
@@ -406,7 +409,9 @@ export function AuthProvider({
       try {
         await AsyncStorage.removeItem(explicitLocalSignOutKey);
       } catch {
-        return { error: 'Local sign-in state could not be saved. Please try again.' };
+        return {
+          error: 'Local sign-in state could not be saved. Please try again.',
+        };
       }
       hasExplicitLocalSignOut.current = false;
       updateAuthState(stateForSession(result.session));
@@ -449,7 +454,9 @@ export function AuthProvider({
         try {
           await AsyncStorage.removeItem(explicitLocalSignOutKey);
         } catch {
-          return { error: 'Local sign-in state could not be saved. Please try again.' };
+          return {
+          error: 'Local sign-in state could not be saved. Please try again.',
+        };
         }
         hasExplicitLocalSignOut.current = false;
         updateAuthState(stateForSession(data.session));
