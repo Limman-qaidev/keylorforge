@@ -76,7 +76,10 @@ class FakeTransactionalSQLite implements SqliteWorkoutPort {
             (row) =>
               row.subject === subject && row.lifecycle_state === 'active',
           );
-    if (sql.includes('FROM local_workout_sessions') && sql.includes('AND session_id = ?')) {
+    if (
+      sql.includes('FROM local_workout_sessions') &&
+      sql.includes('AND session_id = ?')
+    ) {
       this.onSessionLookup?.();
     }
     return (found ?? null) as T | null;
@@ -172,7 +175,10 @@ describe('M3 account-partitioned local workout transaction', () => {
     const auth = accountAccess();
     await startLocalFreeWorkout(db, auth.access, input);
     await expect(
-      startLocalFreeWorkout(db, auth.access, { ...input, startedAtUtc: '2026-10-08T15:30:00.000Z' }),
+      startLocalFreeWorkout(db, auth.access, {
+        ...input,
+        startedAtUtc: '2026-10-08T15:30:00.000Z',
+      }),
     ).rejects.toMatchObject({ code: 'mutationConflict' });
     await expect(
       startLocalFreeWorkout(db, auth.access, {
@@ -276,5 +282,4 @@ describe('M3 account-partitioned local workout transaction', () => {
     expect(db.sessions.size).toBe(1);
     expect(db.outbox.size).toBe(1);
   });
-
 });
