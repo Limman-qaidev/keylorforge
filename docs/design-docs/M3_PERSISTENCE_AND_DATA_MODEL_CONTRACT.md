@@ -42,7 +42,7 @@ A Training Intent revision must conceptually contain:
 - optional `secondary_training_policy`;
 - optional `body_goal`;
 - `primary_intent_dimension`;
-- experience/policy level;
+- experience/policy level **as an immutable historically applied snapshot**, not a second mutable preferences authority;
 - effective-from timestamp;
 - optional end/superseded metadata.
 
@@ -68,6 +68,8 @@ Initial `primary_intent_dimension`:
 - `BODY_GOAL`
 
 If `primary_intent_dimension = BODY_GOAL`, `body_goal` is required and non-null.
+
+**Cold-start clarification (proposed by #121 / R2-02):** the *entity* Training Intent is optional before the user deliberately establishes a policy. No row/revision is created merely to satisfy a Free Workout relationship. When a revision exists, the required policy and priority constraints above still apply. Current declared experience/preferences belong to a separate optional Training Profile; the `experience/policy level` preserved here is historical context, not competing writable preference state.
 
 ### 2.2 Example
 
@@ -98,6 +100,12 @@ Targets such as:
 are **not** another value in the Training Intent enums.
 
 They belong to a future explicit target/goal entity.
+
+---
+
+## 2.5 Training Profile and per-session operational context (R2-02 amendment)
+
+The proposed `M3_TRAINING_PROFILE_AND_SESSION_CONTEXT_CONTRACT.md` (#121) defines a separate optional user-owned Training Profile for stable declared preferences and an optional session-owned operational context for time/gym/equipment availability. Neither can duplicate `primary_training_policy` or `body_goal` as its own authority. Materially used profile/context revisions must be traceable. Generic subjective readiness persistence still needs its separate G1/privacy decision, and sensitive cycle-specific persistence remains blocked by #116.
 
 ---
 
@@ -201,7 +209,8 @@ At `Start`, the session must preserve enough immutable prescription context to r
 
 Conceptually snapshot/reference:
 
-- Training Intent revision + key fields;
+- configured Training Intent revision + key fields **if one exists**; otherwise an explicit null/absent-intent provenance (valid for cold-start Free Workout);
+- applicable Training Profile/context revision or materially used input snapshot, if available (separate from Training Intent);
 - source plan/revision/logical step/step revision if any;
 - source template/revision if any;
 - initial exercise agenda;
@@ -720,7 +729,8 @@ Do not use custom exercises as a workaround for missing Machine Profile modeling
 
 ```text
 User
- ├─ TrainingIntentRevision*
+ ├─ TrainingIntentRevision* (zero is valid)
+ ├─ TrainingProfile? (stable preferences + revisions)
  ├─ TrainingPlan
  │   └─ PlanRevision*
  │       └─ PlanStepRevision*
@@ -732,7 +742,8 @@ User
  ├─ GymContext*
  │   └─ MachineProfile*
  │       └─ MachineConfiguration*
- └─ ActualWorkoutSession
+ └─ ActualWorkoutSession (optional TrainingIntentRevision ref)
+     ├─ SessionOperationalContext* (revision/snapshot)
      ├─ SessionPrescriptionSnapshot
      ├─ ActiveSessionAgenda
      │   ├─ AgendaItem*
@@ -808,7 +819,8 @@ May recompute:
 
 ### Authoritative raw/domain data
 
-- Training Intent revisions;
+- Training Intent revisions, when configured;
+- Training Profile preference edits/revisions and user-declared session operational context, when captured;
 - plan/template revisions;
 - session start/provenance snapshots;
 - actual session lifecycle;
@@ -840,6 +852,8 @@ Persisting a derived value as a cache does not make it source truth.
 This contract requires later schema/API work to support:
 
 - immutable revisions or equivalent historical version semantics;
+- **nullable session Training Intent provenance**, preserving strict validation for any existing intent revision;
+- optional account-owned Training Profile with versioned preference/context snapshots and per-session operational context, as proposed by R2-02;
 - stable client-generated IDs;
 - session-owned prescription snapshots;
 - user-owned Machine Profiles/Configurations;
