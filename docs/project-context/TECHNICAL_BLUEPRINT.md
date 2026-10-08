@@ -40,7 +40,9 @@ Chosen stack/direction:
 
 **Accepted:** workout recording must be local-first. See ADR-003.
 
-Client-generated identifiers, local persistence and explicit sync state should be used so a set can be captured without server connectivity. Mature synchronization should include retry behavior and idempotency; conflict rules are to be specified when the workout/sync domain is implemented.
+Client-generated identifiers, local persistence and explicit sync state are required so a set can be captured without server connectivity.
+
+The accepted M3 Workout Sync Contract now owns the correctness baseline: atomic local domain+outbox writes, stable mutation identity, idempotent retries, causal dependencies, optimistic concurrency, tombstones, account-partitioned local state and explicit conflict handling. M6 may mature/optimize the broader multi-device sync experience but must not weaken these M3 guarantees.
 
 The server remains authoritative after successful synchronization; offline-first does not mean duplicating business/ranking authority in the mobile client.
 
@@ -104,7 +106,7 @@ Raw workout data is authoritative:
 
 For performance, derived tables/materialized calculations may later include concepts such as:
 
-- per-user/per-exercise best weight/e1RM/volume/last performed
+- per-user/per-comparable-exercise-context best load/e1RM/volume/last performed, where the measurement/load semantics support the metric
 - activity counts by week/month/year
 - cached group ranking outputs
 
@@ -113,8 +115,8 @@ These are accelerators, never substitutes for raw history.
 ## Ranking methodology guardrails
 
 - Attendance: count qualifying completed sessions in a period; anti-gaming qualification can be added.
-- Exercise strength: compare compatible exercise variants; estimated 1RM is preferred over naive max weight for rep-based strength comparison.
-- Volume: `sum(weight * reps)` where that metric is meaningful.
+- Exercise strength: compare only compatible exercise/equipment contexts; estimated 1RM may be preferred over naive max load for supported rep-based strength comparisons.
+- Volume: `sum(load * reps)` only where load semantics are meaningful and compatible; never aggregate arbitrary machine stack values as a universal mass.
 - Muscle score: never sum raw kilograms across heterogeneous machines. Normalize comparable exercise performance first, then aggregate with explainable muscle contribution weights.
 
 The exact formulas and eligibility rules should be versioned as business rules/tests when rankings are implemented.
