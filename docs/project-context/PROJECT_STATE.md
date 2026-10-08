@@ -1,18 +1,38 @@
 # KeylorForge project state
 
-Last updated: 2026-10-05
+Last updated: 2026-10-08
 
 This is the fast handoff for resuming work. GitHub issues, PRs and `main` remain the final authority for real-time status.
 
 ## Current milestone
 
-**M2 — Exercise Catalog (complete)**
+**M3 — Workout Engine (design closure / remediation before implementation backlog)**
 
-M2 passed its final engineering, independent QA and physical-device exit gate on 2026-10-05. CAT-004 #85 records the final synthesis and Product Owner device evidence. Parent milestone #81 is ready to close with this documentation exit.
+M2 — Exercise Catalog is complete.
 
-The next planned milestone is **M3 — Workout Engine**. M3 may begin only after the CAT-004/M2 documentation exit PR is merged.
+M3 product discovery and the first design-contract pass are complete and accepted by the Product Owner. The following authoritative M3 documents are merged on `main`:
 
-Completed M2 work:
+- `M3_WORKOUT_ENGINE_PRODUCT_CONTRACT.md`
+- `M3_TRAINING_GOAL_POLICIES.md`
+- `M3_EXERCISE_AND_EQUIPMENT_CONTRACT.md`
+- `M3_WORKOUT_DOMAIN_CONTRACT.md`
+- `M3_DECISION_ENGINE_CONTRACT.md`
+- `M3_WORKOUT_SYNC_CONTRACT.md`
+- `M3_USER_JOURNEY.md`
+
+A cross-contract audit is tracked in #105 / PR #106. It found no product-vision redesign blocker, but identified persistence/offline/identity seams that must be closed **per dependent implementation slice** before those schema/API portions are frozen.
+
+Current remediation sequence:
+
+- #107 / PR #108 — top-level product/project authority reconciliation (this documentation update);
+- #109 / PR #110 — M3 persistence/data-model closure: Training Intent priority, plan/template snapshots, plan-step coverage, session qualification, set draft semantics, Machine Profile persistence, units/timezone and minimal execution grouping;
+- next: offline read/cache + M1/M3 identity/deletion boundary;
+- #89 — catalogue alias/name-collision curation before meaningful workout history accumulates under avoidably fragmented identities.
+
+Implementation may proceed incrementally only where the required contracts for that slice are closed. Do not let unrelated advanced-plan/AI work block a deliberately scoped basic recording slice.
+
+## Completed M2 work
+
 
 - #82 CAT-001 canonical exercise model and deterministic Kinetic importer — merged via PR #86
 - #83 CAT-002 read-only authenticated exercise catalogue API — merged via PR #87
