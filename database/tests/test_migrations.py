@@ -56,7 +56,7 @@ def test_upgrade_clean_database_records_head(test_database_url: str) -> None:
             text("SELECT version_num FROM alembic_version")
         ).scalar_one()
 
-    assert revision == "20261008_0001"
+    assert revision == "20261008_0002"
 
     with engine.connect() as connection:
         display_name = connection.execute(
@@ -235,7 +235,7 @@ def test_catalog_migration_refuses_destructive_downgrade(
     """The profile migration must not silently drop persisted display names."""
     config = Config("alembic.ini")
 
-    with pytest.raises(NotImplementedError, match="preserves historical canonical"):
+    with pytest.raises(NotImplementedError, match="account-owned workout"):
         command.downgrade(config, "20260831_0001")
 
     engine = create_engine(test_database_url)
@@ -244,7 +244,7 @@ def test_catalog_migration_refuses_destructive_downgrade(
             revision = connection.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-        assert revision == "20261008_0001"
+        assert revision == "20261008_0002"
     finally:
         engine.dispose()
 

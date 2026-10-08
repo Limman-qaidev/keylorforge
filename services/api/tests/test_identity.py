@@ -294,7 +294,7 @@ def test_delete_me_missing_admin_configuration_does_not_mutate(
     assert response.json() == {"detail": "account deletion is temporarily unavailable"}
 
 
-def test_delete_service_commits_tombstone_before_provider_and_finalizes(
+def test_delete_service_purges_workouts_before_provider_and_finalizes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     events: list[str] = []
@@ -304,8 +304,9 @@ def test_delete_service_commits_tombstone_before_provider_and_finalizes(
         def __init__(self, session: object) -> None:
             pass
 
-        def start_deletion(self, **_: object) -> None:
+        def start_deletion(self, **_: object) -> object:
             events.append("prepared")
+            return type("Owner", (), {"id": subject})()
 
         def finalize_deletion(self, **_: object) -> None:
             events.append("finalized")
@@ -317,17 +318,30 @@ def test_delete_service_commits_tombstone_before_provider_and_finalizes(
     class _Admin:
         def delete_user(self, external_subject: object) -> None:
             assert external_subject == subject
-            assert events == ["prepared", "committed"]
+            assert events == ["prepared", "committed", "purged", "committed"]
             events.append("provider")
 
+    def purge(_: object, owner_id: object) -> None:
+        assert owner_id == subject
+        events.append("purged")
+
     monkeypatch.setattr(identity_service, "ApplicationUserRepository", _Repository)
+    monkeypatch.setattr(identity_service, "purge_account_workout_data", purge)
     identity_service.delete_current_identity(
         principal=AuthenticatedPrincipal(subject),
         session=cast(Session, _Session()),
         admin_client=_Admin(),
     )
 
-    assert events == ["prepared", "committed", "provider", "finalized", "committed"]
+    assert events == [
+        "prepared",
+        "committed",
+        "purged",
+        "committed",
+        "provider",
+        "finalized",
+        "committed",
+    ]
 
 
 def test_delete_service_keeps_committed_tombstone_on_provider_failure(
@@ -339,8 +353,9 @@ def test_delete_service_keeps_committed_tombstone_on_provider_failure(
         def __init__(self, session: object) -> None:
             pass
 
-        def start_deletion(self, **_: object) -> None:
+        def start_deletion(self, **_: object) -> object:
             events.append("prepared")
+            return type("Owner", (), {"id": uuid4()})()
 
         def finalize_deletion(self, **_: object) -> None:
             pytest.fail("provider failure must not finalize")
@@ -354,6 +369,11 @@ def test_delete_service_keeps_committed_tombstone_on_provider_failure(
             raise SupabaseAdminDeletionError
 
     monkeypatch.setattr(identity_service, "ApplicationUserRepository", _Repository)
+    monkeypatch.setattr(
+        identity_service,
+        "purge_account_workout_data",
+        lambda *_: events.append("purged"),
+    )
     with pytest.raises(HTTPException) as raised:
         identity_service.delete_current_identity(
             principal=AuthenticatedPrincipal(uuid4()),
@@ -362,7 +382,43 @@ def test_delete_service_keeps_committed_tombstone_on_provider_failure(
         )
 
     assert raised.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
-    assert events == ["prepared", "committed"]
+    assert events == ["prepared", "committed", "purged", "committed"]
+
+
+def test_delete_service_does_not_call_provider_on_purge_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _Repository:
+        def __init__(self, session: object) -> None:
+            pass
+
+        def start_deletion(self, **_: object) -> object:
+            return type("Owner", (), {"id": uuid4()})()
+
+    class _Session:
+        commits = 0
+
+        def commit(self) -> None:
+            self.commits += 1
+
+    class _Admin:
+        def delete_user(self, _: object) -> None:
+            pytest.fail("provider must never delete before M3 purge")
+
+    db = _Session()
+    monkeypatch.setattr(identity_service, "ApplicationUserRepository", _Repository)
+    monkeypatch.setattr(
+        identity_service,
+        "purge_account_workout_data",
+        lambda *_: (_ for _ in ()).throw(RuntimeError("purge unavailable")),
+    )
+    with pytest.raises(RuntimeError, match="purge unavailable"):
+        identity_service.delete_current_identity(
+            principal=AuthenticatedPrincipal(uuid4()),
+            session=cast(Session, db),
+            admin_client=_Admin(),
+        )
+    assert db.commits == 1
 
 
 def test_supabase_user_not_found_is_an_idempotent_deletion_success() -> None:

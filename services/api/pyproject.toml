@@ -16,6 +16,7 @@ dependencies = [
     "PyJWT[crypto]==2.13.0",
     "supabase==2.31.0",
     "uvicorn[standard]==0.35.0",
+    "tzdata==2026.3",
 ]
 
 [project.optional-dependencies]
