@@ -215,7 +215,7 @@ Examples:
 - primary overall outcome fat loss while strength remains the training policy used to govern workout decisions;
 - primary training policy general fitness, secondary training policy muscular endurance.
 
-The accepted Training Goal Policies contract separates overall outcome priority from training-policy priority and body-goal context. Exact persistence of that priority remains a prerequisite to be closed by the M3 persistence/data-model remediation; implementation must not guess it.
+The accepted `M3_PERSISTENCE_AND_DATA_MODEL_CONTRACT.md` resolves the Training Intent representation: required `primary_training_policy` **for an existing intent revision**, optional secondary policy, optional `body_goal`, and `primary_intent_dimension` identifying which dimension is the overall priority. `FAT_LOSS` must not be persisted twice as both `primary_user_outcome` and `body_goal`. Exact onboarding/cold-start and Training Profile ownership remain R2-02; do not invent a policy for an unconfigured user.
 
 ## 3.3 Goals change over time
 
@@ -1290,7 +1290,13 @@ Several questions that were intentionally open in this original Product Contract
 - session lifecycle: `ACTIVE / COMPLETED / CANCELLED`;
 - one logical active workout per user in M3;
 - finish-early versus cancel semantics;
-- minimum set-role distinction: `WARMUP` versus `WORKING`;
+- minimum set-role distinction: `WARMUP` versus `WORKING`; normal M3 `COMPLETED` sessions require a qualifying completed `WORKING` set even after corrections;
+- local Set Draft distinct from remote performed `WorkoutSet` and transport outbox `PENDING`;
+- session completion separate from derived Plan Step coverage (`SUFFICIENT / PARTIAL / NOT_COVERED / NOT_EVALUATED`), with no blind plan cursor increment;
+- versioned Training Intent and immutable plan/template revisions, stable logical Plan Step IDs and per-set prescription snapshots;
+- minimum `ExecutionGroup(type = SUPERSET)` semantics;
+- first-class Machine Profile/Configuration/Gym context, including native load semantics and offline-first identity;
+- local offline-read/cache, account partition and deletion-pending semantics approved at contract level;
 - exercise/machine separation and machine-native load semantics;
 - user-controlled recommendations, abstention and model boundary;
 - workout sync correctness baseline: local-first outbox, idempotency, causal dependencies, optimistic concurrency, tombstones and explicit conflict handling;
@@ -1302,17 +1308,21 @@ These must not be guessed in implementation:
 
 - exact onboarding questions/order;
 - exact curated plan library;
-- persistence shape for overall outcome priority / Training Intent;
+- Training Profile/preferences and cold-start without configured Training Intent (R2-02);
 - exact training-goal numeric thresholds and evidence windows;
 - exact fatigue scoring and deload prescriptions;
 - exact exercise substitution ranking;
-- final Machine Profile / Gym Context persistence schema;
+- final SQL/API representation for the **accepted** Machine Profile / Gym Context semantic model;
 - automatic cross-machine calibration formula/confidence;
 - advanced set/execution techniques beyond the accepted WARMUP/WORKING baseline;
-- plan/template revision and historical snapshot representation;
-- Plan Step coverage/fulfillment semantics;
-- offline read/cache model required to start/train without network;
-- final measurement-unit/timezone persistence details;
+- physical SQL/SQLite/API layout for **accepted** immutable plan/template revisions and per-set prescription snapshots;
+- exact coverage-scoring/next-step algorithm (the separate coverage dimension is already accepted);
+- exact cache/bootstrap implementation for the **accepted** offline read model;
+- final table types/indexes for **accepted** measurement-unit/timezone semantics;
+- server-side M3 personal-data deletion and retention policy (R2-03);
+- exercise-occurrence pre-first-set lifecycle and durable adaptation provenance (R2-04);
+- #89 canonical alias/redirect representation before final workout-history identity freeze;
+- G4 explicit logout local-access failure-path implementation before enabling M3 offline continuity;
 - exact Free/Premium packaging and price;
 - whether Laya is adopted and where any optional decision model is hosted;
 - final pixel-level UI surfaces and wording.
