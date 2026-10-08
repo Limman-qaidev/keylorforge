@@ -10,7 +10,6 @@ import {
 } from '../local-store';
 import {
   initializeLocalWorkoutSchema,
-  LOCAL_WORKOUT_SCHEMA_SQL,
   type SqliteWorkoutPort,
   type SqliteQueryPort,
 } from '../local-schema';
@@ -63,7 +62,8 @@ class FakeTransactionalSQLite implements SqliteWorkoutPort {
       const found = sql.includes('mutation_id = ?')
         ? this.outbox.get(subject + ':' + String(params[1]))
         : [...this.outbox.values()].find(
-            (item) => item.subject === subject && item.delivery_state === 'pending',
+            (item) =>
+              item.subject === subject && item.delivery_state === 'pending',
           );
       return (found ?? null) as T | null;
     }
@@ -72,7 +72,8 @@ class FakeTransactionalSQLite implements SqliteWorkoutPort {
       : sql.includes('session_id = ?')
         ? this.sessions.get(subject + ':' + String(params[1]))
         : [...this.sessions.values()].find(
-            (row) => row.subject === subject && row.lifecycle_state === 'active',
+            (row) =>
+              row.subject === subject && row.lifecycle_state === 'active',
           );
     return (found ?? null) as T | null;
   }
@@ -139,7 +140,9 @@ describe('M3 account-partitioned local workout transaction', () => {
     const db = new FakeTransactionalSQLite();
     const auth = accountAccess();
     await initializeLocalWorkoutSchema(db);
-    expect(db.schema).toContain('CREATE UNIQUE INDEX IF NOT EXISTS local_one_active');
+    expect(db.schema).toContain(
+      'CREATE UNIQUE INDEX IF NOT EXISTS local_one_active',
+    );
     const result = await startLocalFreeWorkout(db, auth.access, input);
     expect(result.session_id).toBe(input.sessionId);
     expect(db.sessions.size).toBe(1);
@@ -197,9 +200,9 @@ describe('M3 account-partitioned local workout transaction', () => {
   it('rolls back BOTH rows if inserting the outbox fails', async () => {
     const db = new FakeTransactionalSQLite();
     db.failOutboxInsert = true;
-    await expect(startLocalFreeWorkout(db, accountAccess().access, input)).rejects.toThrow(
-      'disk full',
-    );
+    await expect(
+      startLocalFreeWorkout(db, accountAccess().access, input),
+    ).rejects.toThrow('disk full');
     expect(db.sessions.size).toBe(0);
     expect(db.outbox.size).toBe(0);
   });
@@ -208,9 +211,9 @@ describe('M3 account-partitioned local workout transaction', () => {
     const db = new FakeTransactionalSQLite();
     const auth = accountAccess();
     db.onSessionInsert = () => auth.setSubject(subjectB);
-    await expect(startLocalFreeWorkout(db, auth.access, input)).rejects.toBeInstanceOf(
-      LocalWorkoutError,
-    );
+    await expect(
+      startLocalFreeWorkout(db, auth.access, input),
+    ).rejects.toBeInstanceOf(LocalWorkoutError);
     expect(db.sessions.size).toBe(0);
     expect(db.outbox.size).toBe(0);
   });
