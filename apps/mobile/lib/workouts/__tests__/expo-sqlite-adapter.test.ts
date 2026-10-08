@@ -16,9 +16,9 @@ describe('M3 Expo SQLite native database binding', () => {
       withExclusiveTransactionAsync: jest.fn(),
       closeAsync: jest.fn(),
     };
-    jest.mocked(SQLite.openDatabaseAsync).mockResolvedValue(
-      database as unknown as SQLite.SQLiteDatabase,
-    );
+    jest
+      .mocked(SQLite.openDatabaseAsync)
+      .mockResolvedValue(database as unknown as SQLite.SQLiteDatabase);
 
     const first = await openLocalWorkoutDatabase();
     const second = await openLocalWorkoutDatabase();
@@ -29,7 +29,11 @@ describe('M3 Expo SQLite native database binding', () => {
       'keylorforge-m3-workouts.db',
     );
     expect(queries[0]).toContain('PRAGMA foreign_keys = ON;');
-    expect(queries.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS local_workout_sessions'))).toBe(true);
+    expect(
+      queries.some((sql) =>
+        sql.includes('CREATE TABLE IF NOT EXISTS local_workout_sessions'),
+      ),
+    ).toBe(true);
     expect(queries[queries.length - 1]).toBe('PRAGMA user_version = 1;');
     expect(database.closeAsync).not.toHaveBeenCalled();
   });
