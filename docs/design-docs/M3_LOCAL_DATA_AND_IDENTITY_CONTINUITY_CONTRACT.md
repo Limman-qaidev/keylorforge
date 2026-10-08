@@ -333,9 +333,9 @@ The deletion-pending marker must survive process death/restart and must not depe
 
 ### 13.3 Confirmed deletion
 
-After the backend has confirmed terminal account deletion:
+Only after backend status confirms **both** account-owned server M3 purge and external provider deletion (including mandatory external live-copy steps) can the client treat deletion as terminal. A provider-only success is insufficient under the proposed R2-03 authority.
 
-purge the deleted subject's local account-owned partition, including:
+After confirmed terminal account deletion, purge the deleted subject's local account-owned partition, including:
 
 - workout/session/set data;
 - Set Drafts;
@@ -354,11 +354,9 @@ The app must not resurrect normal use of a deletion-pending/terminal local parti
 
 A special deletion-reconciliation path must exist because the provider identity may already have been removed and therefore ordinary authenticated refresh may no longer be possible.
 
-Acceptable implementation strategies include:
+The proposed `M3_SERVER_DELETION_AND_RETENTION_CONTRACT.md` (#123 / R2-03) selects a **review-gated client-prepared high-entropy deletion-status receipt** as the concrete G3 direction: the mobile client durably stores the secret **before** submitting the authenticated deletion request; the server stores only its digest and a durable account-scoped deletion operation; a narrow status query may then confirm terminal deletion without re-authentication. The proposal requires security validation of token entropy, rate limits, non-enumeration, expiry/recovery and local secret storage before implementation. Until accepted, the receipt/status API is **not** an authorized implementation contract.
 
-- backend deletion operation returns/uses an idempotent opaque deletion operation ID that can be queried without restoring normal account access;
-- a durable server-side terminal application-identity response can be recognized from the deletion retry path;
-- or another explicitly reviewed terminal-deletion receipt/status mechanism.
+If the status is absent, unprovable or expired, the client must remain `DELETION_PENDING` and enter the reviewed recovery process; **no ambiguous response** can authorize local purge.
 
 If the device is locally `DELETION_PENDING` and subsequent auth refresh is definitively rejected, the client must **not** infer ordinary logout and reactivate/preserve the partition indefinitely. It enters a deletion-reconciliation state and resolves the terminal deletion outcome through the dedicated mechanism.
 
@@ -525,7 +523,7 @@ Initial M3 local cache should serve:
 
 Sensitive menstrual/cycle-specific data is not added to local/server persistence until the separate privacy/security decision required by the Product Contract is completed.
 
-Training Profile stable preferences and operational Session Context (time/gym/equipment) have their proposed data-ownership/minimization contract in `M3_TRAINING_PROFILE_AND_SESSION_CONTEXT_CONTRACT.md` (#121); absence of either never blocks logging.
+Training Profile stable preferences and operational Session Context (time/gym/equipment) have their accepted data-ownership/minimization contract in `M3_TRAINING_PROFILE_AND_SESSION_CONTEXT_CONTRACT.md` (#121 / merged PR #122); absence of either never blocks logging.
 
 Generic **subjective readiness observations** may be persisted only after a narrower G1 purpose/field/retention and privacy decision. No symptom/menstrual payload may bypass #116 through generic Profile/Context JSON.
 
