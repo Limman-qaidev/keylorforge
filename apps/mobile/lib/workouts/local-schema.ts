@@ -9,13 +9,21 @@
 export const LOCAL_WORKOUT_SCHEMA_VERSION = 1;
 
 export interface SqliteQueryPort {
-  getFirstAsync<T>(sql: string, ...params: (string | number | null)[]): Promise<T | null>;
-  runAsync(sql: string, ...params: (string | number | null)[]): Promise<unknown>;
+  getFirstAsync<T>(
+    sql: string,
+    ...params: (string | number | null)[]
+  ): Promise<T | null>;
+  runAsync(
+    sql: string,
+    ...params: (string | number | null)[]
+  ): Promise<unknown>;
 }
 
 export interface SqliteWorkoutPort extends SqliteQueryPort {
   execAsync(sql: string): Promise<void>;
-  withExclusiveTransactionAsync(task: (tx: SqliteQueryPort) => Promise<void>): Promise<void>;
+  withExclusiveTransactionAsync(
+    task: (tx: SqliteQueryPort) => Promise<void>,
+  ): Promise<void>;
 }
 
 export const LOCAL_WORKOUT_SCHEMA_SQL = `
@@ -66,6 +74,8 @@ CREATE INDEX IF NOT EXISTS local_workout_outbox_pending
   ON local_workout_outbox (subject, delivery_state, created_at_utc);
 `;
 
-export async function initializeLocalWorkoutSchema(db: SqliteWorkoutPort): Promise<void> {
+export async function initializeLocalWorkoutSchema(
+  db: SqliteWorkoutPort,
+): Promise<void> {
   await db.execAsync(LOCAL_WORKOUT_SCHEMA_SQL);
 }
