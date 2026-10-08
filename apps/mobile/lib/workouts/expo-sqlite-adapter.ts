@@ -19,7 +19,9 @@ let opened: Promise<SqliteWorkoutPort> | null = null;
 
 async function initializeNativeWorkoutDatabase(): Promise<SqliteWorkoutPort> {
   if (Platform.OS === 'web') {
-    throw new Error('M3 native SQLite workout storage is not supported on web.');
+    throw new Error(
+      'M3 native SQLite workout storage is not supported on web.',
+    );
   }
   const db = await SQLite.openDatabaseAsync(DATABASE_NAME);
   try {
@@ -33,7 +35,9 @@ async function initializeNativeWorkoutDatabase(): Promise<SqliteWorkoutPort> {
       throw new Error('Unable to read M3 SQLite schema version.');
     }
     if (version.user_version > LOCAL_WORKOUT_SCHEMA_VERSION) {
-      throw new Error('M3 SQLite schema is newer than this app. Update KeylorForge.');
+      throw new Error(
+        'M3 SQLite schema is newer than this app. Update KeylorForge.',
+      );
     }
     if (version.user_version < 0) {
       throw new Error('M3 SQLite schema version is invalid.');
@@ -42,7 +46,9 @@ async function initializeNativeWorkoutDatabase(): Promise<SqliteWorkoutPort> {
       // The v1 DDL is idempotent. PRAGMA user_version is set *only after*
       // initialization succeeds; an interrupted first launch can retry safely.
       await initializeLocalWorkoutSchema(db as SqliteWorkoutPort);
-      await db.execAsync(`PRAGMA user_version = ${LOCAL_WORKOUT_SCHEMA_VERSION};`);
+      await db.execAsync(
+        `PRAGMA user_version = ${LOCAL_WORKOUT_SCHEMA_VERSION};`,
+      );
     }
     // The SDK's SQLiteDatabase implements the three query methods and the
     // scoped withExclusiveTransactionAsync callback of SqliteWorkoutPort.
