@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import UTC
-from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException, status
