@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 import pytest
@@ -35,7 +34,9 @@ class _Verifier:
         return AuthenticatedPrincipal(self._subjects[token])
 
 
-def _payload(*, session_id: UUID | None = None, mutation_id: UUID | None = None) -> dict[str, str]:
+def _payload(
+    *, session_id: UUID | None = None, mutation_id: UUID | None = None
+) -> dict[str, str]:
     return {
         "session_id": str(session_id or uuid4()),
         "mutation_id": str(mutation_id or uuid4()),
@@ -89,16 +90,26 @@ def test_free_session_start_resume_idempotency_isolation_and_purge() -> None:
         assert repeat.json() == first.json()
 
         tampered = {**payload_a, "time_zone": "UTC"}
-        assert client.post("/workout-sessions/start", headers=a, json=tampered).status_code == 409
+        assert (
+            client.post("/workout-sessions/start", headers=a, json=tampered).status_code
+            == 409
+        )
         # Different new start cannot silently create a second active session.
-        assert client.post(
-            "/workout-sessions/start", headers=a, json=_payload()
-        ).status_code == 409
+        assert (
+            client.post(
+                "/workout-sessions/start", headers=a, json=_payload()
+            ).status_code
+            == 409
+        )
         # UUID collision against another owner must not disclose their session.
-        assert client.post(
-            "/workout-sessions/start", headers=b,
-            json=_payload(session_id=UUID(payload_a["session_id"])),
-        ).status_code == 409
+        assert (
+            client.post(
+                "/workout-sessions/start",
+                headers=b,
+                json=_payload(session_id=UUID(payload_a["session_id"])),
+            ).status_code
+            == 409
+        )
         assert client.get("/workout-sessions/active", headers=b).json() is None
 
         other = client.post("/workout-sessions/start", headers=b, json=_payload())
@@ -118,7 +129,9 @@ def test_free_session_start_resume_idempotency_isolation_and_purge() -> None:
             ).all()
             assert len(rows) == 1
             assert rows[0].start_prescription == {
-                "schema_version": 1, "origin": "free", "items": []
+                "schema_version": 1,
+                "origin": "free",
+                "items": [],
             }
             assert len(session.scalars(select(WorkoutMutationReceipt)).all()) == 2
             # Mirrors owner terminalization + purge before provider deletion.
@@ -132,14 +145,22 @@ def test_free_session_start_resume_idempotency_isolation_and_purge() -> None:
         assert client.get("/workout-sessions/active", headers=a).status_code == 403
         assert client.get("/workout-sessions/active", headers=b).json() == other.json()
         with Session(engine) as session:
-            assert session.scalars(
-                select(WorkoutSession).where(WorkoutSession.owner_user_id == owner_a_id)
-            ).all() == []
-            assert session.scalars(
-                select(WorkoutMutationReceipt).where(
-                    WorkoutMutationReceipt.owner_user_id == owner_a_id
-                )
-            ).all() == []
+            assert (
+                session.scalars(
+                    select(WorkoutSession).where(
+                        WorkoutSession.owner_user_id == owner_a_id
+                    )
+                ).all()
+                == []
+            )
+            assert (
+                session.scalars(
+                    select(WorkoutMutationReceipt).where(
+                        WorkoutMutationReceipt.owner_user_id == owner_a_id
+                    )
+                ).all()
+                == []
+            )
             assert len(session.scalars(select(WorkoutSession)).all()) == 1
     finally:
         engine.dispose()
