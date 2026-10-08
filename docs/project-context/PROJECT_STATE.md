@@ -34,12 +34,12 @@ Current focused remediation after audit #117:
 2. **R2-02 / issue #121 / PR #122 — MERGED** (commit `6b1989d4`) — optional Training Profile, cold-start Free Workout and per-session context accepted at contract level; CI 4/4 after P1 reviewer fix.
 3. **R2-03 / issue #123 / PR #124 — MERGED** (commit `1dd51d87`) — server deletion/retention and G3 recovery **contract accepted**, Codex 2 P1 + 1 P2 closed; runtime purge/ledger/security review still not implemented.
 4. **R2-04 / issue #125 / PR #126 — MERGED** (commit `7b2986f9`) — accepted first-performed-set occurrence boundary, applied agenda changes and immutable final snapshot; SQL/API/mobile behavior still **not implemented**.
-5. **#89 — IMPLEMENTATION IN REVIEW:** 2 reviewed true-alias redirects and 2 intentionally distinct Spanish names; no existing source or application IDs may be removed. CI and physical Android catalogue acceptance are separate mandatory gates **before merge**.
+5. **#89 / PR #128 — MERGED** (commit `ef65d5ac`) — canonical exercise alias curation retains 899 source identities and serves 897 canonical exercises; physical Android acceptance (5 checks) confirmed by Product Owner on 2026-10-08.
 6. **G4 / audit #117 / PR #127 — MERGED** (commit `2b4c4121`) — local logout barrier, stale restoration fencing and regression tests integrated. Confirmed CI; does not by itself prove new M3 offline features on device.
 
-### M3 implementation execution queue (no new issues for already-tracked work)
+### M3 implementation execution queue (open focused issues for real implementation slices as needed)
 
-The following is execution order and dependency tracking, **not another round of contracts**. Each implementation PR must include code and tests, remain scoped, and require **physical Android validation of its user-visible flow and explicit Product Owner approval before merge**. CI/Codex alone are insufficient.
+The following is execution order and dependency tracking, **not another round of contracts**. The current first backend-only session-start slice is **issue #129 / draft PR #130**, unmerged and not yet a complete mobile flow. Each implementation PR must include code and tests, remain scoped, and require **physical Android validation of its user-visible flow and explicit Product Owner approval before merge**. CI/Codex alone are insufficient.
 
 | Order | Deliverable | Concrete Done/verification | Dependencies / tracking |
 | --- | --- | --- | --- |
