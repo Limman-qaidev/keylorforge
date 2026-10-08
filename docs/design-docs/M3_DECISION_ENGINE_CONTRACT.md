@@ -1,10 +1,11 @@
 # M3 Decision Engine Contract
 
-**Status:** Draft for Product Owner review  
+**Status:** Accepted by Product Owner  
 **Milestone:** M3 — Workout Engine  
 **Issue:** #99  
 **Parent authorities:** `M3_WORKOUT_ENGINE_PRODUCT_CONTRACT.md`, `M3_TRAINING_GOAL_POLICIES.md`, `M3_EXERCISE_AND_EQUIPMENT_CONTRACT.md`, `M3_WORKOUT_DOMAIN_CONTRACT.md`  
-**Date:** 2026-10-08
+**Date:** 2026-10-08  
+**Product Owner approval:** 2026-10-08
 
 ## 1. Purpose
 
