@@ -10,26 +10,33 @@ This is the fast handoff for resuming work. GitHub issues, PRs and `main` remain
 
 M2 — Exercise Catalog is complete.
 
-M3 product discovery and the first design-contract pass are complete and accepted by the Product Owner. The following authoritative M3 documents are merged on `main`:
+M3 product discovery and the first design-contract pass are accepted. The current authoritative M3 design package merged on `main` comprises:
 
-- `M3_WORKOUT_ENGINE_PRODUCT_CONTRACT.md`
-- `M3_TRAINING_GOAL_POLICIES.md`
-- `M3_EXERCISE_AND_EQUIPMENT_CONTRACT.md`
-- `M3_WORKOUT_DOMAIN_CONTRACT.md`
-- `M3_DECISION_ENGINE_CONTRACT.md`
-- `M3_WORKOUT_SYNC_CONTRACT.md`
-- `M3_USER_JOURNEY.md`
+- `M3_WORKOUT_ENGINE_PRODUCT_CONTRACT.md`;
+- `M3_TRAINING_GOAL_POLICIES.md`;
+- `M3_EXERCISE_AND_EQUIPMENT_CONTRACT.md`;
+- `M3_WORKOUT_DOMAIN_CONTRACT.md`;
+- `M3_DECISION_ENGINE_CONTRACT.md`;
+- `M3_WORKOUT_SYNC_CONTRACT.md`;
+- `M3_PERSISTENCE_AND_DATA_MODEL_CONTRACT.md` (#110);
+- `M3_LOCAL_DATA_AND_IDENTITY_CONTINUITY_CONTRACT.md` (#112);
+- `M3_USER_JOURNEY.md` (including scenarios 21–30, #114).
 
-A cross-contract audit is tracked in #105 / PR #106. It found no product-vision redesign blocker, but identified persistence/offline/identity seams that must be closed **per dependent implementation slice** before those schema/API portions are frozen.
+The first cross-contract audit is issue #105 / merged PR #106. The first remediation merged in order: #108, #110, #112, #114. The **second audit** is issue #117 / merged PR #118, report `M3_POST_REMEDIATION_AUDIT.md`. It found no P0 redesign, but remaining P1 gates before freezing a production-grade workout schema/API.
 
-Current remediation sequence:
+Current focused remediation after audit #117:
 
-- #107 / PR #108 — top-level product/project authority reconciliation (this documentation update);
-- #109 / PR #110 — M3 persistence/data-model closure: Training Intent priority, plan/template snapshots, plan-step coverage, session qualification, set draft semantics, Machine Profile persistence, units/timezone and minimal execution grouping;
-- next: offline read/cache + M1/M3 identity/deletion boundary;
-- #89 — catalogue alias/name-collision curation before meaningful workout history accumulates under avoidably fragmented identities.
+1. **R2-01 / issue #119** — reconcile conflicting wording among accepted M3 authorities (this proposed branch/PR; do not mark complete until merged and reviewed).
+2. **R2-02** — Training Profile/preferences, optional Training Intent cold-start, generic session context.
+3. **R2-03** — server-side M3 user-owned data deletion/retention and idempotent terminal reconciliation.
+4. **R2-04** — authoritative Workout Exercise Occurrence boundary and durable in-session adaptation/completion provenance.
+5. **#89** — canonical catalogue aliases/source redirects before final workout-history identity freeze.
+6. **G4** — fix mobile explicit logout local-access error path and regression-test before enabling M3 offline continuity.
 
-Implementation may proceed incrementally only where the required contracts for that slice are closed. Do not let unrelated advanced-plan/AI work block a deliberately scoped basic recording slice.
+Parallel workstreams: #115 Exercise Intelligence content; #116 **privacy gate** before menstrual/cycle-specific persistence. Generic readiness/workout logging is not blocked by #116.
+
+**Implementation gates:** no final cross-domain PostgreSQL/SQLite/FastAPI history freeze until relevant P1s close. Canonical alias #89 and generic offline/outbox groundwork may proceed where independent. Do not block the first qualifying Free Workout vertical slice on advanced AI or fatigue features once its own gates close.
+
 
 ## Completed M2 work
 
