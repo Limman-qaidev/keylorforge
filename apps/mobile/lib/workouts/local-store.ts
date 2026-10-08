@@ -62,16 +62,19 @@ export class LocalWorkoutError extends Error {
 
 const uuid =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const day = /^\d{4}-\d{2}-\d{2}$/;
-
 function activeSubject(access: LocalSubjectAccess): string {
   const subject = access.currentAuthenticatedSubject();
   if (!subject || !uuid.test(subject)) {
     throw new LocalWorkoutError('notAuthenticated');
   }
-  return subject;
+  return subject.toLowerCase();
 }
 
+/**
+ * The local calendar day and UTC offset are derived from the SAME instant and
+ * IANA timezone as the server, not trusted merely because they look valid.
+ * Deriving offset with formatToParts supports DST and fractional-hour zones.
+ */
 function validateInput(input: LocalStartWorkoutInput): void {
   if (!uuid.test(input.sessionId) || !uuid.test(input.mutationId)) {
     throw new LocalWorkoutError('invalidInput');
@@ -80,12 +83,61 @@ function validateInput(input: LocalStartWorkoutInput): void {
   if (
     !Number.isFinite(parsed.getTime()) ||
     parsed.toISOString() !== input.startedAtUtc ||
-    !day.test(input.localDate) ||
     !Number.isInteger(input.utcOffsetMinutes) ||
     Math.abs(input.utcOffsetMinutes) > 840 ||
     !input.timeZone ||
     input.timeZone.length > 64
   ) {
+    throw new LocalWorkoutError('invalidInput');
+  }
+
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: input.timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23',
+    });
+    const values = Object.fromEntries(
+      formatter.formatToParts(parsed).map((part) => [part.type, part.value]),
+    );
+    const year = Number(values.year);
+    const month = Number(values.month);
+    const date = Number(values.day);
+    const hour = Number(values.hour);
+    const minute = Number(values.minute);
+    const second = Number(values.second);
+    if (![year, month, date, hour, minute, second].every(Number.isInteger)) {
+      throw new LocalWorkoutError('invalidInput');
+    }
+    const actualDate = [
+      String(year).padStart(4, '0'),
+      String(month).padStart(2, '0'),
+      String(date).padStart(2, '0'),
+    ].join('-');
+    const utcSecond = Date.UTC(
+      parsed.getUTCFullYear(),
+      parsed.getUTCMonth(),
+      parsed.getUTCDate(),
+      parsed.getUTCHours(),
+      parsed.getUTCMinutes(),
+      parsed.getUTCSeconds(),
+    );
+    const localSecond = Date.UTC(year, month - 1, date, hour, minute, second);
+    const offsetMinutes = Math.floor((localSecond - utcSecond) / 60_000);
+    if (
+      actualDate !== input.localDate ||
+      offsetMinutes !== input.utcOffsetMinutes
+    ) {
+      throw new LocalWorkoutError('invalidInput');
+    }
+  } catch {
+    // An unknown IANA timezone or unavailable ICU timezone data must not
+    // create an unsynchronizable "successful" local workout.
     throw new LocalWorkoutError('invalidInput');
   }
 }
@@ -108,8 +160,13 @@ export async function startLocalFreeWorkout(
   input: LocalStartWorkoutInput,
 ): Promise<LocalWorkoutSession> {
   const subject = activeSubject(access);
-  validateInput(input);
-  const payload = startPayload(input);
+  const normalized = {
+    ...input,
+    sessionId: normalized.sessionId.toLowerCase(),
+    mutationId: normalized.mutationId.toLowerCase(),
+  };
+  validateInput(normalized);
+  const payload = startPayload(normalized);
   let started: LocalWorkoutSession | null = null;
 
   await db.withExclusiveTransactionAsync(async (tx) => {
@@ -121,28 +178,31 @@ export async function startLocalFreeWorkout(
     const duplicate = await tx.getFirstAsync<LocalOutboxItem>(
       'SELECT * FROM local_workout_outbox WHERE subject = ? AND mutation_id = ?',
       subject,
-      input.mutationId,
+      normalized.mutationId,
     );
     if (duplicate) {
       if (
         duplicate.payload_json !== payload ||
-        duplicate.session_id !== input.sessionId
+        duplicate.session_id !== normalized.sessionId
       ) {
         throw new LocalWorkoutError('mutationConflict');
       }
       started = await tx.getFirstAsync<LocalWorkoutSession>(
         'SELECT * FROM local_workout_sessions WHERE subject = ? AND session_id = ?',
         subject,
-        input.sessionId,
+        normalized.sessionId,
       );
       if (!started) {
         throw new LocalWorkoutError('corruptLocalData');
+      }
+      if (activeSubject(access) !== subject) {
+        throw new LocalWorkoutError('notAuthenticated');
       }
       return;
     }
     const sameId = await tx.getFirstAsync<LocalWorkoutSession>(
       'SELECT * FROM local_workout_sessions WHERE session_id = ?',
-      input.sessionId,
+      normalized.sessionId,
     );
     if (sameId) {
       throw new LocalWorkoutError('sessionIdConflict');
@@ -161,11 +221,11 @@ export async function startLocalFreeWorkout(
         utc_offset_minutes, local_date, original_agenda_json, agenda_revision)
        VALUES (?, ?, 'active', 'free', ?, ?, ?, ?, ?, 0)`,
       subject,
-      input.sessionId,
-      input.startedAtUtc,
-      input.timeZone,
-      input.utcOffsetMinutes,
-      input.localDate,
+      normalized.sessionId,
+      normalized.startedAtUtc,
+      normalized.timeZone,
+      normalized.utcOffsetMinutes,
+      normalized.localDate,
       JSON.stringify({ schema_version: 1, origin: 'free', items: [] }),
     );
     await tx.runAsync(
@@ -174,24 +234,28 @@ export async function startLocalFreeWorkout(
         payload_json, delivery_state, created_at_utc)
        VALUES (?, ?, ?, 'START_SESSION', 1, ?, 'pending', ?)`,
       subject,
-      input.mutationId,
-      input.sessionId,
+      normalized.mutationId,
+      normalized.sessionId,
       payload,
-      input.startedAtUtc,
+      normalized.startedAtUtc,
     );
-    // Revalidate before transaction commit, including after all awaits.
-    if (activeSubject(access) !== subject) {
-      throw new LocalWorkoutError('notAuthenticated');
-    }
     started = await tx.getFirstAsync<LocalWorkoutSession>(
       'SELECT * FROM local_workout_sessions WHERE subject = ? AND session_id = ?',
       subject,
-      input.sessionId,
+      normalized.sessionId,
     );
     if (!started) {
       throw new LocalWorkoutError('corruptLocalData');
     }
+    // This must follow the LAST database await; otherwise a logout triggered
+    // during the lookup can leave committed outbox data for an inactive account.
+    if (activeSubject(access) !== subject) {
+      throw new LocalWorkoutError('notAuthenticated');
+    }
   });
+  if (activeSubject(access) !== subject) {
+    throw new LocalWorkoutError('notAuthenticated');
+  }
   if (!started) {
     throw new LocalWorkoutError('corruptLocalData');
   }
