@@ -20,17 +20,18 @@ M3 product discovery and the first design-contract pass are accepted. The curren
 - `M3_WORKOUT_SYNC_CONTRACT.md`;
 - `M3_PERSISTENCE_AND_DATA_MODEL_CONTRACT.md` (#110);
 - `M3_LOCAL_DATA_AND_IDENTITY_CONTINUITY_CONTRACT.md` (#112);
-- `M3_USER_JOURNEY.md` (including scenarios 21–30, #114).
+- `M3_USER_JOURNEY.md` (including scenarios 21–30, #114);
+- `M3_TRAINING_PROFILE_AND_SESSION_CONTEXT_CONTRACT.md` (#121 / merged PR #122).
 
-**Proposed, not accepted or merged yet:** `M3_TRAINING_PROFILE_AND_SESSION_CONTEXT_CONTRACT.md` (#121 / R2-02). Its eventual merge must update this handoff status.
+**Proposed, not yet accepted or merged:** `M3_SERVER_DELETION_AND_RETENTION_CONTRACT.md` (#123 / R2-03). It requires explicit Product Owner/security review and implementation before schema/API freeze.
 
 The first cross-contract audit is issue #105 / merged PR #106. The first remediation merged in order: #108, #110, #112, #114. The **second audit** is issue #117 / merged PR #118, report `M3_POST_REMEDIATION_AUDIT.md`. It found no P0 redesign, but remaining P1 gates before freezing a production-grade workout schema/API.
 
 Current focused remediation after audit #117:
 
 1. **R2-01 / issue #119 / PR #120 — MERGED** (commit `5681b596`) — accepted authorities reconciled; second-audit N-P1-01 addressed at contract level.
-2. **R2-02 / issue #121** — proposed Training Profile/preferences, optional Training Intent cold-start, and per-session operational context contract (not accepted until PR reviewed/merged).
-3. **R2-03** — server-side M3 user-owned data deletion/retention and idempotent terminal reconciliation.
+2. **R2-02 / issue #121 / PR #122 — MERGED** (commit `6b1989d4`) — optional Training Profile, cold-start Free Workout and per-session context accepted at contract level; CI 4/4 after P1 reviewer fix.
+3. **R2-03 / issue #123** — proposed server M3 deletion/retention matrix, durable idempotent purge and G3 lost-response status receipt; **not accepted/implemented yet**.
 4. **R2-04** — authoritative Workout Exercise Occurrence boundary and durable in-session adaptation/completion provenance.
 5. **#89** — canonical catalogue aliases/source redirects before final workout-history identity freeze.
 6. **G4** — fix mobile explicit logout local-access error path and regression-test before enabling M3 offline continuity.
