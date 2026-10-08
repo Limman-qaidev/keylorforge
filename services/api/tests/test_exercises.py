@@ -186,6 +186,7 @@ def test_detail_uses_localized_contract_and_maps_not_found(
         "category",
         "primary_muscles",
         "equipment",
+        "alias_ids",
         "force_type",
         "mechanics",
         "muscles",
