@@ -33,10 +33,7 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Check formatting
-        run: |
-          npx prettier --write app/workout-storage-qa.tsx
-          git diff -- app/workout-storage-qa.tsx
-          npm run format:check
+        run: npm run format:check
 
       - name: Run lint
         run: npm run lint
