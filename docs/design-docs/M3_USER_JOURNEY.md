@@ -3,7 +3,7 @@
 **Status:** Accepted by Product Owner  
 **Milestone:** M3 — Workout Engine  
 **Issue:** #103  
-**Parent authorities:** `M3_WORKOUT_ENGINE_PRODUCT_CONTRACT.md`, `M3_TRAINING_GOAL_POLICIES.md`, `M3_EXERCISE_AND_EQUIPMENT_CONTRACT.md`, `M3_WORKOUT_DOMAIN_CONTRACT.md`, `M3_DECISION_ENGINE_CONTRACT.md`, `M3_WORKOUT_SYNC_CONTRACT.md`, `M3_PERSISTENCE_AND_DATA_MODEL_CONTRACT.md`, `M3_LOCAL_DATA_AND_IDENTITY_CONTINUITY_CONTRACT.md`, ADR-003  
+**Parent authorities:** `M3_WORKOUT_ENGINE_PRODUCT_CONTRACT.md`, `M3_TRAINING_GOAL_POLICIES.md`, `M3_EXERCISE_AND_EQUIPMENT_CONTRACT.md`, `M3_WORKOUT_DOMAIN_CONTRACT.md`, `M3_DECISION_ENGINE_CONTRACT.md`, `M3_WORKOUT_SYNC_CONTRACT.md`, `M3_PERSISTENCE_AND_DATA_MODEL_CONTRACT.md`, `M3_LOCAL_DATA_AND_IDENTITY_CONTINUITY_CONTRACT.md`, ADR-003. **Proposed R2-02 amendment:** `M3_TRAINING_PROFILE_AND_SESSION_CONTEXT_CONTRACT.md` (#121), pending Product Owner approval.  
 **Date:** 2026-10-08  
 **Product Owner approval:** 2026-10-08  
 **Audit remediation amendment:** Accepted by Product Owner — 2026-10-08
@@ -161,6 +161,8 @@ Primary choices:
 - Create my plan
 - Free workout
 
+**Free Workout never requires a configured Training Intent, Training Profile or plan.** Missing training-policy preferences are a valid cold-start state, not a reason to assign an unrequested default or disable logging.
+
 Secondary:
 
 - Explore exercises
@@ -177,9 +179,9 @@ The user provides only the minimum useful context.
 
 Likely inputs:
 
-- primary training policy;
-- experience level;
-- desired training frequency;
+- primary training policy **deliberately selected/confirmed by the user**, not inferred from merely browsing;
+- optional user-declared experience level (Training Profile);
+- optional desired training frequency (Training Profile);
 - typical available time;
 - equipment/gym context where needed.
 
