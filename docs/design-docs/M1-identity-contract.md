@@ -241,6 +241,8 @@ Backend sequence must be designed to be retry-safe and fail closed. M1 should pr
 
 The exact minimal tombstone representation and retention policy must be reviewed in IDN-006 before production use. It should retain no unnecessary profile PII while still preventing accidental reprovisioning.
 
+**Proposed M3 extension — #123 / R2-03 (not yet accepted):** M1's terminal identity mapping is retained, while **all account-owned server-side M3 personal data** must be purged and verified before external provider deletion is treated as a completed account-deletion workflow. This requires a durable idempotent deletion job, fail-closed write/sync rejection and a narrowly scoped lost-response reconciliation receipt (subject to security approval); see `M3_SERVER_DELETION_AND_RETENTION_CONTRACT.md`. M1's current implementation still follows its original inline provider call and does not implement these new M3 requirements. No runtime behavior changes merely from this documentary amendment.
+
 ### Post-deletion security acceptance
 
 IDN-006/IDN-007 must prove that:
