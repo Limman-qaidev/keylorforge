@@ -117,8 +117,6 @@ CREATE TABLE local_workout_sets (
 CREATE INDEX local_workout_sets_by_occurrence
   ON local_workout_sets (subject, session_id, occurrence_id, completed_at_utc);
 
-PRAGMA user_version = 2;
-COMMIT;
 `;
 
 /** Called only when the connection has verified PRAGMA user_version = 1. */
@@ -129,16 +127,17 @@ export async function migrateWorkoutSchemaV1ToV2(
   try {
     // All table copies and version bump succeed or roll back as one.
     await db.execAsync(LOCAL_WORKOUT_V2_MIGRATION_SQL);
-    // Validate the new FK graph before re-enabling enforcement.
+    // Check FK integrity BEFORE the transaction commits; a bad migration
+    // must not commit corrupted data or advance the schema version.
     const violation = await db.getFirstAsync<{ table: string }>(
       'PRAGMA foreign_key_check',
     );
     if (violation) {
       throw new Error('M3 SQLite migration failed foreign key integrity check.');
     }
+    await db.execAsync('PRAGMA user_version = 2; COMMIT;');
   } catch (error) {
-    // ROLLBACK will be a no-op/error if the migration already committed.
-    // In that rare post-commit integrity-failure case, abort opening the DB.
+    // Best-effort rollback if an SQLite statement already aborted the transaction.
     try {
       await db.execAsync('ROLLBACK;');
     } catch {
