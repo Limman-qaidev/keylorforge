@@ -22,12 +22,14 @@ M3 product discovery and the first design-contract pass are accepted. The curren
 - `M3_LOCAL_DATA_AND_IDENTITY_CONTINUITY_CONTRACT.md` (#112);
 - `M3_USER_JOURNEY.md` (including scenarios 21–30, #114).
 
+**Proposed, not accepted or merged yet:** `M3_TRAINING_PROFILE_AND_SESSION_CONTEXT_CONTRACT.md` (#121 / R2-02). Its eventual merge must update this handoff status.
+
 The first cross-contract audit is issue #105 / merged PR #106. The first remediation merged in order: #108, #110, #112, #114. The **second audit** is issue #117 / merged PR #118, report `M3_POST_REMEDIATION_AUDIT.md`. It found no P0 redesign, but remaining P1 gates before freezing a production-grade workout schema/API.
 
 Current focused remediation after audit #117:
 
-1. **R2-01 / issue #119** — reconcile conflicting wording among accepted M3 authorities (this proposed branch/PR; do not mark complete until merged and reviewed).
-2. **R2-02** — Training Profile/preferences, optional Training Intent cold-start, generic session context.
+1. **R2-01 / issue #119 / PR #120 — MERGED** (commit `5681b596`) — accepted authorities reconciled; second-audit N-P1-01 addressed at contract level.
+2. **R2-02 / issue #121** — proposed Training Profile/preferences, optional Training Intent cold-start, and per-session operational context contract (not accepted until PR reviewed/merged).
 3. **R2-03** — server-side M3 user-owned data deletion/retention and idempotent terminal reconciliation.
 4. **R2-04** — authoritative Workout Exercise Occurrence boundary and durable in-session adaptation/completion provenance.
 5. **#89** — canonical catalogue aliases/source redirects before final workout-history identity freeze.

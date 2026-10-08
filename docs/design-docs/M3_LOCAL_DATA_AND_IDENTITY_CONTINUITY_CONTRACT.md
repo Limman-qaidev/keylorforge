@@ -55,6 +55,8 @@ The partition includes, where applicable:
 - active plan/template data;
 - cached prescription snapshots;
 - user-created local template revisions supported by M3;
+- optional Training Profile and locally edited preference revisions;
+- optional session-specific operational context revisions and materially used input snapshots;
 - cached recent workout/history data;
 - sync cursors/revisions for that account.
 
@@ -123,7 +125,8 @@ At minimum:
 - ordered relevant Plan Steps;
 - referenced Workout Template revision or equivalent prescription;
 - exercise/target prescription required to construct Today's Proposal / initial agenda;
-- current Training Intent revision;
+- current configured Training Intent revision, **if any** (absence is valid for Free Workout cold start);
+- optional Training Profile/preferences and operational context when needed for offline plan suggestions;
 - existing execution groups needed by the plan.
 
 ### Rule
@@ -522,7 +525,9 @@ Initial M3 local cache should serve:
 
 Sensitive menstrual/cycle-specific data is not added to local/server persistence until the separate privacy/security decision required by the Product Contract is completed.
 
-Generic readiness values may be persisted only as defined by later implementation/privacy design.
+Training Profile stable preferences and operational Session Context (time/gym/equipment) have their proposed data-ownership/minimization contract in `M3_TRAINING_PROFILE_AND_SESSION_CONTEXT_CONTRACT.md` (#121); absence of either never blocks logging.
+
+Generic **subjective readiness observations** may be persisted only after a narrower G1 purpose/field/retention and privacy decision. No symptom/menstrual payload may bypass #116 through generic Profile/Context JSON.
 
 ---
 
