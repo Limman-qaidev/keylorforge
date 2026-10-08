@@ -17,6 +17,8 @@ export type ExerciseListItem = {
   category: string | null;
   primary_muscles: CatalogueReference[];
   equipment: CatalogueReference[];
+  /** Old application UUIDs that resolve to this one canonical exercise. */
+  alias_ids?: string[];
 };
 
 export type ExerciseDetail = ExerciseListItem & {
@@ -85,7 +87,10 @@ function isExerciseListItem(payload: unknown): payload is ExerciseListItem {
     Array.isArray(item.primary_muscles) &&
     item.primary_muscles.every(isReference) &&
     Array.isArray(item.equipment) &&
-    item.equipment.every(isReference)
+    item.equipment.every(isReference) &&
+    (item.alias_ids === undefined ||
+      (Array.isArray(item.alias_ids) &&
+        item.alias_ids.every((id) => typeof id === 'string')))
   );
 }
 
@@ -306,4 +311,20 @@ export function listEquipment(
   accessToken: string,
 ): Promise<CatalogueReference[]> {
   return listReferences(accessToken, '/equipment');
+}
+
+
+/**
+ * Resolve an old cached exercise identifier from the canonical catalogue page.
+ * The caller must provide the complete locally cached catalogue, not one page.
+ * Unknown IDs must NOT be guessed or assigned to a similarly named exercise.
+ */
+export function resolveCachedCanonicalExerciseId(
+  items: readonly ExerciseListItem[],
+  exerciseId: string,
+): string | null {
+  const matched = items.find(
+    (item) => item.id === exerciseId || item.alias_ids?.includes(exerciseId),
+  );
+  return matched?.id ?? null;
 }
