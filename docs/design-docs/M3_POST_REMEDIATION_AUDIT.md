@@ -627,6 +627,22 @@ Before implementing deletion-pending M3 behavior, select one concrete protocol a
 
 ---
 
+## G4 — Explicit logout must clear local access even when provider sign-out fails
+
+The accepted local-data contract (§11) requires explicit logout to end offline-continuity access immediately, regardless of remote/provider failure. The current mobile M1 implementation in `apps/mobile/lib/auth/auth-provider.tsx` lines 510–525 returns on `client.auth.signOut()` error (lines 517–520) **before** `updateAuthState(stateForSession(null))` (line 522). Thus the existing sign-out code does not satisfy the future M3 continuity requirement on this failure path.
+
+This is an **implementation gate for enabling M3 offline continuity**, not proof that M3's new offline continuity is already exposed. Before that slice ships:
+
+- transition the device to locally signed-out / partition-inaccessible state regardless of the provider call outcome;
+- stop that subject's outbox and protected local-data rendering immediately;
+- preserve the subject's unsynced partition for later successful sign-in, unless explicit deletion is requested;
+- treat remote/provider revocation as best-effort without silently retaining local access;
+- add a simulated provider/network failure test, plus account-switch isolation coverage.
+
+Do not consider the M1/M3 logout seam implementation-complete merely because the design-level contract is closed.
+
+---
+
 # 6. P2 findings
 
 ## P2-01 — Product Contract and PROJECT_STATE are stale after remediation merges
@@ -826,6 +842,8 @@ Must first close:
 
 After those, this slice can move before advanced plans/AI.
 
+- G4 local sign-out failure-path fix and tests before enabling offline continuity;
+
 ---
 
 ## Slice D — Machine-aware recording
@@ -936,6 +954,10 @@ Implement/approve canonical exercise alias representation before workout history
 - cross-entity outbox test;
 - catalogue bootstrap choice;
 - unilateral convention.
+
+## R2-07 — M1 logout error-path implementation guard
+
+Before deploying M3 offline continuity, fix the M1 mobile sign-out error path so local access ends even if provider sign-out fails, and add regression tests for network failure, unsynced outbox preservation, and account switch isolation (G4).
 
 ---
 
