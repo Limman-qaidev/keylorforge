@@ -42,7 +42,7 @@ A Training Intent revision must conceptually contain:
 - optional `secondary_training_policy`;
 - optional `body_goal`;
 - `primary_intent_dimension`;
-- experience/policy level **as an immutable historically applied snapshot**, not a second mutable preferences authority;
+- optional experience/policy level **only if explicitly declared or otherwise validly established at that time**, retained as an immutable historical snapshot; absence means unknown, not `NOVICE`, and never blocks an otherwise valid Training Intent revision;
 - effective-from timestamp;
 - optional end/superseded metadata.
 
