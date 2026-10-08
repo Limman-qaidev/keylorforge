@@ -235,7 +235,7 @@ def test_catalog_migration_refuses_destructive_downgrade(
     """The profile migration must not silently drop persisted display names."""
     config = Config("alembic.ini")
 
-    with pytest.raises(NotImplementedError, match="preserves historical canonical"):
+    with pytest.raises(NotImplementedError, match="account-owned workout"):
         command.downgrade(config, "20260831_0001")
 
     engine = create_engine(test_database_url)
