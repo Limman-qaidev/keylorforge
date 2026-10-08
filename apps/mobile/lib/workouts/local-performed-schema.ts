@@ -133,7 +133,9 @@ export async function migrateWorkoutSchemaV1ToV2(
       'PRAGMA foreign_key_check',
     );
     if (violation) {
-      throw new Error('M3 SQLite migration failed foreign key integrity check.');
+      throw new Error(
+        'M3 SQLite migration failed foreign key integrity check.',
+      );
     }
     await db.execAsync('PRAGMA user_version = 2; COMMIT;');
   } catch (error) {
