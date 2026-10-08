@@ -120,9 +120,7 @@ def _list_item(exercise: CatalogExercise, locale: str) -> ExerciseListItem:
                 ),
             )
         ],
-        alias_ids=sorted(
-            (alias.id for alias in exercise.alias_records), key=str
-        ),
+        alias_ids=sorted((alias.id for alias in exercise.alias_records), key=str),
         equipment=[
             CatalogueReference(
                 id=association.equipment.id,
