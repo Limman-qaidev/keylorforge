@@ -6,6 +6,7 @@ from keylorforge_database.identity import (
     TerminalIdentityError,
 )
 from keylorforge_database.models import ApplicationUser, AuthProvider
+from keylorforge_database.workouts import purge_account_workout_data
 from sqlalchemy.orm import Session
 
 from app.auth.jwt_verifier import AuthenticatedPrincipal
@@ -75,11 +76,17 @@ def delete_current_identity(
 ) -> None:
     """Delete only the authenticated caller while preserving a local tombstone."""
     repository = ApplicationUserRepository(session)
-    repository.start_deletion(
+    prepared_user = repository.start_deletion(
         auth_provider=AuthProvider.SUPABASE,
         external_subject=principal.external_subject,
     )
     # This explicit commit is the fail-closed boundary before provider I/O.
+    session.commit()
+
+    # Account-owned workout payloads must be purged before Supabase deletion.
+    # A purge failure leaves the local identity terminalizing and cannot
+    # proceed to provider deletion. Full durable retry remains #123.
+    purge_account_workout_data(session, prepared_user.id)
     session.commit()
 
     try:
