@@ -595,6 +595,22 @@ Completing a session does not permanently lock it against user correction.
 
 It does, however, lock it against automatic plan/engine rewrites.
 
+### 13.4 Correction that removes all performed work
+
+A `COMPLETED` session must always retain at least one `COMPLETED` set.
+
+If an explicit correction would remove the final completed set:
+
+- the session may not remain `COMPLETED`;
+- the product must warn that the correction will make the workout empty;
+- the user must explicitly confirm the destructive consequence;
+- on confirmation, the session transitions to `CANCELLED` / discarded-training semantics rather than remaining a completed workout;
+- any derived effects of completion, including plan-step advancement, attendance/session counts and later analytics, must be recomputed/reversed from the corrected raw history.
+
+The product may alternatively require the user to cancel/discard the empty workout as a separate confirmation step, but it must never persist an empty `COMPLETED` session.
+
+This is a domain invariant; exact UI wording and sync mutation sequencing belong in later contracts.
+
 ### 13.4 Revision/audit
 
 The implementation should retain enough mutation/revision semantics for safe sync and debugging.
