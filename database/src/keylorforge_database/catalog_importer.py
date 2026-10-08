@@ -11,6 +11,11 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from keylorforge_database.catalog_curation import (
+    CANONICAL_SOURCE_ALIASES,
+    SPANISH_NAME_OVERRIDES,
+    validate_catalogue_curation,
+)
 from keylorforge_database.models import (
     CatalogEquipment,
     CatalogEquipmentName,
@@ -116,6 +121,7 @@ def import_vendored_catalog(
 
     data = snapshot if snapshot is not None else load_vendored_snapshot()
     validate_snapshot(data)
+    validate_catalogue_curation(data.exercises)
 
     muscles = _upsert_muscles(session, data)
     equipment = _upsert_equipment(session, data)
@@ -193,6 +199,16 @@ def _upsert_exercises(session: Session, data: CatalogSnapshot) -> dict[str, Cata
         exercise.category = _optional_string(english, "category")
         _upsert_name(session, CatalogExerciseName, "exercise_id", exercise, localized, source_id)
         result[source_id] = exercise
+
+    # The two original alias rows and their application IDs remain physically
+    # present for already-cached references, historical FKs and source audits.
+    # Never reassign the primary key or mutate the pinned upstream snapshot.
+    session.flush()
+    for source_id, exercise in result.items():
+        canonical_source_id = CANONICAL_SOURCE_ALIASES.get(source_id)
+        exercise.canonical_exercise_id = (
+            result[canonical_source_id].id if canonical_source_id is not None else None
+        )
     return result
 
 
@@ -210,12 +226,15 @@ def _upsert_name(
         session.flush()
     for locale in SUPPORTED_LOCALES:
         identity = {foreign_key: entity.id, "locale": locale}
+        label = localized[locale][source_id]["name"]
+        if model is CatalogExerciseName and locale == "es":
+            label = SPANISH_NAME_OVERRIDES.get(source_id, label)
         name = session.get(model, identity)
         if name is None:
-            name = model(**identity, name=localized[locale][source_id]["name"])
+            name = model(**identity, name=label)
             session.add(name)
         else:
-            name.name = localized[locale][source_id]["name"]
+            name.name = label
 
 
 def _upsert_relations(
