@@ -17,13 +17,15 @@ import {
 const DATABASE_NAME = 'keylorforge-m3-workouts.db';
 let opened: Promise<SqliteWorkoutPort> | null = null;
 
-async function initializeNativeWorkoutDatabase(): Promise<SqliteWorkoutPort> {
+async function initializeNativeWorkoutDatabase(
+  databaseName: string,
+): Promise<SqliteWorkoutPort> {
   if (Platform.OS === 'web') {
     throw new Error(
       'M3 native SQLite workout storage is not supported on web.',
     );
   }
-  const db = await SQLite.openDatabaseAsync(DATABASE_NAME);
+  const db = await SQLite.openDatabaseAsync(databaseName);
   try {
     // Foreign-key enforcement is CONNECTION-LOCAL and cannot be enabled inside
     // a transaction; WAL increases reliability for concurrent readers.
@@ -62,10 +64,39 @@ async function initializeNativeWorkoutDatabase(): Promise<SqliteWorkoutPort> {
 /** Open once per JS process; failed initializations can be retried. */
 export function openLocalWorkoutDatabase(): Promise<SqliteWorkoutPort> {
   if (!opened) {
-    opened = initializeNativeWorkoutDatabase().catch((error: unknown) => {
-      opened = null;
-      throw error;
-    });
+    opened = initializeNativeWorkoutDatabase(DATABASE_NAME).catch(
+      (error: unknown) => {
+        opened = null;
+        throw error;
+      },
+    );
   }
   return opened;
 }
+
+/** Isolated, development-only store for real-device SQLite smoke testing. */
+const diagnosticDatabases = new Map<string, Promise<SqliteWorkoutPort>>();
+
+export function openDiagnosticWorkoutDatabase(
+  subject: string,
+): Promise<SqliteWorkoutPort> {
+  if (!__DEV__) {
+    throw new Error('M3 diagnostic storage is not available in release builds.');
+  }
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(subject)) {
+    throw new Error('A valid authenticated subject is required.');
+  }
+  const databaseName = `keylorforge-m3-qa-${subject.toLowerCase()}.db`;
+  let openedForSubject = diagnosticDatabases.get(databaseName);
+  if (!openedForSubject) {
+    openedForSubject = initializeNativeWorkoutDatabase(databaseName).catch(
+      (error: unknown) => {
+        diagnosticDatabases.delete(databaseName);
+        throw error;
+      },
+    );
+    diagnosticDatabases.set(databaseName, openedForSubject);
+  }
+  return openedForSubject;
+}
+
