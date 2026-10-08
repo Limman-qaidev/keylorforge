@@ -124,9 +124,19 @@ A client-generated capability held before the request addresses the case where t
 
 **Security review is a hard gate**: validate entropy, brute-force resistance, token binding, local secret storage, anti-enumeration, replay, expiration and what client recovery can safely do after expiry. This protocol is *proposed*, not an implemented API. Choose explicit limits before beta, not guessed here.
 
-### 5.2 Device-side and other-device outcomes
+### 5.2 Receipt-independent and multi-device recovery (P1 closure)
 
-M3 #112 already requires local `DELETION_PENDING` survival across restart and account switching. A second device that later discovers confirmed deletion must stop normal work, discard stale sync attempts and purge that subject's local partition when terminal proof is established. A simple auth-refresh failure is only revocation/unknown and cannot alone justify erasing unsynced local data.
+**One request receipt is not sufficient.** A pre-existing second device might have synced personal M3 data but never received the first device's deletion-request secret. The deleting device can also lose its stored secret or return after expiry. A general account-ID lookup, a refresh failure, or an unverified assertion from a support agent must **never** count as terminal proof.
+
+The R2-03 implementation therefore needs **two independent credential paths** and an explicit third, local-only option:
+
+1. **Per-device pre-enrolment**: at first authenticated bootstrap (and before storing a user-owned offline partition) each device creates a separate cryptographically random, high-entropy **deletion-status recovery credential**; its digest and subject/device-scope association are registered on the backend under live authentication. The clear credential remains in protected same-subject device storage, not a normal workout outbox or other account partition. Enrol existing installations with personal cached data during an authenticated migration before claiming automatic deletion-reconciliation coverage. A new device with no prior personal partition has no data to recover.
+2. **Independent post-deletion status**: after provider Auth deletion, a previously enrolled device may present its own recovery credential to the same strictly scoped terminal-status service, which compares only a stored digest and returns the **operation state of its enrolled subject**, not the subject ID, PII, operation secrets, or any protected APIs. The credential is **not sufficient to initiate/cancel deletion**, create a session or gain account access. A deleting device may use either its pre-enrolled credential or its request-specific receipt. Server-side state is reconciled with the independently retained terminal deletion record from §7.3, including across a restored database.
+3. **Missing/expired credential, old device, or unverifiable status**: keep the account partition quarantined and unsyncable; present a **separate explicit “Remove this account's local data from this device” action**, confirming that unsynced personal work will be lost and **that this is not proof the remote account was deleted**. This action permanently purges only that device's selected account partition and protected deletion credentials, without accessing any other account; it must never issue a server deletion request or make a claim about server completion. Users who need independent remote-state confirmation must use a separately verified account-support/recovery channel if available. Do **not** silently purge when refresh fails or a lookup is inconclusive.
+
+Both credential families need approved entropy, storage, rotation/revocation, rate limits, timing/non-enumeration handling and **bounded** server retention; account-wide receipts cannot be returned by public UUID. Design retention around the supported offline-device return window and legally reviewed privacy constraints. **No unlimited automatic recovery claim is possible after credentials and retained status expire**: if no independent status proof exists, local explicit removal is the safe terminal device path, not an invented server confirmation.
+
+M3 #112 still requires `DELETION_PENDING` continuity across restart and account switching. A second device that receives a valid authenticated terminal proof must immediately stop workout sync and purge that subject's local partition; a second device without proof remains quarantined until proof or separate user-directed local-only removal. Deployment of this two-path design, including migration of existing devices, is a **hard G3 acceptance gate** before full offline/local-account deletion rollout. A simple auth-refresh failure is only revocation/unknown and cannot alone justify erasing unsynced local data.
 
 ## 6. Failure and recovery matrix
 
@@ -144,8 +154,8 @@ M3 #112 already requires local `DELETION_PENDING` survival across restart and ac
 | Wrong owner attempts deletion-status/retry by guessing ID | Cannot affect another account or access sensitive status/data; status capability not an account selector |
 | Account A deleted, B has different data / shared catalogue | Delete A-owned rows only; B and public catalogue unchanged |
 | Old JWT still cryptographically valid | M1 terminal lifecycle prevents protected access and auto-provision |
-| Receipt expired or absent | Unknown/recovery, not silent success; local `DELETION_PENDING` remains quarantined |
-| Backup snapshot restored | Run terminal/deletion reconciliation before exposing restored data; never resurrect deleted accounts |
+| Request receipt lost/expired | Use independently pre-enrolled same-device status credential; if absent/expired, quarantine or separately confirmed **local-only** erase without any remote-deletion assertion |
+| Backup snapshot restored | Replay a separately retained append-only deletion ledger that survives the restored DB snapshot; block all account exposure until replay and purge/terminal fencing pass; **fail closed** if ledger is missing |
 | Deletion of optional external storage fails | Remain pending on required resource step; retry and do not falsely say all personal data is gone |
 
 ## 7. Retention, observability, backups and exports
@@ -162,9 +172,18 @@ Logs, crashes, analytics events, error monitoring, queues, exports and read repl
 
 For genuinely non-identifying aggregate metrics, retention is possible only with an explicit documented anonymization assessment. A tokenized user ID, sparse time-series of workouts or exact per-user series is not automatically anonymous.
 
-### 7.3 Backups and recovery
+### 7.3 Independent deletion ledger, backups and recovery (P1 closure)
 
-Instant deletion from immutable disaster-recovery backups may not be technically feasible. Require **documented maximum backup retention and access controls** before production; backups expire on bounded schedules, are not repurposed for analytics, and restoring from backup must replay the authoritative terminal deletion ledger/status **before** exposing data or accepting sync so deleted personal rows cannot be resurrected. If such a guarantee cannot be demonstrated, the production deletion claim must be qualified and the design changed.
+An application-database backup taken **before** account deletion cannot contain the later database tombstone/job. A tombstone stored only in the same database is **not** sufficient to prevent deleted personal records being resurrected from a restored earlier snapshot.
+
+Before accepting a deletion, write and durably acknowledge an owner-scoped **deletion-intent/fence record in an independently retained append-only terminal-deletion ledger**, whose storage, backup and recovery failure boundary is separate from the application PostgreSQL snapshot being restored. It records a minimally sufficient pseudonymous immutable account/provider-subject key, deletion-operation id, lifecycle/fence status and event ordering; **no workout/profile payload**. The ledger may retain an access-controlled receipt-verification mapping needed for §5 only within reviewed limits. The independent store must have durability, authenticated append/read, tamper detection, monitored replication/checkpoints and a documented recovery-owner procedure. It is **not** anonymous and needs explicit retention/legal review.
+
+- **Ordering and failure fencing**: the independent intent/fence append is durably acknowledged **before** the primary database accepts `DELETION_IN_PROGRESS`. If it cannot be written, reject/hold the deletion request without reporting acceptance. If append succeeds but the database commit fails, the external fence may conservatively block that subject until server reconciliation; it must not automatically re-enable service.
+- **Completion**: append confirmed purge/provider/finalization transitions to the external ledger as durable evidence. A terminal completion may be exposed to clients only after the required database/external steps **and the independently durable terminal evidence** are acknowledged; on partial journal failures, remain pending and retry safely.
+- **Restore precondition**: restore to an isolated non-serving environment. Before restoring authentication, M3 APIs, sync, background workers, exports or catalogue-user joins, retrieve all relevant deletion-fence/terminal events **after the restored snapshot's recovery watermark** from the independent ledger. Recreate terminal tombstones/fences and run owner-scoped M3 purge; verify no affected user's personal rows, outbox or derived copies remain and that restoration did not re-provision or re-authorize the deleted subject. Resume only after a checkpointed reconciliation audit passes. If the ledger, event range, integrity proof or reconciliation is incomplete, **fail closed and do not serve the restored database**.
+- **Retention boundary**: the ledger's necessary replay evidence survives at least the longest still-restorable backup (including cold/replica copies), plus any approved status recovery interval. Backups expire on **documented bounded schedules**; never prune the required ledger event range while a replayable pre-deletion snapshot survives. Ledger pruning and backup destruction must be coordinated, auditable and privacy/legal approved. No invented retention duration is authorized here.
+
+Immutable disaster-recovery backups may not support immediate record-level purge; they must have bounded, access-controlled retention, no analytics reuse, and independently verified post-restore deletion replay. If those guarantees cannot be demonstrated, the rollout/deletion-complete claim is blocked; do not claim full restoration safety from M1 tombstones alone.
 
 ### 7.4 Data portability and timing
 
@@ -186,11 +205,11 @@ Regulatory retention duties/exceptions, deadlines and notice text are **privacy/
 
 6. Extend IDN-006/IDN-007 sequence tests to include M3 purge *before* provider delete and finalization after all mandatory steps.
 7. Inject provider outage, crash between state transitions, lost HTTP response, timeout, repeated client request, worker restart and status polling without auth refresh.
-8. Verify receipt high entropy/hashed storage, narrow scope, rate limiting, non-enumeration, expiry and failure behavior through independent security QA.
+8. Verify both request-specific receipt and independently pre-enrolled **per-device** recovery credentials: high entropy/hashed storage, narrow status-only scope, rate limiting, non-enumeration, revocation, expiry, legacy-device migration and response loss; with no valid credential, confirm local-only explicit erase never asserts server deletion.
 9. Verify cross-account A/B isolation, no accidental global catalogue cascade, no secrets in mobile.
 10. Verify local deletion-pending markers/outbox only purge on verified terminal success, and do not resurrect on restart or sign-in for another subject.
 11. Confirm logs, metrics, traces, exports, object storage and all cache layers do not preserve user payloads beyond a separately reviewed bounded requirement.
-12. Restore a pre-deletion backup into a test environment and prove terminalization ledger/reconciliation prevents A's personal data from being served.
+12. Restore a pre-deletion backup into an isolated test environment with a **separately retained post-snapshot deletion ledger** and prove A remains terminalized and all personal rows are purged **before** any endpoint/workers are enabled. With the ledger unavailable/truncated or integrity-invalid, prove restore **fails closed**; also test external-fence-append success followed by primary DB commit failure.
 
 ### Definition of Done before final schema/API freeze
 
@@ -206,8 +225,8 @@ Approval of R2-03 accepts:
 
 1. Hard-delete-by-default policy for **all account-owned M3 personal rows and derivatives**, while preserving shared system records and minimal reviewed M1 anti-reprovision tombstone.
 2. A server **durable idempotent deletion operation** that blocks writes first, purges M3 user data, deletes provider identity and only then reports confirmed terminal deletion.
-3. The proposed **pre-issued opaque deletion-status receipt** as the G3 architecture, subject to technical/security verification before production.
-4. Owner-scoped cascades/FK-safe cleanup, zero cross-account loss, no stale-work resurrection and explicit backup/restore guarantees.
+3. The proposed **request-specific opaque deletion-status receipt plus pre-enrolled per-device recovery credential** as the G3 architecture, with explicit device-local removal when neither credential is valid; subject to security review before production.
+4. Owner-scoped cascades/FK-safe cleanup, zero cross-account loss, no stale-work resurrection and a **separately durable append-only deletion fence/ledger** replayed before any restored backup may serve traffic.
 5. Mandatory privacy/security confirmation of tombstone, receipt, logs and backup retention policies before shipping with personal data.
 
 This is **not approval of concrete SQL tables, API payloads, deletion status endpoints, background worker implementation or numerical retention periods**. Those require dedicated implementation review and testing.
