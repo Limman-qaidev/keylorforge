@@ -50,7 +50,9 @@ jobs:
           python -m pip check
 
       - name: Check formatting
-        run: ruff format --check .
+        run: |
+          ruff format --diff .
+          ruff format --check .
 
       - name: Lint
         run: ruff check .
