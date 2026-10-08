@@ -6,7 +6,7 @@ This is the fast handoff for resuming work. GitHub issues, PRs and `main` remain
 
 ## Current milestone
 
-**M3 — Workout Engine (design closure / remediation before implementation backlog)**
+**M3 — Workout Engine (implementation: first vertical slice underway)**
 
 M2 — Exercise Catalog is complete.
 
@@ -24,7 +24,7 @@ M3 product discovery and the first design-contract pass are accepted. The curren
 - `M3_TRAINING_PROFILE_AND_SESSION_CONTEXT_CONTRACT.md` (#121 / merged PR #122);
 - `M3_SERVER_DELETION_AND_RETENTION_CONTRACT.md` (#123 / merged PR #124), a **design contract**, not a completed server-side deletion implementation.
 
-**Proposed, not yet accepted or merged:** `M3_EXERCISE_OCCURRENCE_AND_ADAPTATION_PROVENANCE_CONTRACT.md` (#125 / R2-04). SQL/API history freeze still needs its implementation-dependent P1 gates closed.
+- `M3_EXERCISE_OCCURRENCE_AND_ADAPTATION_PROVENANCE_CONTRACT.md` (#125 / merged PR #126), accepted as a design contract; **not yet implemented**.
 
 The first cross-contract audit is issue #105 / merged PR #106. The first remediation merged in order: #108, #110, #112, #114. The **second audit** is issue #117 / merged PR #118, report `M3_POST_REMEDIATION_AUDIT.md`. It found no P0 redesign, but remaining P1 gates before freezing a production-grade workout schema/API.
 
@@ -33,13 +33,29 @@ Current focused remediation after audit #117:
 1. **R2-01 / issue #119 / PR #120 — MERGED** (commit `5681b596`) — accepted authorities reconciled; second-audit N-P1-01 addressed at contract level.
 2. **R2-02 / issue #121 / PR #122 — MERGED** (commit `6b1989d4`) — optional Training Profile, cold-start Free Workout and per-session context accepted at contract level; CI 4/4 after P1 reviewer fix.
 3. **R2-03 / issue #123 / PR #124 — MERGED** (commit `1dd51d87`) — server deletion/retention and G3 recovery **contract accepted**, Codex 2 P1 + 1 P2 closed; runtime purge/ledger/security review still not implemented.
-4. **R2-04 / issue #125** — proposed first-performed-set occurrence boundary + ordered accepted agenda-change records + immutable final-adaptation/completion snapshot; **not yet accepted or implemented**.
-5. **#89** — canonical catalogue aliases/source redirects before final workout-history identity freeze.
-6. **G4** — fix mobile explicit logout local-access error path and regression-test before enabling M3 offline continuity.
+4. **R2-04 / issue #125 / PR #126 — MERGED** (commit `7b2986f9`) — accepted first-performed-set occurrence boundary, applied agenda changes and immutable final snapshot; SQL/API/mobile behavior still **not implemented**.
+5. **#89 — OPEN:** curate authoritative exercise aliases and Spanish name collisions **before final history FK/identity freeze**.
+6. **G4 / audit #117 — IN IMPLEMENTATION:** fix explicit mobile logout local-access failure path and test stale provider session restoration. This is the first new *runtime code* slice; track it in the existing audit rather than spawning a duplicate issue.
 
-Parallel workstreams: #115 Exercise Intelligence content; #116 **privacy gate** before menstrual/cycle-specific persistence. Generic readiness/workout logging is not blocked by #116.
+### M3 implementation execution queue (no new issues for already-tracked work)
 
-**Implementation gates:** no final cross-domain PostgreSQL/SQLite/FastAPI history freeze until relevant P1s close. Canonical alias #89 and generic offline/outbox groundwork may proceed where independent. Do not block the first qualifying Free Workout vertical slice on advanced AI or fatigue features once its own gates close.
+The following is execution order and dependency tracking, **not another round of contracts**. Each implementation PR must include code and tests, remain scoped, and require Product Owner approval before merge.
+
+| Order | Deliverable | Concrete Done/verification | Dependencies / tracking |
+| --- | --- | --- | --- |
+| 1 | **G4 local logout barrier** | Local protected navigation closes immediately; provider error/restart/stale auth event cannot expose the old account; Jest/CI green | Audit #117 (G4); current implementation branch |
+| 2 | **Canonical exercise identity cleanup** | Curated real source aliases and deliberate Spanish collisions; stable existing exercise IDs/redirect strategy; importer/API tests | Existing #89; required before history schema freeze |
+| 3 | **M3 database/API foundation** | Owner-scoped Session → performed Occurrence → Set, native measures, snapshot/correction invariants, idempotent mutation and FK migrations with PostgreSQL integration tests | Accepted #110/#122/#124/#126; server deletion executor/retention implementation tracked in existing #123 |
+| 4 | **Mobile offline foundation** | Subject-partitioned SQLite, correctly seeded M2 read catalogue, local domain+outbox transaction, persistent one-active-session and safe restore | #112, #117; depends on G4 and canonical catalogue IDs |
+| 5 | **First Free Workout end-to-end** | On device: add/select exercise → confirm working set → explicit Finish → durable history → sync/retry; works after lost network and relaunch without forced goals | Data/API and offline slices; warmup-only cannot Finish |
+| 6 | **Hardening and user acceptance** | Multi-device conflict/retry, logout/account isolation, account deletion integration, source-vs-actual history and device QA; publish clear readiness verdict | Server deletion #123 + relevant slice tests |
+| Later | Plans, machine-aware recommendations, supersets/adaptation engine, G1/G2 and Exercise Intelligence | Incremental feature PRs only after core logging is trustworthy | #115 content; #116 privacy gate applies only to sensitive context |
+
+**Implementation gates remain real:** no final workout-history schema/API freeze without #89, required server deletion/retention design implementation, and applicable security/identity checks. The contract PRs alone do not make M3 functional.
+
+**Issue hygiene:** #105 and #117 are audit/umbrella trackers, not separate code deliverables per finding; #123 tracks real server deletion work despite its contract PR merge; #89 tracks the catalogue fix. Close issues only when their intended acceptance scope is actually met; avoid opening new issues for every PR or already-tracked finding.
+
+Parallel optional work: #115 Exercise Intelligence and #116 sensitive-context privacy. Neither should delay manual Free Workout logging.
 
 
 ## Completed M2 work
