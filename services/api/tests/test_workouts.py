@@ -27,12 +27,13 @@ def _client() -> TestClient:
     return TestClient(app)
 
 
-@pytest.mark.parametrize("path", ["/workout-sessions/active", "/workout-sessions/start"])
+@pytest.mark.parametrize(
+    "path", ["/workout-sessions/active", "/workout-sessions/start"]
+)
 def test_protected_workout_endpoints_require_bearer(path: str) -> None:
     client = TestClient(create_app())
     response = (
-        client.get(path) if path.endswith("/active")
-        else client.post(path, json={})
+        client.get(path) if path.endswith("/active") else client.post(path, json={})
     )
     assert response.status_code == 401
     assert response.headers["www-authenticate"] == "Bearer"
