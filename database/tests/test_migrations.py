@@ -56,7 +56,7 @@ def test_upgrade_clean_database_records_head(test_database_url: str) -> None:
             text("SELECT version_num FROM alembic_version")
         ).scalar_one()
 
-    assert revision == "20261008_0001"
+    assert revision == "20261008_0002"
 
     with engine.connect() as connection:
         display_name = connection.execute(

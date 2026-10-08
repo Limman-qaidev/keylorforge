@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from enum import StrEnum
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
+    Date,
+    Integer,
+    ForeignKeyConstraint,
+    text,
     Enum,
     ForeignKey,
     Index,
@@ -20,6 +24,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import JSONB
 
 
 NAMING_CONVENTION = {
@@ -369,3 +374,79 @@ class CatalogExerciseEquipment(Base):
 
     exercise: Mapped[CatalogExercise] = relationship(back_populates="equipment")
     equipment: Mapped[CatalogEquipment] = relationship(back_populates="exercises")
+
+
+
+class WorkoutSession(Base):
+    """Owner-scoped actual session, initially supporting Free Workout only.
+
+    Starting or editing the agenda never creates performed exercise history.
+    """
+
+    __tablename__ = "workout_sessions"
+    __table_args__ = (
+        CheckConstraint("origin = 'free'", name="workout_session_supported_origin"),
+        CheckConstraint(
+            "lifecycle_state IN ('active', 'completed', 'cancelled')",
+            name="workout_session_lifecycle",
+        ),
+        CheckConstraint(
+            "utc_offset_minutes BETWEEN -840 AND 840",
+            name="workout_session_utc_offset",
+        ),
+        CheckConstraint(
+            "agenda_revision >= 0", name="workout_session_agenda_revision"
+        ),
+        UniqueConstraint("id", "owner_user_id", name="uq_workout_sessions_id_owner"),
+        Index("ix_workout_sessions_owner_started", "owner_user_id", "started_at"),
+        Index(
+            "ix_workout_sessions_one_active_per_owner",
+            "owner_user_id",
+            unique=True,
+            postgresql_where=text("lifecycle_state = 'active'"),
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    owner_user_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("application_users.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    origin: Mapped[str] = mapped_column(String(16), nullable=False)
+    lifecycle_state: Mapped[str] = mapped_column(String(16), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    time_zone: Mapped[str] = mapped_column(String(64), nullable=False)
+    utc_offset_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
+    local_date: Mapped[date] = mapped_column(Date, nullable=False)
+    start_prescription: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    agenda_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class WorkoutMutationReceipt(Base):
+    """An authenticated owner's immutable acknowledgement of a semantic mutation."""
+
+    __tablename__ = "workout_mutation_receipts"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["session_id", "owner_user_id"],
+            ["workout_sessions.id", "workout_sessions.owner_user_id"],
+            ondelete="RESTRICT",
+        ),
+    )
+
+    mutation_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    owner_user_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("application_users.id", ondelete="RESTRICT"),
+        primary_key=True,
+    )
+    session_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    intent_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    response_payload: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
