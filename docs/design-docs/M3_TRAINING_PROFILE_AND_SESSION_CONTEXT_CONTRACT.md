@@ -93,7 +93,7 @@ No field implies an irreversible preference, medical limitation, user ability di
 
 `TrainingProfile` must **not** persist a second competing `primary_training_policy`, `body_goal`, `primary_intent_dimension`, or `primary_user_outcome` field.
 
-The existing `experience/policy level` in a Training Intent revision, if carried, is a **historical snapshot of the level applied under that intent**, not an independent mutable preference authority:
+The optional `experience/policy level` in a Training Intent revision, **only when actually known**, is a historical snapshot of the level applied under that intent, not an independent mutable preference authority. Missing declared experience must remain null/unknown, never fabricated as `NOVICE`:
 
 - the current user-declared experience lives in Training Profile, when present;
 - when an intent revision uses experience/policy level, its historical recorded value does not change with future Training Profile edits;
