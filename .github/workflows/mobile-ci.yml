@@ -33,10 +33,7 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Check formatting
-        run: |
-          npx prettier --write lib/workouts/expo-sqlite-adapter.ts lib/workouts/__tests__/expo-sqlite-adapter.test.ts
-          git diff -- lib/workouts/expo-sqlite-adapter.ts lib/workouts/__tests__/expo-sqlite-adapter.test.ts
-          npm run format:check
+        run: npm run format:check
 
       - name: Run lint
         run: npm run lint
