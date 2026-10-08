@@ -73,6 +73,7 @@ const restoringState: AuthState = {
 
 const pendingConfirmationEmailKey =
   '@keylorforge/auth/pending-confirmation-email';
+const explicitLocalSignOutKey = '@keylorforge/auth/explicit-local-sign-out';
 
 function readableAuthError(error: AuthError | Error | null): string {
   if (!error) {
@@ -171,6 +172,9 @@ export function AuthProvider({
   const stateRef = useRef(authState);
   const isConsumingConfirmation = useRef(false);
   const sessionOperationVersion = useRef(0);
+  const isInitialRestorationComplete = useRef(false);
+  const hasExplicitLocalSignOut = useRef(false);
+  const signOutInProgress = useRef(false);
 
   const updateAuthState = useCallback((nextState: AuthState) => {
     stateRef.current = nextState;
@@ -204,11 +208,40 @@ export function AuthProvider({
     }
 
     const operationVersion = sessionOperationVersion.current;
-    const [{ data, error }, confirmationEmail] = await Promise.all([
-      clientResult.client.auth.getSession(),
-      AsyncStorage.getItem(pendingConfirmationEmailKey),
-    ]);
+    let restoration: [
+      Awaited<ReturnType<typeof clientResult.client.auth.getSession>>,
+      string | null,
+      string | null,
+    ];
+    try {
+      restoration = await Promise.all([
+        clientResult.client.auth.getSession(),
+        AsyncStorage.getItem(pendingConfirmationEmailKey),
+        AsyncStorage.getItem(explicitLocalSignOutKey),
+      ]);
+    } catch {
+      if (operationVersion === sessionOperationVersion.current) {
+        isInitialRestorationComplete.current = true;
+        updateAuthState({
+          confirmationEmail: null,
+          feedback: {
+            kind: 'transient',
+            message: 'Local authentication state could not be restored. Please try again.',
+          },
+          phase: 'signedOut',
+          session: null,
+        });
+      }
+      return;
+    }
     if (operationVersion !== sessionOperationVersion.current) {
+      return;
+    }
+    isInitialRestorationComplete.current = true;
+    const [{ data, error }, confirmationEmail, persistedSignOut] = restoration;
+    if (persistedSignOut === '1' || hasExplicitLocalSignOut.current) {
+      hasExplicitLocalSignOut.current = true;
+      updateAuthState(stateForSession(null));
       return;
     }
     if (!error) {
@@ -247,7 +280,11 @@ export function AuthProvider({
     };
     const { data } = client.auth.onAuthStateChange(
       (event: AuthChangeEvent, session: Session | null) => {
-        if (!mounted) {
+        if (
+          !mounted ||
+          !isInitialRestorationComplete.current ||
+          hasExplicitLocalSignOut.current
+        ) {
           return;
         }
 
@@ -305,10 +342,17 @@ export function AuthProvider({
         return { error: clientResult.error ?? 'Supabase is unavailable.' };
       }
 
+      if (signOutInProgress.current) {
+        return { error: 'Sign-out is still finishing. Please try again.' };
+      }
+      const operationVersion = sessionOperationVersion.current;
       const { data, error } = await client.auth.signInWithPassword({
         email,
         password,
       });
+      if (operationVersion !== sessionOperationVersion.current) {
+        return { error: 'Sign-in was interrupted. Please try again.' };
+      }
       if (error) {
         const message = readableAuthError(error);
         updateAuthState({
@@ -320,6 +364,12 @@ export function AuthProvider({
         return { error: message };
       }
 
+      try {
+        await AsyncStorage.removeItem(explicitLocalSignOutKey);
+      } catch {
+        return { error: 'Local sign-in state could not be saved. Please try again.' };
+      }
+      hasExplicitLocalSignOut.current = false;
       updateAuthState(stateForSession(data.session));
       return {};
     },
@@ -333,7 +383,14 @@ export function AuthProvider({
         return { error: SOCIAL_AUTH_ERROR_MESSAGE };
       }
 
+      if (signOutInProgress.current) {
+        return { error: 'Sign-out is still finishing. Please try again.' };
+      }
+      const operationVersion = sessionOperationVersion.current;
       const result = await authenticateWithSocialProvider(client, provider);
+      if (operationVersion !== sessionOperationVersion.current) {
+        return { error: 'Sign-in was interrupted. Please try again.' };
+      }
       if (result.status === 'cancelled') {
         return {};
       }
@@ -346,6 +403,12 @@ export function AuthProvider({
         return { error: result.message };
       }
 
+      try {
+        await AsyncStorage.removeItem(explicitLocalSignOutKey);
+      } catch {
+        return { error: 'Local sign-in state could not be saved. Please try again.' };
+      }
+      hasExplicitLocalSignOut.current = false;
       updateAuthState(stateForSession(result.session));
       return {};
     },
@@ -359,11 +422,18 @@ export function AuthProvider({
         return { error: clientResult.error ?? 'Supabase is unavailable.' };
       }
 
+      if (signOutInProgress.current) {
+        return { error: 'Sign-out is still finishing. Please try again.' };
+      }
+      const operationVersion = sessionOperationVersion.current;
       const { data, error } = await client.auth.signUp({
         email,
         password,
         options: { emailRedirectTo: CONFIRMATION_CALLBACK_URL },
       });
+      if (operationVersion !== sessionOperationVersion.current) {
+        return { error: 'Registration was interrupted. Please try again.' };
+      }
       if (error) {
         const message = readableAuthError(error);
         updateAuthState({
@@ -376,6 +446,12 @@ export function AuthProvider({
       }
 
       if (data.session) {
+        try {
+          await AsyncStorage.removeItem(explicitLocalSignOutKey);
+        } catch {
+          return { error: 'Local sign-in state could not be saved. Please try again.' };
+        }
+        hasExplicitLocalSignOut.current = false;
         updateAuthState(stateForSession(data.session));
         return {};
       }
@@ -471,6 +547,10 @@ export function AuthProvider({
    * caller can surface a retryable error without destroying valid credentials.
    */
   const refreshSession = useCallback(async (): Promise<string | null> => {
+    if (hasExplicitLocalSignOut.current || signOutInProgress.current) {
+      return null;
+    }
+    const operationVersion = sessionOperationVersion.current;
     const client = clientResult.client;
     if (!client) {
       setTerminalSignedOutState();
@@ -490,6 +570,13 @@ export function AuthProvider({
       throw new Error(readableAuthError(refreshError));
     }
 
+    if (
+      operationVersion !== sessionOperationVersion.current ||
+      hasExplicitLocalSignOut.current
+    ) {
+      return null;
+    }
+
     if (response.error) {
       if (isTerminalSessionFailure(response.error)) {
         setTerminalSignedOutState();
@@ -507,20 +594,65 @@ export function AuthProvider({
     return response.data.session.access_token;
   }, [clientResult.client, setTerminalSignedOutState, updateAuthState]);
 
+  /**
+   * Explicit logout blocks this device's account access immediately, even if
+   * Supabase cannot reach the provider. The durable barrier also prevents a
+   * cached Supabase session from reopening protected routes after app restart.
+   * Workout account partitions are preserved, not deleted, for later sign-in.
+   */
   const signOut = useCallback(async (): Promise<AuthActionResult> => {
-    const client = clientResult.client;
-    if (!client) {
-      updateAuthState(stateForSession(null));
-      return {};
-    }
-
-    const { error } = await client.auth.signOut();
-    if (error) {
-      return { error: readableAuthError(error) };
-    }
-
+    sessionOperationVersion.current += 1;
+    hasExplicitLocalSignOut.current = true;
+    signOutInProgress.current = true;
     updateAuthState(stateForSession(null));
-    await AsyncStorage.removeItem(pendingConfirmationEmailKey);
+
+    let barrierSaved = false;
+    try {
+      await AsyncStorage.setItem(explicitLocalSignOutKey, '1');
+      barrierSaved = true;
+    } catch {
+      // In-memory access is already blocked; do not claim durable logout.
+    }
+
+    let providerFailed = false;
+    try {
+      if (clientResult.client) {
+        const { error } = await clientResult.client.auth.signOut();
+        providerFailed = Boolean(error);
+        if (error) {
+          try {
+            await clientResult.client.auth.signOut({ scope: 'local' });
+          } catch {
+            // The durable application barrier still blocks local access.
+          }
+        }
+      }
+    } catch {
+      providerFailed = true;
+      try {
+        await clientResult.client?.auth.signOut({ scope: 'local' });
+      } catch {
+        // The durable application barrier still blocks local access.
+      }
+    } finally {
+      signOutInProgress.current = false;
+      try {
+        await AsyncStorage.removeItem(pendingConfirmationEmailKey);
+      } catch {
+        // Confirmation UI is already cleared from in-memory auth state.
+      }
+    }
+
+    if (!barrierSaved) {
+      return {
+        error: 'Local sign-out could not be saved. Please try again before restarting the app.',
+      };
+    }
+    if (providerFailed) {
+      return {
+        error: 'Signed out on this device. The authentication service could not confirm remote sign-out.',
+      };
+    }
     return {};
   }, [clientResult.client, updateAuthState]);
 
