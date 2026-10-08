@@ -602,6 +602,9 @@ describe('AuthProvider', () => {
       );
     });
     expect(getByTestId('access-token').props.children).toBe('');
+    expect(getByTestId('feedback').props.children).toBe(
+      'Signed out on this device. The authentication service could not confirm remote sign-out.',
+    );
     expect(await AsyncStorage.getItem(localSignOutKey)).toBe('1');
     expect(auth.client.auth.signOut).toHaveBeenCalledWith();
     expect(auth.client.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
@@ -694,6 +697,63 @@ describe('AuthProvider', () => {
         'Local sign-out could not be saved. Please try again before restarting the app.',
       ),
     );
+    expect(getByTestId('feedback').props.children).toBe(
+      'Local sign-out could not be saved. Please try again before restarting the app.',
+    );
+  });
+
+  it('ignores provider events if the persistent logout barrier cannot be read', async () => {
+    const auth = createClient({ initialSession: session() });
+    jest
+      .mocked(AsyncStorage.getItem)
+      .mockRejectedValueOnce(new Error('storage not readable'));
+    const { getByTestId } = render(
+      <AuthProvider client={auth.client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedOut');
+    expect(getByTestId('feedback').props.children).toBe(
+      'Local authentication state could not be restored. Please try again.',
+    );
+    await act(async () => {
+      auth.emit('SIGNED_IN', session('cached-old-account'));
+      auth.emit('TOKEN_REFRESHED', session('cached-old-account'));
+    });
+    expect(getByTestId('phase').props.children).toBe('signedOut');
+    expect(getByTestId('access-token').props.children).toBe('');
+  });
+
+  it('does not let a stale restoration overwrite an explicit new sign-in', async () => {
+    const { client } = createClient();
+    let releaseRestore:
+      | ((result: { data: { session: Session | null }; error: null }) => void)
+      | undefined;
+    jest.mocked(client.auth.getSession).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseRestore = resolve;
+        }),
+    );
+    const { getByText, getByTestId } = render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await act(async () => {
+      fireEvent.press(getByText('sign in'));
+    });
+    await expectPhase(getByTestId, 'signedIn');
+    await act(async () => {
+      releaseRestore?.({
+        data: { session: session('old-restored-token') },
+        error: null,
+      });
+    });
+    expect(getByTestId('phase').props.children).toBe('signedIn');
+    expect(getByTestId('access-token').props.children).toBe('access-token');
   });
 
   it('fails closed locally when terminal API auth invalidation cannot revoke remotely', async () => {
