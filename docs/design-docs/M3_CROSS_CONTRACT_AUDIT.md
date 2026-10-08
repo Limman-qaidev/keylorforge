@@ -29,8 +29,11 @@ These are precisely the decisions that can become expensive migrations or sync b
 ### Readiness decision
 
 - **Ready now:** create remediation/design-closure work.
-- **Not ready yet:** finalize PostgreSQL schema, mutation API contract or distribute independent implementation tickets that require the unresolved P1 decisions.
-- **After P1 closure:** derive the M3 implementation backlog in vertical slices.
+- **Ready conditionally:** implement deliberately scoped slices whose required contracts are already closed and which do not depend on an unresolved finding.
+- **Not ready yet:** freeze cross-domain PostgreSQL/API/SQLite schemas or assign implementation work that depends on the unresolved P1 decisions.
+- **After dependency-relevant P1 closure:** derive each implementation slice from the contracts it actually depends on.
+
+The basic free-workout/session-set slice must not be blocked by unrelated advanced-plan or superset questions, consistent with the accepted Product Contract.
 
 ---
 
@@ -107,15 +110,26 @@ Questions become undefined:
 
 ### Required correction
 
-For M3 core persistence, define one canonical intent model:
+Preserve the accepted distinction between **what outcome is primary overall** and **which training policy governs workout decisions**, but do not duplicate the same body-goal value in two competing fields.
+
+Recommended M3 core representation:
 
 - `primary_training_policy` — required;
 - `secondary_training_policy` — optional;
 - `body_goal` — optional / `UNSPECIFIED`;
+- `primary_intent_dimension` (working name) — identifies whether the user's primary overall priority is the training-policy dimension or the body-goal dimension;
 - experience/policy level;
 - effective version/time.
 
-Do **not** persist `primary_user_outcome` as a separate M3 field unless a distinct taxonomy is explicitly defined.
+Example:
+
+`primary_training_policy = STRENGTH`  
+`body_goal = FAT_LOSS`  
+`primary_intent_dimension = BODY_GOAL`
+
+This preserves the accepted meaning of “fat loss is my main outcome, while strength governs how I train” without storing `FAT_LOSS` twice under separate authorities.
+
+If the product needs a richer `primary_user_outcome` taxonomy instead, that taxonomy must be explicitly defined before persistence.
 
 Future measurable targets such as “bench 120 kg”, “90 kg bodyweight” or “4 sessions/week” should become a separate target concept rather than another overloaded goal enum.
 
@@ -187,15 +201,27 @@ User Journey says:
 
 A warm-up-only session could become a completed workout, advance plan state and later count as attendance.
 
-### Required correction
+### Required correction / Product Owner decision required
 
-For M3:
+The accepted contracts conflict here, so this cannot be silently “fixed” by implementation.
 
-- a normal completed workout must contain at least one completed `WORKING` set;
-- WARMUP-only data may be retained locally/history if desired but does not qualify the session as completed training;
-- attendance qualification remains a future derived rule and may be stricter.
+Two coherent choices exist:
 
-If a later modality genuinely needs another qualifying set class, add it explicitly rather than making every completed set qualify.
+**Option A — any completed performed set permits session completion**
+- preserves the current User Journey wording;
+- allows warm-up-only sessions to become `COMPLETED`;
+- downstream plan/attendance logic must then decide whether that completion has meaningful coverage/qualification.
+
+**Option B — at least one qualifying working/performance set is required**
+- makes `COMPLETED` mean actual training beyond warm-up;
+- avoids warm-up-only sessions appearing as completed workouts;
+- changes the currently accepted User Journey behavior.
+
+**Audit recommendation:** Option B for ordinary resistance-training sessions, while keeping future modality-specific qualifying set classes extensible.
+
+This choice must be explicitly accepted in the Persistence/Data Model Contract before implementation.
+
+Attendance qualification remains a separate future derived rule and may be stricter than session completion.
 
 ---
 
@@ -812,13 +838,18 @@ Add the missing scenarios from P2-10.
 
 Re-run this audit against the amended contracts.
 
-Only after P1 findings are closed should we freeze:
+Freeze schemas/contracts **per implementation slice**, only after that slice's dependency-relevant P1 findings are closed.
 
-- PostgreSQL schema;
-- Alembic migration plan;
-- FastAPI mutation contracts;
-- Expo SQLite/outbox schema;
-- implementation epics.
+For example, a deliberately scoped free-workout/session-set slice need not wait for plan-step coverage or superset representation if those features are excluded from that slice.
+
+However, do not freeze a cross-domain schema/API that implicitly commits to unresolved P1 semantics.
+
+Relevant artifacts include:
+
+- PostgreSQL/Alembic portions touched by the slice;
+- FastAPI mutation contracts touched by the slice;
+- Expo SQLite/outbox portions touched by the slice;
+- implementation issues for that slice.
 
 ---
 
