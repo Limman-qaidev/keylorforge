@@ -36,8 +36,9 @@ class _Verifier:
 
 def _payload(
     *, session_id: UUID | None = None, mutation_id: UUID | None = None
-) -> dict[str, str]:
+) -> dict[str, str | int]:
     return {
+        "protocol_version": 1,
         "session_id": str(session_id or uuid4()),
         "mutation_id": str(mutation_id or uuid4()),
         "started_at": "2026-10-08T14:30:00+00:00",
@@ -93,6 +94,11 @@ def test_free_session_start_resume_idempotency_isolation_and_purge() -> None:
         assert (
             client.post("/workout-sessions/start", headers=a, json=tampered).status_code
             == 409
+        )
+        versioned = {**payload_a, "protocol_version": 2}
+        assert (
+            client.post("/workout-sessions/start", headers=a, json=versioned).status_code
+            == 422
         )
         # Different new start cannot silently create a second active session.
         assert (
