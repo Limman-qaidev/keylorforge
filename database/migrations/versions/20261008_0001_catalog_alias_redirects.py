@@ -35,7 +35,7 @@ def upgrade() -> None:
         sa.Column("canonical_exercise_id", postgresql.UUID(as_uuid=True), nullable=True),
     )
     op.create_foreign_key(
-        "fk_catalog_exercises_canonical_exercise_id_catalog_exercises",
+        op.f("fk_catalog_exercises_canonical_exercise_id_catalog_exercises"),
         "catalog_exercises",
         "catalog_exercises",
         ["canonical_exercise_id"],
@@ -43,7 +43,7 @@ def upgrade() -> None:
         ondelete="RESTRICT",
     )
     op.create_check_constraint(
-        "ck_catalog_exercises_catalog_exercise_not_self_alias",
+        op.f("ck_catalog_exercises_catalog_exercise_not_self_alias"),
         "catalog_exercises",
         "canonical_exercise_id IS NULL OR canonical_exercise_id <> id",
     )
