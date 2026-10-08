@@ -43,7 +43,10 @@ const QA_SECOND_MUTATION_UUID = 'b35c00d6-243c-4dea-a095-000000000145';
 const QA_MACHINE_A_UUID = 'b35c00d6-243c-4dea-a095-000000000146';
 const QA_MACHINE_B_UUID = 'b35c00d6-243c-4dea-a095-000000000147';
 
-function diagnosticPerformedInput(second: boolean): ConfirmLocalSetInput {
+function diagnosticPerformedInput(
+  second: boolean,
+  startedAtUtc: string,
+): ConfirmLocalSetInput {
   return {
     sessionId: QA_SESSION_UUID,
     mutationId: second ? QA_SECOND_MUTATION_UUID : QA_FIRST_MUTATION_UUID,
@@ -69,7 +72,10 @@ function diagnosticPerformedInput(second: boolean): ConfirmLocalSetInput {
       snapshot: { label: second ? 'Polea B (QA)' : 'Polea A (QA)' },
     },
     targetAtConfirmation: null,
-    completedAtUtc: new Date().toISOString(),
+    // Stable diagnostic timestamp across retries of the same mutation ID.
+    completedAtUtc: new Date(
+      new Date(startedAtUtc).getTime() + (second ? 2 : 1) * 60_000,
+    ).toISOString(),
   };
 }
 
@@ -214,7 +220,7 @@ function StorageDiagnosticScreen() {
       await confirmLocalWorkoutSet(
         db,
         access,
-        diagnosticPerformedInput(second),
+        diagnosticPerformedInput(second, active.started_at_utc),
       );
       await refresh();
       setMessage(
