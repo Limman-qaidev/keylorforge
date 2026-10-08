@@ -1,8 +1,9 @@
 # M3 Training Profile, Cold Start and Session Context Contract
 
-**Status:** Proposed for Product Owner approval (NOT YET ACCEPTED)  
+**Status:** Accepted by Product Owner — merged PR #122 on 2026-10-08  
 **Milestone:** M3 — Workout Engine  
 **Issue:** #121 — R2-02 / audit #117 N-P1-02  
+**Approval evidence:** PR #122, squash merge `6b1989d46ed1d2efe051bc10c788bb2a86ebb151`
 **Date:** 2026-10-08  
 **Parent authorities:** `M3_PERSISTENCE_AND_DATA_MODEL_CONTRACT.md` (#110), `M3_LOCAL_DATA_AND_IDENTITY_CONTINUITY_CONTRACT.md` (#112), `M3_WORKOUT_DOMAIN_CONTRACT.md`, `M3_DECISION_ENGINE_CONTRACT.md`, `M3_TRAINING_GOAL_POLICIES.md`, `M3_USER_JOURNEY.md`, M1 identity contract and #116 privacy gate.
 
@@ -227,15 +228,15 @@ Do not persist an artificial current Plan Step, default training policy, or dumm
 
 ## 9. Scope and dependency verdict
 
-**Closed for proposal:** where stable Training Profile, optional Training Intent, optional Session Context, and their identity/history/sync boundaries belong.
+**Closed at accepted semantic-contract level:** where stable Training Profile, optional Training Intent, optional Session Context, and their identity/history/sync boundaries belong.
 
 **Remaining gates:** R2-03 M3 server deletion/retention; R2-04 exercise-occurrence and durable final-agenda/adaptation; #89 canonical aliases; G4 M1 logout error path; G1 readiness observation collection + multi-session safeguards; G2 decision trace. None is silently declared closed here.
 
-This contract is **not** an implementation PR, a schema freeze, approval to collect sensitive personal data, or permission to merge.
+Acceptance of this contract is **not** an implementation approval, a final schema/API freeze, or approval to collect sensitive personal data.
 
-## 10. Product Owner decision requested
+## 10. Product Owner acceptance (PR #122)
 
-Approval of this contract would accept:
+Product Owner approval, recorded by merge of PR #122, accepts:
 
 1. nullable session Training Intent revision and no forced policy for Free Workout;
 2. user-owned, optional Training Profile independent of Training Intent and M1 identity;
