@@ -4,7 +4,7 @@
  * These diagnostic mutations are intentionally NOT synced to FastAPI.
  */
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -83,10 +83,13 @@ function StorageDiagnosticScreen() {
   const { session } = useAuth();
   const subject = session?.user.id ?? null;
   const subjectRef = useRef(subject);
-  subjectRef.current = subject;
-  const access: LocalSubjectAccess = {
-    currentAuthenticatedSubject: () => subjectRef.current,
-  };
+  useEffect(() => {
+    subjectRef.current = subject;
+  }, [subject]);
+  const access = useMemo<LocalSubjectAccess>(
+    () => ({ currentAuthenticatedSubject: () => subjectRef.current }),
+    [],
+  );
   const [active, setActive] = useState<LocalWorkoutSession | null>(null);
   const [pending, setPending] = useState<LocalOutboxItem[]>([]);
   const [busy, setBusy] = useState(false);
@@ -94,8 +97,6 @@ function StorageDiagnosticScreen() {
 
   const refresh = useCallback(async () => {
     if (!subject) {
-      setActive(null);
-      setPending([]);
       return;
     }
     const db = await openDiagnosticWorkoutDatabase(subject);
@@ -105,7 +106,7 @@ function StorageDiagnosticScreen() {
       setActive(current);
       setPending(outbox);
     }
-  }, [subject]);
+  }, [access, subject]);
 
   useEffect(() => {
     let mounted = true;
@@ -130,9 +131,13 @@ function StorageDiagnosticScreen() {
       const db = await openDiagnosticWorkoutDatabase(subject);
       await startLocalFreeWorkout(db, access, currentStartInput());
       await refresh();
-      setMessage('Sesión y outbox guardados de forma local. Sin enviar a la API.');
+      setMessage(
+        'Sesión y outbox guardados de forma local. Sin enviar a la API.',
+      );
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'No se pudo guardar.');
+      setMessage(
+        error instanceof Error ? error.message : 'No se pudo guardar.',
+      );
     } finally {
       setBusy(false);
     }
@@ -163,8 +168,14 @@ function StorageDiagnosticScreen() {
         if (subjectRef.current !== subject) {
           throw new Error('La cuenta ha cambiado.');
         }
-        await tx.runAsync('DELETE FROM local_workout_outbox WHERE subject = ?', subject.toLowerCase());
-        await tx.runAsync('DELETE FROM local_workout_sessions WHERE subject = ?', subject.toLowerCase());
+        await tx.runAsync(
+          'DELETE FROM local_workout_outbox WHERE subject = ?',
+          subject.toLowerCase(),
+        );
+        await tx.runAsync(
+          'DELETE FROM local_workout_sessions WHERE subject = ?',
+          subject.toLowerCase(),
+        );
         if (subjectRef.current !== subject) {
           throw new Error('La cuenta ha cambiado.');
         }
@@ -184,7 +195,11 @@ function StorageDiagnosticScreen() {
       'Solo se borrarán sesiones de la base de diagnóstico. No afecta al catálogo ni a entrenamientos reales.',
       [
         { text: 'Cancelar', style: 'cancel' },
-        { text: 'Vaciar prueba', style: 'destructive', onPress: () => void resetOnlyDiagnosticData() },
+        {
+          text: 'Vaciar prueba',
+          style: 'destructive',
+          onPress: () => void resetOnlyDiagnosticData(),
+        },
       ],
     );
   };
@@ -199,9 +214,12 @@ function StorageDiagnosticScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text accessibilityRole="header" style={styles.heading}>M3 · Diagnóstico SQLite</Text>
+      <Text accessibilityRole="header" style={styles.heading}>
+        M3 · Diagnóstico SQLite
+      </Text>
       <Text style={styles.description}>
-        Prueba aislada en el Samsung: no modifica sesiones reales ni envía datos al servidor.
+        Prueba aislada en el Samsung: no modifica sesiones reales ni envía datos
+        al servidor.
       </Text>
       <View style={styles.panel}>
         <Text style={styles.label}>ESTADO LOCAL</Text>
@@ -227,14 +245,36 @@ function StorageDiagnosticScreen() {
       >
         <Text style={styles.buttonText}>Crear sesión LOCAL de prueba</Text>
       </Pressable>
-      <Pressable accessibilityRole="button" disabled={busy} onPress={() => void onRefresh()} style={styles.secondary}>
+      <Pressable
+        accessibilityRole="button"
+        disabled={busy}
+        onPress={() => void onRefresh()}
+        style={styles.secondary}
+      >
         <Text style={styles.secondaryText}>Volver a leer SQLite</Text>
       </Pressable>
-      <Pressable accessibilityRole="button" disabled={busy} onPress={onReset} style={styles.secondary}>
+      <Pressable
+        accessibilityRole="button"
+        disabled={busy}
+        onPress={onReset}
+        style={styles.secondary}
+      >
         <Text style={styles.secondaryText}>Vaciar solo esta prueba</Text>
       </Pressable>
-      {message ? <Text accessibilityLiveRegion="polite" testID="qa-feedback" style={styles.message}>{message}</Text> : null}
-      <Pressable accessibilityRole="button" onPress={() => router.replace('/train')} style={styles.back}>
+      {message ? (
+        <Text
+          accessibilityLiveRegion="polite"
+          testID="qa-feedback"
+          style={styles.message}
+        >
+          {message}
+        </Text>
+      ) : null}
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => router.replace('/train')}
+        style={styles.back}
+      >
         <Text style={styles.secondaryText}>Volver a Entrenar</Text>
       </Pressable>
     </ScrollView>
@@ -260,11 +300,21 @@ const styles = StyleSheet.create({
   label: { color: '#536880', fontSize: 12, fontWeight: '800' },
   value: { color: '#12213a', fontSize: 22, fontWeight: '800' },
   detail: { color: '#31435f', fontSize: 13, lineHeight: 20 },
-  button: { alignItems: 'center', backgroundColor: '#075bff', borderRadius: 12, padding: 16 },
+  button: {
+    alignItems: 'center',
+    backgroundColor: '#075bff',
+    borderRadius: 12,
+    padding: 16,
+  },
   disabled: { opacity: 0.5 },
   buttonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   secondary: { backgroundColor: '#e6ecf6', borderRadius: 12, padding: 14 },
-  secondaryText: { color: '#243858', fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  secondaryText: {
+    color: '#243858',
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
   message: { color: '#243858', fontSize: 13, lineHeight: 20 },
   back: { padding: 12 },
 });
