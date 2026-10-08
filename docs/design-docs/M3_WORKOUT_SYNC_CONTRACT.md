@@ -647,16 +647,17 @@ A final authoritative refresh after a successful sync cycle is desirable for aff
 
 A conceptual sync cycle is:
 
-1. confirm authentication/connectivity;
-2. reconcile enough remote revision/state to detect obvious staleness;
-3. select next eligible outbox mutation;
-4. verify dependencies;
-5. send with stable `mutation_id` and base revision where relevant;
-6. receive applied/already-applied/conflict/error result;
-7. atomically persist acknowledgement/revision locally;
-8. unblock dependents;
-9. continue;
-10. refresh affected authoritative state when needed.
+1. confirm authentication/connectivity **and activate the matching local account partition**;
+2. verify the local originating subject matches the authenticated application subject;
+3. reconcile enough remote revision/state to detect obvious staleness;
+4. select the next eligible outbox mutation from that same account partition;
+5. verify dependencies;
+6. send with stable `mutation_id` and base revision where relevant;
+7. receive applied/already-applied/conflict/error result;
+8. atomically persist acknowledgement/revision locally;
+9. unblock dependents;
+10. continue;
+11. refresh affected authoritative state when needed.
 
 The exact batching/protocol may differ as long as these semantics hold.
 
@@ -751,15 +752,44 @@ This allows future mobile/server evolution without interpreting old payloads amb
 
 Every remote mutation is authorized by the authenticated application user.
 
+### 26.1 Local account partition
+
+All syncable local workout/domain state and outbox rows must retain the **originating application subject/account identity**.
+
+Local state is partitioned by account.
+
+Before the client:
+
+- renders account-owned workout state;
+- reconciles remote state;
+- selects an outbox mutation;
+- sends a mutation;
+
+the originating local subject must match the currently authenticated application subject.
+
+A queued mutation created by user A must never be sent while user B is authenticated on the same installation.
+
+On sign-out/account switch:
+
+- preserve user A's unsynced local data under A's partition;
+- stop rendering/sending A's account-owned workout data;
+- activate/render only the newly authenticated account's partition;
+- resume A's sync only when A authenticates again.
+
+This rule applies even to creates whose entity does not yet exist remotely, because server ownership would otherwise be derived from the wrong current JWT.
+
+### 26.2 Server authorization
+
 Rules:
 
 - never trust a payload `user_id` as authorization;
 - entity ownership is validated server-side;
+- authenticated subject owns newly created workout entities;
 - device/installation ID is diagnostic only;
 - one user cannot mutate another user's workout by guessing IDs;
 - local offline state does not grant remote authorization.
 
-If authentication expires, keep local data and resume sync after re-authentication.
+If authentication expires, keep local data in its originating account partition and resume sync only after that same subject is authenticated again.
 
 ---
 
