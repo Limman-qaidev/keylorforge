@@ -90,18 +90,23 @@ A workout should be normalized into session -> exercises -> sets rather than sto
 
 ### Workout set flexibility
 
-The initial dominant case is weight + repetitions, but the model should not make that the only possible exercise measurement. Depending on exercise type, a set may eventually contain optional fields such as:
+The initial dominant case is external load + repetitions, but the model must not treat a single normalized `weight_kg` value as the universal representation of resistance.
 
-- `weight_kg`
-- `repetitions`
-- `duration_seconds`
-- `distance_m`
-- `rpe`
-- `rir`
-- `set_type`
-- `completed`
+Depending on exercise type and equipment context, a performed set may include concepts such as:
 
-This protects the product from later schema redesign for running, cycling, planks, isometrics, pull-ups and assisted exercises.
+- original nominal load value;
+- original load unit (for example kg or lb);
+- load-entry semantics (total load, per-dumbbell, selectorized stack, assistance, etc.);
+- repetitions;
+- duration;
+- distance and distance unit where applicable;
+- RPE/RIR;
+- set role/type;
+- completed/performed state.
+
+Convenience conversions such as kg↔lb are derived displays. Machine-native values and semantics must remain recoverable.
+
+This protects the product from destructive redesign for machines, assisted/bodyweight work, running, cycling, planks and other non-standard measurements.
 
 ## Exercise catalogue intent
 
@@ -113,7 +118,9 @@ The intended ingestion model is:
 
 Licensing for descriptions and media must be checked independently before redistribution.
 
-The system should eventually support both curated/system exercises and user-created custom exercises, so a user can represent a specific machine at their gym without polluting the canonical catalogue.
+The system may eventually support both curated/system exercises and user-created custom exercises for movements that are genuinely missing or materially unique.
+
+A specific machine at the user's gym is **not automatically a custom exercise**. When the canonical movement already exists, M3 represents the real equipment through a user-owned Machine Profile / configuration attached to the performed workout context. This preserves one canonical exercise identity without polluting the shared catalogue.
 
 ## Rankings and analytics intent
 
@@ -129,15 +136,17 @@ A preferred strength comparison is estimated 1RM rather than only maximum displa
 
 This formula is **provisional methodology**, not an immutable contract. The key product requirement is compatible, understandable exercise-level comparison.
 
-Useful exercise statistics include best load, repetitions, volume and e1RM.
+Useful exercise statistics may include best load, repetitions, volume and e1RM **only where exercise, load and machine semantics are sufficiently comparable**.
 
 ### Volume
 
-Basic loaded-set volume is:
+A basic loaded-set volume concept is:
 
-`volume = sum(weight * repetitions)`
+`volume = sum(load * repetitions)`
 
-Useful slices include weekly/monthly totals and exercise/muscle views, subject to sensible rules for exercises where load x reps is not meaningful.
+but only where the load semantics are meaningful and internally compatible. Machine-native nominal loads from incompatible machines must not be summed as if they represented one universal physical quantity.
+
+Useful slices may include weekly/monthly totals and exercise/muscle views under explicitly versioned comparability rules.
 
 ### Muscle strength score
 
@@ -214,7 +223,9 @@ Groups, membership/roles, attendance and exercise rankings, then defensible musc
 
 ### Robust offline sync
 
-Conflict behavior, retry/idempotency and mature offline workflows beyond the basic foundation.
+M3 already owns the correctness baseline required for trustworthy offline workout recording: local-first persistence, stable identities, idempotent retries, tombstones, explicit conflict detection and safe basic conflict resolution.
+
+M6 matures that foundation with richer automatic multi-device merge, generalized sync infrastructure, batching/compaction, background scheduling, broader offline domains and conflict-UX polish.
 
 ### Social
 
