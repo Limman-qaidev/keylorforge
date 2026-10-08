@@ -39,7 +39,7 @@ Current focused remediation after audit #117:
 
 ### M3 implementation execution queue (open focused issues for real implementation slices as needed)
 
-The following is execution order and dependency tracking, **not another round of contracts**. The current first backend-only session-start slice is **issue #129 / draft PR #130**, unmerged and not yet a complete mobile flow. Each implementation PR must include code and tests, remain scoped, and require **physical Android validation of its user-visible flow and explicit Product Owner approval before merge**. CI/Codex alone are insufficient.
+The following is execution order and dependency tracking, **not another round of contracts**. **#129 / PR #130 MERGED** (commit `8da41d75`) — backend Free Workout start/active lookup, account-owned persistence and idempotency with security-review corrections. **#131 / M3-MOB-001 IN IMPLEMENTATION** — local SQLite schema/outbox transaction port with tests; native Expo SQLite binding, catalogue seed and physical Android workout acceptance remain pending. Each implementation PR must include code and tests, remain scoped, and require **physical Android validation of its user-visible flow and explicit Product Owner approval before merge**. CI/Codex alone are insufficient.
 
 | Order | Deliverable | Concrete Done/verification | Dependencies / tracking |
 | --- | --- | --- | --- |

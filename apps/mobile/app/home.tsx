@@ -64,6 +64,25 @@ function HomeScreen() {
         </Pressable>
       </View>
 
+      {__DEV__ ? (
+        <Pressable
+          accessibilityLabel="Abrir diagnóstico SQLite M3"
+          accessibilityRole="button"
+          onPress={() => router.push('/workout-storage-qa')}
+          style={({ pressed }) => [
+            styles.profileLink,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text style={styles.profileLinkText}>
+            QA M3 · Probar almacenamiento offline
+          </Text>
+          <Text accessible={false} style={styles.profileLinkArrow}>
+            ›
+          </Text>
+        </Pressable>
+      ) : null}
+
       <View style={styles.sectionHeader}>
         <Text accessibilityRole="header" style={styles.sectionTitle}>
           Tu actividad
