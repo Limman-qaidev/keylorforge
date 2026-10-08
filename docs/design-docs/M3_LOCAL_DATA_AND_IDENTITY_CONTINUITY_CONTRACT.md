@@ -354,9 +354,9 @@ The app must not resurrect normal use of a deletion-pending/terminal local parti
 
 A special deletion-reconciliation path must exist because the provider identity may already have been removed and therefore ordinary authenticated refresh may no longer be possible.
 
-The proposed `M3_SERVER_DELETION_AND_RETENTION_CONTRACT.md` (#123 / R2-03) selects a **review-gated client-prepared high-entropy deletion-status receipt** as the concrete G3 direction: the mobile client durably stores the secret **before** submitting the authenticated deletion request; the server stores only its digest and a durable account-scoped deletion operation; a narrow status query may then confirm terminal deletion without re-authentication. The proposal requires security validation of token entropy, rate limits, non-enumeration, expiry/recovery and local secret storage before implementation. Until accepted, the receipt/status API is **not** an authorized implementation contract.
+The proposed `M3_SERVER_DELETION_AND_RETENTION_CONTRACT.md` (#123 / R2-03) requires two reviewed **status-only** credentials: a device-generated request receipt stored **before** the authenticated Delete Account request, and an independently **pre-enrolled per-device recovery credential** registered while the account is still authenticated (including an explicit migration path for previously bootstrapped devices). Both are subject-scoped, high-entropy and server-digest-stored. A narrow status query may then confirm terminal deletion after normal provider authentication becomes unavailable. G3 requires security approval of expiry/revocation, non-enumeration, device-secret storage and bounded retention; **neither credential authorizes account access or cancellation**. Until accepted, these are proposed semantics, **not** implemented APIs.
 
-If the status is absent, unprovable or expired, the client must remain `DELETION_PENDING` and enter the reviewed recovery process; **no ambiguous response** can authorize local purge.
+If neither status credential is usable (including an unenrolled older second device), the client must keep the account partition quarantined and cannot automatically treat a refresh failure or unknown status as terminal proof. It must offer a separate explicit **local-only “Remove this account's data from this device”** action, with irreversible warning about unsynced work, scoped solely to the selected subject's local data and credentials. This device action **does not claim or perform remote account deletion**. A separately verified remote recovery/support flow may be used when available. An absent/expired receipt or unverifiable status cannot authorize *automatic* account deletion confirmation.
 
 If the device is locally `DELETION_PENDING` and subsequent auth refresh is definitively rejected, the client must **not** infer ordinary logout and reactivate/preserve the partition indefinitely. It enters a deletion-reconciliation state and resolves the terminal deletion outcome through the dedicated mechanism.
 
@@ -599,6 +599,8 @@ At minimum:
 13. confirmed account deletion removes local A partition/outbox;
 14. server completes deletion but response is lost -> restart stays deletion-pending and terminal deletion can still be reconciled without normal refresh;
 15. restart during deletion does not resume normal workout mode for that partition;
+16. second previously bootstrapped device with its own pre-enrolled deletion-status credential can verify terminal deletion after provider Auth credentials are gone;
+17. device with no valid receipt or recovery credential remains quarantined, with an explicit subject-scoped **local-only** removal option that cannot falsely confirm server deletion;
 16. stale cached plan state A session retains A provenance after server B exists;
 17. inactive exercise remains valid historical reference;
 18. Save as Template works offline and syncs later;
