@@ -338,7 +338,9 @@ describe('M3 actual confirmed workout history', () => {
       label: 'Polea A',
       ratio: 'unknown',
     });
-    const payload = JSON.parse(db.outbox.get(A + ':' + first.mutationId)!.payload_json);
+    const payload = JSON.parse(
+      db.outbox.get(A + ':' + first.mutationId)!.payload_json,
+    );
     expect(payload.measurement.reps).toBe(12);
     expect(payload.load.decimal).toBe('20.5');
     expect(payload.machine.snapshot.label).toBe('Polea A');
