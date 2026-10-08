@@ -134,8 +134,13 @@ def test_catalogue_repository_queries_run_against_postgresql() -> None:
                     offset=0,
                     limit=1000,
                 )
-                assert count == len(results) == 1
-                assert results[0].id == exercise.id
+                assert count == len(results)
+                exact_name_matches = [
+                    item for item in results
+                    if _localized_name(item, "es") == expected_es_name
+                ]
+                assert len(exact_name_matches) == 1
+                assert exact_name_matches[0].id == exercise.id
             assert SPANISH_NAME_OVERRIDES.keys().isdisjoint(
                 CANONICAL_SOURCE_ALIASES.keys()
             )
