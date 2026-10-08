@@ -1,10 +1,11 @@
 # M3 Workout Sync Contract
 
-**Status:** Draft for Product Owner review  
+**Status:** Accepted by Product Owner  
 **Milestone:** M3 — Workout Engine  
 **Issue:** #101  
 **Parent authorities:** ADR-003, `M3_WORKOUT_ENGINE_PRODUCT_CONTRACT.md`, `M3_WORKOUT_DOMAIN_CONTRACT.md`, `TECHNICAL_BLUEPRINT.md`  
-**Date:** 2026-10-08
+**Date:** 2026-10-08  
+**Product Owner approval:** 2026-10-08
 
 ## 1. Purpose
 
