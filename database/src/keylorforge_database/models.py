@@ -181,11 +181,19 @@ class CatalogExercise(Base):
     __table_args__ = (
         UniqueConstraint("source", "source_id"),
         Index("ix_catalog_exercises_active_category", "is_active", "category"),
+        Index("ix_catalog_exercises_canonical_exercise_id", "canonical_exercise_id"),
+        CheckConstraint(
+            "canonical_exercise_id IS NULL OR canonical_exercise_id <> id",
+            name="catalog_exercise_not_self_alias",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     source: Mapped[str] = mapped_column(String(80), nullable=False)
     source_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    canonical_exercise_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("catalog_exercises.id", ondelete="RESTRICT")
+    )
     measurement_type: Mapped[ExerciseMeasurementType] = mapped_column(
         Enum(
             ExerciseMeasurementType,
@@ -210,6 +218,12 @@ class CatalogExercise(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
+    canonical_exercise: Mapped[CatalogExercise | None] = relationship(
+        "CatalogExercise", remote_side="CatalogExercise.id", back_populates="alias_records"
+    )
+    alias_records: Mapped[list[CatalogExercise]] = relationship(
+        "CatalogExercise", back_populates="canonical_exercise"
+    )
     names: Mapped[list[CatalogExerciseName]] = relationship(
         back_populates="exercise", cascade="save-update, merge"
     )

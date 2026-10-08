@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class CatalogueReference(BaseModel):
@@ -30,6 +30,8 @@ class ExerciseListItem(BaseModel):
     category: str | None
     primary_muscles: list[CatalogueReference]
     equipment: list[CatalogueReference]
+    # Existing source alias app-UUIDs; cache this map for future offline M3 history.
+    alias_ids: list[UUID] = Field(default_factory=list)
 
 
 class ExerciseDetail(ExerciseListItem):

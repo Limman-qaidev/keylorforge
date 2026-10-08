@@ -4,6 +4,7 @@ import {
   getExercise,
   listEquipment,
   listExercises,
+  resolveCachedCanonicalExerciseId,
 } from '@/lib/exercises/catalog-api';
 
 jest.mock('@/lib/api/client', () => ({
@@ -86,6 +87,53 @@ describe('exercise catalogue API client', () => {
 
     await expect(listEquipment('token')).rejects.toMatchObject({
       kind,
+    } satisfies Partial<CatalogApiError>);
+  });
+
+  it('accepts API alias UUIDs and resolves them to the unique canonical ID offline', async () => {
+    const canonical = {
+      ...exercise,
+      alias_ids: ['old-app-uuid-1', 'old-app-uuid-2'],
+    };
+    jest.mocked(requestApi).mockResolvedValue({
+      json: async () => ({
+        items: [canonical],
+        page: 1,
+        page_size: 30,
+        total: 1,
+        total_pages: 1,
+      }),
+      ok: true,
+      status: 200,
+    } as Response);
+
+    const page = await listExercises('token', {});
+    expect(resolveCachedCanonicalExerciseId(page.items, 'old-app-uuid-1')).toBe(
+      exercise.id,
+    );
+    expect(resolveCachedCanonicalExerciseId(page.items, exercise.id)).toBe(
+      exercise.id,
+    );
+    expect(
+      resolveCachedCanonicalExerciseId(page.items, 'unknown-app-uuid'),
+    ).toBeNull();
+  });
+
+  it('rejects malformed alias ID maps rather than trusting cache metadata', async () => {
+    jest.mocked(requestApi).mockResolvedValue({
+      json: async () => ({
+        items: [{ ...exercise, alias_ids: ['valid-id', 123] }],
+        page: 1,
+        page_size: 30,
+        total: 1,
+        total_pages: 1,
+      }),
+      ok: true,
+      status: 200,
+    } as Response);
+
+    await expect(listExercises('token', {})).rejects.toMatchObject({
+      kind: 'unexpected',
     } satisfies Partial<CatalogApiError>);
   });
 

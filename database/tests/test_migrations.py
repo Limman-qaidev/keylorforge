@@ -56,7 +56,7 @@ def test_upgrade_clean_database_records_head(test_database_url: str) -> None:
             text("SELECT version_num FROM alembic_version")
         ).scalar_one()
 
-    assert revision == "20260913_0001"
+    assert revision == "20261008_0001"
 
     with engine.connect() as connection:
         display_name = connection.execute(
@@ -134,7 +134,8 @@ def test_catalog_schema_is_private_and_has_expected_constraints(test_database_ur
                 text(
                     "SELECT conname FROM pg_constraint WHERE conname IN ("
                     "'ck_catalog_exercises_catalog_exercise_measurement_type', "
-                    "'ck_catalog_exercise_muscles_catalog_exercise_muscle_role'"
+                    "'ck_catalog_exercise_muscles_catalog_exercise_muscle_role', "
+                    "'ck_catalog_exercises_catalog_exercise_not_self_alias'"
                     ") ORDER BY conname"
                 )
             ).scalars().all()
@@ -152,6 +153,7 @@ def test_catalog_schema_is_private_and_has_expected_constraints(test_database_ur
     assert constraints == [
         "ck_catalog_exercise_muscles_catalog_exercise_muscle_role",
         "ck_catalog_exercises_catalog_exercise_measurement_type",
+        "ck_catalog_exercises_catalog_exercise_not_self_alias",
     ]
     assert direct_grants == []
 
@@ -233,7 +235,7 @@ def test_catalog_migration_refuses_destructive_downgrade(
     """The profile migration must not silently drop persisted display names."""
     config = Config("alembic.ini")
 
-    with pytest.raises(NotImplementedError, match="stores catalogue data"):
+    with pytest.raises(NotImplementedError, match="preserves historical canonical"):
         command.downgrade(config, "20260831_0001")
 
     engine = create_engine(test_database_url)
@@ -242,7 +244,7 @@ def test_catalog_migration_refuses_destructive_downgrade(
             revision = connection.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-        assert revision == "20260913_0001"
+        assert revision == "20261008_0001"
     finally:
         engine.dispose()
 

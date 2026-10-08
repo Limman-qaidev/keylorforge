@@ -15,8 +15,8 @@ from keylorforge_database.models import (
     CatalogMuscleName,
     ExerciseMuscleRole,
 )
-from sqlalchemy import ColumnElement, exists, func, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import ColumnElement, exists, func, or_, select
+from sqlalchemy.orm import Session, aliased, selectinload
 from sqlalchemy.sql.base import ExecutableOption
 
 
@@ -66,12 +66,17 @@ class ExerciseCatalogueRepository:
     def get_visible_exercise(
         self, *, exercise_id: UUID, locale: str
     ) -> CatalogExercise | None:
-        """Return one visible system exercise or no result."""
+        """Resolve historical alias IDs to the currently visible canonical record."""
+        requested = self._session.get(CatalogExercise, exercise_id)
+        if requested is None or not requested.is_system:
+            return None
+        canonical_id = requested.canonical_exercise_id or requested.id
         return self._session.scalar(
             select(CatalogExercise)
             .join(CatalogExerciseName, CatalogExercise.names)
             .where(
-                CatalogExercise.id == exercise_id,
+                CatalogExercise.id == canonical_id,
+                CatalogExercise.canonical_exercise_id.is_(None),
                 CatalogExercise.is_system.is_(True),
                 CatalogExercise.is_active.is_(True),
                 CatalogExerciseName.locale == locale,
@@ -115,11 +120,26 @@ class ExerciseCatalogueRepository:
         filters: list[ColumnElement[bool]] = [
             CatalogExercise.is_system.is_(True),
             CatalogExercise.is_active.is_(True),
+            CatalogExercise.canonical_exercise_id.is_(None),
             selected_name.locale == locale,
         ]
         if search:
+            # Search old upstream aliases as synonyms, but return only one
+            # canonical row (and one count) for each semantic movement.
+            alias = aliased(CatalogExercise)
+            alias_name = aliased(CatalogExerciseName)
+            pattern = _literal_substring(search)
+            matches_alias = exists(
+                select(alias_name.exercise_id)
+                .join(alias, alias.id == alias_name.exercise_id)
+                .where(
+                    alias.canonical_exercise_id == CatalogExercise.id,
+                    alias_name.locale == locale,
+                    alias_name.name.ilike(pattern, escape="\\"),
+                )
+            )
             filters.append(
-                selected_name.name.ilike(_literal_substring(search), escape="\\")
+                or_(selected_name.name.ilike(pattern, escape="\\"), matches_alias)
             )
         if primary_muscle_id is not None:
             filters.append(
@@ -146,6 +166,7 @@ class ExerciseCatalogueRepository:
 def _exercise_options() -> tuple[ExecutableOption, ...]:
     return (
         selectinload(CatalogExercise.names),
+        selectinload(CatalogExercise.alias_records),
         selectinload(CatalogExercise.muscles)
         .selectinload(CatalogExerciseMuscle.muscle)
         .selectinload(CatalogMuscle.names),

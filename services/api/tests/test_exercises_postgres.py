@@ -5,6 +5,10 @@ from __future__ import annotations
 import os
 
 import pytest
+from keylorforge_database.catalog_curation import (
+    CANONICAL_SOURCE_ALIASES,
+    SPANISH_NAME_OVERRIDES,
+)
 from keylorforge_database.catalog_importer import import_vendored_catalog
 from keylorforge_database.models import (
     Base,
@@ -13,7 +17,7 @@ from keylorforge_database.models import (
     CatalogMuscle,
     ExerciseMuscleRole,
 )
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from app.exercises.repository import ExerciseCatalogueRepository
@@ -62,7 +66,7 @@ def test_catalogue_repository_queries_run_against_postgresql() -> None:
                 offset=0,
                 limit=30,
             )
-            assert total == repeated_total == 899
+            assert total == repeated_total == 897
             assert len(first_page) == 30
             assert [exercise.id for exercise in first_page] == [
                 exercise.id for exercise in repeated_page
@@ -76,7 +80,71 @@ def test_catalogue_repository_queries_run_against_postgresql() -> None:
                 offset=0,
                 limit=1000,
             )
-            assert all_total == len(all_exercises) == 899
+            assert all_total == len(all_exercises) == 897
+
+            # All 899 upstream records remain, but true aliases only appear
+            # under their stable canonical KeylorForge exercise identity.
+            source_aliases = CANONICAL_SOURCE_ALIASES
+            for source_alias_id, source_canonical_id in source_aliases.items():
+                alias = session.scalar(
+                    select(CatalogExercise).where(
+                        CatalogExercise.source_id == source_alias_id
+                    )
+                )
+                canonical = session.scalar(
+                    select(CatalogExercise).where(
+                        CatalogExercise.source_id == source_canonical_id
+                    )
+                )
+                assert alias is not None and canonical is not None
+                assert alias.id != canonical.id
+                assert alias.canonical_exercise_id == canonical.id
+                resolved = repository.get_visible_exercise(
+                    exercise_id=alias.id, locale="es"
+                )
+                assert resolved is not None and resolved.id == canonical.id
+                assert alias.id in {entry.id for entry in canonical.alias_records}
+                assert alias.id not in {item.id for item in all_exercises}
+
+                alias_name_en = _localized_name(alias, "en")
+                english_results, english_total = repository.list_exercises(
+                    locale="en",
+                    search=alias_name_en,
+                    primary_muscle_id=None,
+                    equipment_id=None,
+                    offset=0,
+                    limit=1000,
+                )
+                assert english_total == len(english_results)
+                assert canonical.id in {item.id for item in english_results}
+
+            for source_id, expected_es_name in SPANISH_NAME_OVERRIDES.items():
+                exercise = session.scalar(
+                    select(CatalogExercise).where(
+                        CatalogExercise.source_id == source_id
+                    )
+                )
+                assert exercise is not None
+                assert _localized_name(exercise, "es") == expected_es_name
+                results, count = repository.list_exercises(
+                    locale="es",
+                    search=expected_es_name,
+                    primary_muscle_id=None,
+                    equipment_id=None,
+                    offset=0,
+                    limit=1000,
+                )
+                assert count == len(results)
+                exact_name_matches = [
+                    item
+                    for item in results
+                    if _localized_name(item, "es") == expected_es_name
+                ]
+                assert len(exact_name_matches) == 1
+                assert exact_name_matches[0].id == exercise.id
+            assert SPANISH_NAME_OVERRIDES.keys().isdisjoint(
+                CANONICAL_SOURCE_ALIASES.keys()
+            )
 
             selected = next(
                 exercise
