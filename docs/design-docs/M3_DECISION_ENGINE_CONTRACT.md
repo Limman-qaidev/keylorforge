@@ -413,16 +413,18 @@ Even if a model reports a calibrated probability on its own benchmark, KeylorFor
 
 “No strong recommendation” is a valid and often desirable engine output.
 
-Abstain when:
+Abstain when the **available decision path** lacks sufficient support, for example:
 
-- comparable history is insufficient;
-- machine context changed substantially;
-- signals conflict;
-- candidate scores are too close;
-- a model is unavailable;
-- model confidence is below an approved threshold;
+- comparable history is insufficient for the decision being personalized;
+- machine context changed substantially and deterministic policy cannot resolve the uncertainty;
+- signals conflict materially;
+- deterministic candidate scores are too close to justify a preferred action;
+- an optional model is unavailable **and** deterministic policy cannot select a sufficiently supported candidate;
+- an optional model is used but its confidence is below an approved threshold and deterministic policy also cannot resolve the decision;
 - required context is missing;
 - the situation falls outside approved policy scope.
+
+Model unavailability alone is never a reason to suppress a valid deterministic recommendation.
 
 Possible UX outcomes:
 
@@ -634,7 +636,14 @@ Candidate generation follows the approved intervention ladder:
 
 Hard policy:
 
-> no single weak signal can directly produce Level 4.
+> no single signal, regardless of apparent strength, may by itself trigger a material recovery intervention.
+
+In particular:
+
+- one signal cannot by itself trigger Level 3, Level 4 or Level 5;
+- Levels 3–5 require converging evidence across time and/or multiple independent signals;
+- a single acute signal may justify a conservative **same-session** recommendation such as stopping the affected exercise, holding progression or asking the user for context, but it must not be reinterpreted as accumulated-fatigue evidence on its own;
+- reported pain/discomfort follows the separate conservative safety boundary and is not treated as accumulated-fatigue evidence.
 
 The Decision Engine should attach the converging reasons it used.
 
