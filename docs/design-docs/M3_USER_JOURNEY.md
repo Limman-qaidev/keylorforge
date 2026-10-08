@@ -5,7 +5,8 @@
 **Issue:** #103  
 **Parent authorities:** `M3_WORKOUT_ENGINE_PRODUCT_CONTRACT.md`, `M3_TRAINING_GOAL_POLICIES.md`, `M3_EXERCISE_AND_EQUIPMENT_CONTRACT.md`, `M3_WORKOUT_DOMAIN_CONTRACT.md`, `M3_DECISION_ENGINE_CONTRACT.md`, `M3_WORKOUT_SYNC_CONTRACT.md`, ADR-003  
 **Date:** 2026-10-08  
-**Product Owner approval:** 2026-10-08
+**Product Owner approval:** 2026-10-08  
+**Audit remediation amendment:** Accepted by Product Owner — 2026-10-08
 
 ## 1. Purpose
 
@@ -1090,7 +1091,11 @@ Actions:
 
 No guilt-oriented wording.
 
-A session with at least one completed set may finish early and still be valid history.
+A session may finish early and still be valid history **only if it satisfies the qualifying-performed-work rule** defined by the M3 Persistence/Data Model Contract.
+
+The current remediation proposal requires at least one completed qualifying `WORKING` set.
+
+If the user has only warm-up sets, Finish must not silently create a normal `COMPLETED` workout under that rule.
 
 ---
 
@@ -1284,9 +1289,27 @@ Continue workout with deterministic/default behavior.
 
 Logging remains usable.
 
-### Catalogue/API unavailable but active session data is local
+### Catalogue/API unavailable
 
-Active workout remains usable with already persisted required exercise references/context.
+After successful bootstrap, use the cached canonical catalogue for core search/add-exercise/logging.
+
+If an active session already exists locally, it remains usable with its persisted exercise references/context.
+
+Long-form instructions/media may be unavailable without blocking logging.
+
+### Plan/API unavailable
+
+If the accepted active plan/template revision is cached locally, the planned workout may start offline.
+
+If the required plan revision was never cached, do not fabricate it; offer cached/free-workout paths instead.
+
+### Auth refresh unavailable because network/provider is unreachable
+
+A previously authenticated subject with a matching local partition may continue in **local offline continuity**.
+
+Protected remote calls and synchronization remain blocked until a valid token is restored.
+
+A definitive refresh rejection/revocation is different and ends protected local account access according to the Local Data and Identity Continuity Contract.
 
 ---
 
@@ -1372,7 +1395,53 @@ User edits wrong reps/load after completion -> raw history updates -> derived va
 
 ### Scenario 20 — Delete final completed set
 
-Completed workout with one set -> user removes it -> explicit warning -> workout can no longer remain completed -> derived completion effects reversed.
+Completed workout with one qualifying performed set -> user removes it -> explicit warning -> workout can no longer remain completed -> derived completion effects reversed.
+
+### Scenario 21 — Account switch with unsynced workout data
+
+User A logs workouts offline -> outbox still pending -> A logs out -> user B signs in -> B cannot see or sync A data -> A signs in later -> A partition and pending mutations return.
+
+### Scenario 22 — Account deletion with local/outbox data
+
+User has unsynced account-owned M3 data -> chooses Delete account -> app warns that unsynced local data will also be deleted -> user confirms -> normal sync freezes -> backend confirms terminal deletion -> **all account-owned local M3 state** is purged, including workout/outbox/machine/gym/plan/template/history/draft/cache data -> app returns signed out.
+
+### Scenario 23 — Offline auth refresh outage
+
+Previously authenticated user opens app with expired access token and no connectivity -> refresh cannot reach provider -> matching local partition enters local-only continuity -> cached plan/catalogue and active workout remain usable -> network returns -> valid refresh succeeds -> normal sync resumes.
+
+If refresh is definitively rejected instead, local protected account access ends and sign-in is required.
+
+### Scenario 24 — Cached planned workout starts offline
+
+User previously synchronized active plan/template -> device goes offline before gym -> Entrenar shows cached next workout -> user starts locally with no server round trip -> sets/outbox persist -> later sync preserves the original plan/template revision used.
+
+### Scenario 25 — Free workout adds exercise offline
+
+Device offline after bootstrap -> user starts Free workout -> searches cached canonical catalogue -> adds exercise -> logs at least one qualifying performed set -> explicitly taps Finish -> local completion succeeds under the approved qualification rule -> later sync creates no duplicate sets.
+
+### Scenario 26 — Warm-up-only finish attempt
+
+User starts workout -> records only `WARMUP` sets -> taps Finish -> app follows the approved qualifying-performed-work rule.
+
+Under the current remediation proposal, it offers Continue / Cancel-discard rather than creating a normal completed workout.
+
+### Scenario 27 — Machine Profile created offline
+
+User encounters new machine while offline -> creates local Machine Profile/native unit/load sequence -> immediately uses it for a completed set -> outbox records causal dependency -> profile/config sync precedes dependent set -> history keeps original machine/load semantics.
+
+### Scenario 28 — Material Machine Profile correction after historical use
+
+User later discovers a machine ratio/configuration was recorded incorrectly -> editing reusable profile does not silently reinterpret past sets -> app requires explicit historical correction/reclassification if old workout meaning should change.
+
+### Scenario 29 — Save as Template offline
+
+User completes Free workout offline -> taps Save as template -> local stable Template ID/revision is created -> template can be reused on the same device -> sync later creates the server copy idempotently.
+
+### Scenario 30 — Same-device continuity versus cross-device handoff
+
+User kills/restarts the app on the same device -> active workout restores and continues.
+
+User opens another device -> M3 does not promise seamless handoff of unsynced agenda/drafts/rest timer; any competing active-session state follows the explicit multi-device conflict contract rather than pretending live continuation exists.
 
 ---
 
