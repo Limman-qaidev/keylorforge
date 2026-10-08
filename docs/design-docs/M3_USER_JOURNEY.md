@@ -3,7 +3,7 @@
 **Status:** Accepted by Product Owner  
 **Milestone:** M3 — Workout Engine  
 **Issue:** #103  
-**Parent authorities:** `M3_WORKOUT_ENGINE_PRODUCT_CONTRACT.md`, `M3_TRAINING_GOAL_POLICIES.md`, `M3_EXERCISE_AND_EQUIPMENT_CONTRACT.md`, `M3_WORKOUT_DOMAIN_CONTRACT.md`, `M3_DECISION_ENGINE_CONTRACT.md`, `M3_WORKOUT_SYNC_CONTRACT.md`, ADR-003  
+**Parent authorities:** `M3_WORKOUT_ENGINE_PRODUCT_CONTRACT.md`, `M3_TRAINING_GOAL_POLICIES.md`, `M3_EXERCISE_AND_EQUIPMENT_CONTRACT.md`, `M3_WORKOUT_DOMAIN_CONTRACT.md`, `M3_DECISION_ENGINE_CONTRACT.md`, `M3_WORKOUT_SYNC_CONTRACT.md`, `M3_PERSISTENCE_AND_DATA_MODEL_CONTRACT.md`, `M3_LOCAL_DATA_AND_IDENTITY_CONTINUITY_CONTRACT.md`, ADR-003  
 **Date:** 2026-10-08  
 **Product Owner approval:** 2026-10-08  
 **Audit remediation amendment:** Accepted by Product Owner — 2026-10-08
@@ -1093,7 +1093,7 @@ No guilt-oriented wording.
 
 A session may finish early and still be valid history **only if it satisfies the qualifying-performed-work rule** defined by the M3 Persistence/Data Model Contract.
 
-The current remediation proposal requires at least one completed qualifying `WORKING` set.
+The **accepted M3 rule** requires at least one completed qualifying `WORKING` set.
 
 If the user has only warm-up sets, Finish must not silently create a normal `COMPLETED` workout under that rule.
 
@@ -1177,11 +1177,11 @@ After completion, the Decision Engine may recompute the next proposal.
 
 ### Planned workout completed normally
 
-Advance plan sequence and incorporate actual performance.
+The session ends; the Decision Engine derives Plan Step coverage separately and recommends the next step from source step, actual history, coverage and applicable context. **Do not blindly advance a plan cursor on completion.**
 
 ### Planned workout finished early
 
-Plan sequence may advance, but omitted work may influence the next proposal.
+Finishing early with qualifying work ends the session but does not imply sufficient Plan Step coverage. The next proposal may repeat, modify or advance based on covered versus omitted stimulus.
 
 ### Free workout
 
@@ -1323,7 +1323,7 @@ No plan -> Find plan -> minimal profile -> shortlist -> inspect -> activate -> n
 
 ### Scenario 2 — Normal planned workout
 
-Start -> warm-up -> working sets -> rest -> on-target silent progression -> finish -> summary -> next plan step.
+Start -> warm-up -> working sets -> rest -> on-target silent progression -> explicit Finish -> summary -> derive Plan Step coverage -> next recommendation from actual history and coverage (no blind step increment).
 
 ### Scenario 3 — Short workout before start
 
@@ -1393,9 +1393,9 @@ Two offline sessions -> server conflict -> both local datasets preserved -> user
 
 User edits wrong reps/load after completion -> raw history updates -> derived values later recompute -> plan/template history not rewritten.
 
-### Scenario 20 — Delete final completed set
+### Scenario 20 — Remove or reclassify final qualifying working set
 
-Completed workout with one qualifying performed set -> user removes it -> explicit warning -> workout can no longer remain completed -> derived completion effects reversed.
+Completed workout with one qualifying `WORKING` set plus one or more `WARMUP` sets -> user deletes or reclassifies the working set -> explicit warning and confirmation -> workout cannot remain `COMPLETED` even with warm-ups remaining -> lifecycle/correction change atomically -> completion and derived Plan Step effects reversed.
 
 ### Scenario 21 — Account switch with unsynced workout data
 
@@ -1423,7 +1423,7 @@ Device offline after bootstrap -> user starts Free workout -> searches cached ca
 
 User starts workout -> records only `WARMUP` sets -> taps Finish -> app follows the approved qualifying-performed-work rule.
 
-Under the current remediation proposal, it offers Continue / Cancel-discard rather than creating a normal completed workout.
+Under the accepted rule, it offers Continue / Cancel-discard rather than creating a normal completed workout.
 
 ### Scenario 27 — Machine Profile created offline
 
@@ -1548,7 +1548,7 @@ Approval means agreement with:
 - compact completion summary;
 - plan recalculation from actual history;
 - conflict behavior that preserves local work;
-- the 20 acceptance scenarios.
+- the 30 acceptance scenarios.
 
 Approval does not authorize final UI visuals, SQL/API implementation or pricing.
 
