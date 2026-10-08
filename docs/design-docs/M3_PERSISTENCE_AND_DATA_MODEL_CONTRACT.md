@@ -69,7 +69,7 @@ Initial `primary_intent_dimension`:
 
 If `primary_intent_dimension = BODY_GOAL`, `body_goal` is required and non-null.
 
-**Cold-start clarification (proposed by #121 / R2-02):** the *entity* Training Intent is optional before the user deliberately establishes a policy. No row/revision is created merely to satisfy a Free Workout relationship. When a revision exists, the required policy and priority constraints above still apply. Current declared experience/preferences belong to a separate optional Training Profile; the `experience/policy level` preserved here is historical context, not competing writable preference state.
+**Cold-start clarification (accepted by #121 / merged PR #122):** the *entity* Training Intent is optional before the user deliberately establishes a policy. No row/revision is created merely to satisfy a Free Workout relationship. When a revision exists, the required policy and priority constraints above still apply. Current declared experience/preferences belong to a separate optional Training Profile; the `experience/policy level` preserved here is historical context, not competing writable preference state.
 
 ### 2.2 Example
 
@@ -105,7 +105,7 @@ They belong to a future explicit target/goal entity.
 
 ## 2.5 Training Profile and per-session operational context (R2-02 amendment)
 
-The proposed `M3_TRAINING_PROFILE_AND_SESSION_CONTEXT_CONTRACT.md` (#121) defines a separate optional user-owned Training Profile for stable declared preferences and an optional session-owned operational context for time/gym/equipment availability. Neither can duplicate `primary_training_policy` or `body_goal` as its own authority. Materially used profile/context revisions must be traceable. Generic subjective readiness persistence still needs its separate G1/privacy decision, and sensitive cycle-specific persistence remains blocked by #116.
+The accepted `M3_TRAINING_PROFILE_AND_SESSION_CONTEXT_CONTRACT.md` (#121 / merged PR #122) defines a separate optional user-owned Training Profile for stable declared preferences and an optional session-owned operational context for time/gym/equipment availability. Neither can duplicate `primary_training_policy` or `body_goal` as its own authority. Materially used profile/context revisions must be traceable. Generic subjective readiness persistence still needs its separate G1/privacy decision, and sensitive cycle-specific persistence remains blocked by #116.
 
 ---
 
@@ -287,7 +287,17 @@ Exact enum names are implementation detail.
 
 Completed Workout Sets remain separate authoritative performed history.
 
+An exercise/agenda selection before the first confirmed performed set is **agenda/draft state only**. Under proposed R2-04 (#125), the first confirmed WARMUP or WORKING set creates the Workout Exercise Occurrence and WorkoutSet together in one failure-atomic operation; removing an untouched item creates no performed occurrence. A WARMUP occurrence is real work but does **not** meet normal session completion qualification.
+
 Changing agenda does not rewrite completed work.
+
+### 7.1 Applied agenda revisions and immutable final snapshot (R2-04 proposal)
+
+Material **accepted/applied** changes to remaining intent (add/remove/substitute/reorder/target/equipment/superset) require a durable ordered `AppliedAgendaChange` or equivalent semantically versioned record, with stable IDs, agenda revision before/after, structured changed values, source/known reason and evidence of user acceptance where applicable. Rejected/unapplied proposals are not accepted changes; G2 retains authority over full decision traces.
+
+At explicit Finish, a single server transaction must commit both `COMPLETED` lifecycle and an immutable `SessionCompletionAgendaSnapshot` holding the final agenda revision, ordered final per-item statuses and original prescription/change/actual-occurrence references. A merely mutable current agenda or a set history alone cannot satisfy this durable provenance obligation. A valid Free Workout may start with an empty original agenda; the final snapshot still records added/performed/unperformed items without creating phantom occurrences. Correction of completed history must not silently rewrite the original finalized snapshot; preserve explicit revision/correction provenance.
+
+Exact PostgreSQL/SQLite structure, endpoint payloads and indexing remain deferred. See proposed `M3_EXERCISE_OCCURRENCE_AND_ADAPTATION_PROVENANCE_CONTRACT.md` (#125).
 
 ---
 
@@ -746,9 +756,11 @@ User
      ├─ SessionOperationalContext* (revision/snapshot)
      ├─ SessionPrescriptionSnapshot
      ├─ ActiveSessionAgenda
-     │   ├─ AgendaItem*
+     │   ├─ AgendaItem* (may be unperformed)
      │   └─ ExecutionGroup*
-     └─ WorkoutExerciseOccurrence*
+     ├─ AppliedAgendaChange* (durable accepted material changes)
+     ├─ SessionCompletionAgendaSnapshot? (immutable on valid Finish)
+     └─ WorkoutExerciseOccurrence* (created with first performed set)
          └─ WorkoutSet*
 ```
 
@@ -823,6 +835,7 @@ May recompute:
 - Training Profile preference edits/revisions and user-declared session operational context, when captured;
 - plan/template revisions;
 - session start/provenance snapshots;
+- accepted/material agenda-change provenance and immutable final agenda snapshot (under proposed R2-04);
 - actual session lifecycle;
 - actual exercise occurrence;
 - actual completed sets;
@@ -863,7 +876,9 @@ This contract requires later schema/API work to support:
 - execution groups;
 - timestamps + local-day context;
 - coverage as derived/recomputable state;
-- an explicit user-owned entity deletion path and FK/ownership graph that respects the proposed `M3_SERVER_DELETION_AND_RETENTION_CONTRACT.md` (#123), without deleting M1 terminal identity or system catalogue.
+- occurrence creation atomically coupled with its first confirmed performed set;
+- durable applied agenda changes and immutable Finish/final-agenda snapshot as one failure-atomic terminal transition;
+- an explicit user-owned entity deletion path and FK/ownership graph that respects the accepted design contract `M3_SERVER_DELETION_AND_RETENTION_CONTRACT.md` (#123 / merged PR #124), without deleting M1 terminal identity or system catalogue.
 
 Exact table/column names remain implementation work.
 
@@ -883,7 +898,7 @@ Still deferred:
 - advanced set techniques beyond WARMUP/WORKING;
 - circuits beyond minimum SUPERSET;
 - M4 analytics formulas;
-- exact M3 server deletion executor, status API, server retry/job model, tombstone/receipt retention horizon, backups and external resource inventory — governed by proposed R2-03 / #123, not implicitly solved by this persistence contract.
+- exact M3 server deletion executor, status API, server retry/job model, tombstone/receipt retention horizon, backups and external resource inventory — governed by accepted R2-03 design / #123 (implementation/security gates still OPEN), not implicitly solved by this persistence contract.
 
 These may not be guessed in dependent implementation work.
 

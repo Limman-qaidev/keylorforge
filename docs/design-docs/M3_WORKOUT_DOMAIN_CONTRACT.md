@@ -375,19 +375,21 @@ This is part of the local active-workout state required by ADR-003.
 
 ### 8.4 Completion snapshot
 
-At session completion, the product should retain enough planned-versus-actual context to explain:
+At session completion, the product **must** durably retain enough planned-versus-actual context to explain:
 
-- what was initially intended;
-- what changed materially;
-- what was actually performed.
+- the **immutable original session-start prescription**;
+- the ordered accepted/applied material changes to remaining intent, including reason/source **only when actually known**;
+- the immutable **final agenda snapshot** and per-item statuses, distinct from actual performed sets.
 
-The exact representation may be a prescription snapshot, agenda-item status or adaptation/event log; this contract does not force a SQL shape.
+The proposed R2-04 contract `M3_EXERCISE_OCCURRENCE_AND_ADAPTATION_PROVENANCE_CONTRACT.md` (#125) selects **applied agenda-change records plus an immutable final-completion agenda snapshot**, persisted locally/synced to the server. No normal server `COMPLETED` transition can stand without the accepted qualifying WORKING set **and** matching durable final snapshot. Exact SQL/JSON representation remains implementation design. Rejected recommendations must not be recorded as accepted adaptations.
 
 ---
 
 ## 9. Workout Exercise Occurrence
 
-A Workout Exercise Occurrence represents an exercise actually engaged with inside an Actual Workout Session.
+A Workout Exercise Occurrence represents an exercise **with confirmed performed set work** inside an Actual Workout Session. Merely selecting/adding an exercise, opening a card or editing a Set Draft creates/updates an Active Session Agenda item or local editor state only, **not performed history**.
+
+The authoritative occurrence is created **failure-atomically with its first explicitly confirmed WorkoutSet**, whether WARMUP or WORKING. An unperformed/removed agenda item must not create an authoritative empty historical occurrence; removing the last set also removes/retires the occurrence from performed history (with reviewed correction tombstone semantics). This does not weaken the separate WORKING-set requirement for completing a session.
 
 It references:
 
@@ -407,9 +409,7 @@ An exercise contributes to performed history only through actual completed set w
 
 ### 9.2 Free-workout exercise
 
-In a free workout, the user may add exercise occurrences directly during the session.
-
-These are first-class history, not second-class because there was no plan.
+In Free Workout the user can directly **add an exercise agenda item/draft** without a plan or configured Training Intent. It becomes first-class actual workout history **only when the first performed set is confirmed**, at which time the occurrence and first set are created together. Removing an untouched selection produces no performed occurrence. An exercise's unperformed agenda status may remain in the final agenda snapshot without inflating history.
 
 ### 9.3 Substitution
 
@@ -603,7 +603,7 @@ If a correction removes **or reclassifies** the last qualifying `WORKING` set, e
 - recompute/reverse Plan Step coverage and all completion-derived effects;
 - never silently rewrite other performed sets.
 
-The precise mutation packaging is governed by Sync and Persistence contracts. A `WARMUP`-only completed session is invalid just as an empty completed session is invalid.
+The precise mutation packaging is governed by Sync and Persistence contracts. A `WARMUP`-only completed session is invalid just as an empty completed session is invalid. If the removed set was also the only performed set attached to an occurrence, that occurrence is simultaneously retired from performed history; any historical finish/final-agenda snapshot correction must remain explicit and versioned under the proposed R2-04 semantics.
 
 ### 13.5 Revision/audit
 
@@ -849,8 +849,7 @@ If the user changes from Cable B to Cable C between sets, machine context must r
 Still requiring **implementation shape or separately scoped decisions**:
 
 - final PostgreSQL/SQLite tables, migration sequencing, API payloads and indexes;
-- exact Today’s Proposal durability and final agenda/adaptation-provenance representation (R2-04);
-- exact exercise-occurrence pre-first-set lifecycle (R2-04);
+- the **physical schema/API implementation** of R2-04's proposed first-set-atomic occurrence lifecycle and immutable final-adaptation provenance, **not** whether an untouched exercise counts as performed;
 - Training Profile/cold-start ownership and optional intent semantics (R2-02);
 - server-side M3 account deletion/retention policy (R2-03);
 - choice of revision/snapshot SQL storage and correction history, **not** whether immutable historical meaning is required;

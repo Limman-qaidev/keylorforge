@@ -397,6 +397,8 @@ A long catalogue should not dominate the active screen.
 
 ## 10. Exercise card before first set
 
+Before any set confirmation, a selected exercise is **an agenda item or local editor draft, not historical performed occurrence**. Dismissing/removing it must not create a remote performed exercise. On first confirmed WARMUP/WORKING set, the occurrence and first WorkoutSet are created atomically; warm-up-only work still cannot qualify session completion. This semantic boundary is proposed in R2-04 / #125.
+
 For the current exercise, show only immediately useful information.
 
 Example:
@@ -788,7 +790,7 @@ For a strength-priority movement, the app may rank alternatives conservatively a
 
 The user may search/select another exercise manually.
 
-Actual history records the exercise actually performed.
+Actual history records the exercise actually performed **after its first confirmed performed set**. The accepted substitution and reason, where known, remain durable agenda provenance; a merely previewed or rejected substitute cannot be recorded as applied.
 
 ---
 
@@ -809,9 +811,7 @@ Exercise order in actual history should reflect what was performed.
 
 ## 26. Add exercise during planned workout
 
-The user may add an unplanned exercise.
-
-This becomes real workout history.
+The user may add an unplanned exercise **to the Active Session Agenda**. The app records an applied agenda addition (with source/reason when known) once accepted, without pretending performance. **It becomes real workout history only after a performed set is confirmed**. Removing an untouched addition does not create a historical Workout Exercise Occurrence.
 
 The engine may optionally flag:
 
@@ -920,7 +920,7 @@ Actions:
 - Keep original
 - Edit
 
-Completed work is untouched.
+Completed work is untouched. Only when the user taps **Use adaptation** (or explicitly edits/applies a different remainder) does an ordered material `AppliedAgendaChange` enter the local agenda+outbox atomically. Tapping **Keep original** leaves no applied adaptation event; the engine's unaccepted recommendation is governed by separate G2 trace/privacy rules. The final session snapshot must distinguish removed accessories from merely unattempted exercises.
 
 ---
 
@@ -1071,6 +1071,8 @@ M3 may use a simple manual resolution screen.
 ---
 
 ## 37. Finish workout
+
+At successful Finish, the locally immutable **final agenda/completion snapshot** records accepted agenda revisions, final item statuses (performed, partially performed, not performed, intentionally removed or substituted) and actual occurrences. The server must commit this immutable snapshot **atomically with** `COMPLETED`, only after all prerequisite sets/adaptation events sync and the accepted WORKING-set eligibility check passes. Missing or unknown reasons for unperformed items remain unknown, not invented. This is the proposed R2-04 / #125 acceptance boundary.
 
 Primary terminal action:
 

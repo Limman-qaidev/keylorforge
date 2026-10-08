@@ -153,8 +153,10 @@ M3 should prefer semantic mutations/commands over blind replacement of an entire
 Conceptual mutation families include:
 
 - create/start session;
-- create an authoritative exercise occurrence when performed history is established (the exact pre-first-set lifecycle remains R2-04);
-- confirm a performed set (local Set Draft is **not** a remote WorkoutSet mutation);
+- **confirm first performed set with its Workout Exercise Occurrence in one failure-atomic command** (no empty authoritative occurrence before any set);
+- confirm an additional performed set on an existing occurrence (local Set Draft is **not** a remote WorkoutSet mutation);
+- apply a material accepted change to remaining agenda intent as a revisioned durable operation;
+- finish with an immutable final agenda/completion snapshot, atomically with lifecycle transition;
 - correct completed set;
 - remove set;
 - update actual machine/context where supported;
@@ -173,11 +175,11 @@ The server remains responsible for domain validation.
 
 Offline operations frequently depend on earlier local operations.
 
-Example:
+Example (materially adapted workout):
 
-`create session -> create performed-work occurrence/set -> complete session`
+`create session -> apply agenda add/change -> confirm first set + occurrence atomically -> apply accepted agenda adaptation -> confirm later performed sets -> finish with immutable final agenda snapshot`
 
-Draft values and untouched agenda exercise selections remain local active-workout state, not remote `WorkoutSet.PENDING` records. The exact occurrence boundary is tracked by R2-04; do not infer that tapping Add exercise creates remote performed history.
+Draft values and untouched agenda exercise selections remain **planning state**, not performed `WorkoutExerciseOccurrence` or remote `WorkoutSet.PENDING` rows. A durable agenda-change mutation can exist without any historical occurrence. The server must never expose an orphan performed-history occurrence if first-set confirmation fails. Proposed R2-04 / #125 defines the boundary; physical API shape remains deferred.
 
 The sync layer must represent this causal relationship.
 
@@ -548,13 +550,13 @@ When the user explicitly finishes offline **and the accepted qualifying-performe
 - UI may show the locally completed workout immediately;
 - a completion mutation enters the outbox.
 
-### 17.2 Completion depends on prior local work
+### 17.2 Completion depends on prior local work and final agenda provenance
 
-The completion mutation must not be applied remotely before all prior local mutations required to represent that workout have succeeded.
+The completion mutation must not be applied remotely before all prior local mutations required to represent that workout have succeeded: start/session ownership, relevant template/machine refs, **first-set-with-occurrence/other performed-set commands and accepted agenda-change revisions**.
 
-Example:
+Example: A/B/C performed sets or `AppliedAgendaChange` events pending -> completion waits. A local unconfirmed Set Draft is not a performed-set mutation.
 
-outbox mutations for performed sets A/B/C pending -> completion waits. A local unconfirmed Set Draft is not a performed-set mutation.
+The proposed R2-04 terminal semantic command `FINISH_WITH_FINAL_AGENDA_SNAPSHOT` includes an immutable ordered final-agenda snapshot matching the acknowledged revision, occurrence IDs and original session prescription. Server-side `COMPLETED` and that snapshot are one failure-atomic transaction, retried with the same mutation ID. A later mutable agenda alone cannot reconstruct its place.
 
 ### 17.3 Server validation
 
@@ -562,6 +564,8 @@ Server validates domain invariants, including:
 
 - session currently permits completion;
 - at least one authoritative qualifying completed `WORKING` set remains for a normal M3 workout (completed `WARMUP` sets alone are insufficient);
+- the final-agenda immutable completion snapshot matches the authorized session, source prescription, acknowledged ordered applied changes, final agenda revision and actual occurrence/set references;
+- no phantom authoritative exercise occurrence exists without confirmed performed work;
 - relevant concurrency conditions hold.
 
 ### 17.4 Conflict does not erase local completion
@@ -888,7 +892,13 @@ Implementation must include at least:
 19. model/decision-engine availability is irrelevant to core sync correctness;
 20. server rejects warm-up-only completion, including a stale concurrent finish;
 21. locally created unsynced Machine Profile or Template revision is acknowledged before any dependent set/session across entity and session boundaries;
-22. local Set Draft editing never creates a remote `WorkoutSet.PENDING` row.
+22. local Set Draft editing never creates a remote `WorkoutSet.PENDING` row;
+23. adding/removing an untouched Free Workout exercise leaves no remote performed occurrence, but may persist an applied agenda delta;
+24. first confirmed warm-up/working set atomically materializes occurrence+set; lost ack/retry creates no duplicates and a failed first set creates no orphan occurrence;
+25. accepted shortening/substitution/superset/reorder changes survive sync as ordered applied agenda revisions with known reasons, while rejected/unapplied suggestions do not claim execution;
+26. Finish waits on every required performed-set and applied-agenda-change mutation, and its server lifecycle+final snapshot commit is atomic;
+27. original prescription, final statuses and source-versus-actual exercise identities remain queryable after replay;
+28. multi-device conflicting agenda revisions preserve local unsynced data and never silently rewrite completed sets/final snapshots.
 
 ---
 
@@ -901,7 +911,7 @@ Do not hard-code yet:
 - exact UUID version;
 - exact outbox table schema;
 - exact server revision granularity/type;
-- exact mutation payloads;
+- exact mutation payloads (including proposed R2-04 first-set+occurrence, revisioned agenda-change and Finish+snapshot commands);
 - exact HTTP status mapping;
 - exact retry/backoff constants;
 - exact delta-pull/cursor design;
