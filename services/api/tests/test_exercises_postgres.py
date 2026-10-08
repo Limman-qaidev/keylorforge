@@ -5,11 +5,11 @@ from __future__ import annotations
 import os
 
 import pytest
-from keylorforge_database.catalog_importer import import_vendored_catalog
 from keylorforge_database.catalog_curation import (
     CANONICAL_SOURCE_ALIASES,
     SPANISH_NAME_OVERRIDES,
 )
+from keylorforge_database.catalog_importer import import_vendored_catalog
 from keylorforge_database.models import (
     Base,
     CatalogEquipment,
