@@ -652,12 +652,14 @@ export function AuthProvider({
 
     if (!barrierSaved) {
       return {
-        error: 'Local sign-out could not be saved. Please try again before restarting the app.',
+        error:
+          'Local sign-out could not be saved. Please try again before restarting the app.',
       };
     }
     if (providerFailed) {
       return {
-        error: 'Signed out on this device. The authentication service could not confirm remote sign-out.',
+        error:
+          'Signed out on this device. The authentication service could not confirm remote sign-out.',
       };
     }
     return {};
