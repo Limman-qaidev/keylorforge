@@ -20,9 +20,27 @@ const UUID =
 const DECIMAL = /^(?:0|[1-9][0-9]{0,8})(?:\.[0-9]{1,3})?$/;
 
 export type ConfirmedSetMeasurement =
-  | { measurementType: 'reps'; reps: number; durationSeconds?: never; distanceDecimal?: never; distanceUnit?: never }
-  | { measurementType: 'time'; durationSeconds: number; reps?: never; distanceDecimal?: never; distanceUnit?: never }
-  | { measurementType: 'distance'; distanceDecimal: string; distanceUnit: 'm' | 'km' | 'mi'; reps?: never; durationSeconds?: never };
+  | {
+      measurementType: 'reps';
+      reps: number;
+      durationSeconds?: never;
+      distanceDecimal?: never;
+      distanceUnit?: never;
+    }
+  | {
+      measurementType: 'time';
+      durationSeconds: number;
+      reps?: never;
+      distanceDecimal?: never;
+      distanceUnit?: never;
+    }
+  | {
+      measurementType: 'distance';
+      distanceDecimal: string;
+      distanceUnit: 'm' | 'km' | 'mi';
+      reps?: never;
+      durationSeconds?: never;
+    };
 
 export type PerformedLoad = {
   decimal: string;
@@ -132,7 +150,13 @@ function validIsoInstant(value: string): boolean {
 }
 
 function validate(input: ConfirmLocalSetInput): void {
-  const ids = [input.sessionId, input.mutationId, input.setId, input.occurrenceId, input.canonicalExerciseId];
+  const ids = [
+    input.sessionId,
+    input.mutationId,
+    input.setId,
+    input.occurrenceId,
+    input.canonicalExerciseId,
+  ];
   if (
     ids.some((id) => !UUID.test(id)) ||
     (input.agendaItemId != null && !UUID.test(input.agendaItemId)) ||
@@ -147,13 +171,23 @@ function validate(input: ConfirmLocalSetInput): void {
   if (
     !m ||
     (m.measurementType === 'reps' &&
-      (!Number.isSafeInteger(m.reps) || m.reps <= 0 || m.durationSeconds !== undefined || m.distanceDecimal !== undefined || m.distanceUnit !== undefined)) ||
+      (!Number.isSafeInteger(m.reps) ||
+        m.reps <= 0 ||
+        m.durationSeconds !== undefined ||
+        m.distanceDecimal !== undefined ||
+        m.distanceUnit !== undefined)) ||
     (m.measurementType === 'time' &&
-      (!Number.isSafeInteger(m.durationSeconds) || m.durationSeconds <= 0 || m.reps !== undefined || m.distanceDecimal !== undefined || m.distanceUnit !== undefined)) ||
+      (!Number.isSafeInteger(m.durationSeconds) ||
+        m.durationSeconds <= 0 ||
+        m.reps !== undefined ||
+        m.distanceDecimal !== undefined ||
+        m.distanceUnit !== undefined)) ||
     (m.measurementType === 'distance' &&
-      (!DECIMAL.test(m.distanceDecimal) || Number(m.distanceDecimal) <= 0 ||
+      (!DECIMAL.test(m.distanceDecimal) ||
+        Number(m.distanceDecimal) <= 0 ||
         !['m', 'km', 'mi'].includes(m.distanceUnit) ||
-        m.reps !== undefined || m.durationSeconds !== undefined)) ||
+        m.reps !== undefined ||
+        m.durationSeconds !== undefined)) ||
     !['reps', 'time', 'distance'].includes(m.measurementType)
   ) {
     throw new LocalConfirmedSetError('invalidInput');
@@ -162,14 +196,17 @@ function validate(input: ConfirmLocalSetInput): void {
     input.load &&
     (!DECIMAL.test(input.load.decimal) ||
       !['kg', 'lb'].includes(input.load.unit) ||
-      !['total', 'per_implement', 'machine_display', 'assistance'].includes(input.load.entrySemantics))
+      !['total', 'per_implement', 'machine_display', 'assistance'].includes(
+        input.load.entrySemantics,
+      ))
   ) {
     throw new LocalConfirmedSetError('invalidInput');
   }
   if (
     input.machine &&
     (!UUID.test(input.machine.profileId) ||
-      (input.machine.configurationId != null && !UUID.test(input.machine.configurationId)) ||
+      (input.machine.configurationId != null &&
+        !UUID.test(input.machine.configurationId)) ||
       !input.machine.snapshot ||
       typeof input.machine.snapshot !== 'object' ||
       Array.isArray(input.machine.snapshot))
@@ -200,7 +237,9 @@ function normalized(input: ConfirmLocalSetInput): ConfirmLocalSetInput {
 function immutablePayload(input: ConfirmLocalSetInput): string {
   return JSON.stringify({
     protocol_version: 1,
-    kind: input.firstSet ? 'CONFIRM_FIRST_SET_WITH_OCCURRENCE' : 'CONFIRM_ADDITIONAL_SET',
+    kind: input.firstSet
+      ? 'CONFIRM_FIRST_SET_WITH_OCCURRENCE'
+      : 'CONFIRM_ADDITIONAL_SET',
     session_id: input.sessionId,
     mutation_id: input.mutationId,
     set_id: input.setId,
