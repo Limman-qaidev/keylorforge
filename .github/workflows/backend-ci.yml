@@ -52,6 +52,10 @@ jobs:
       - name: Check formatting
         run: ruff format --check .
 
+      - name: Diagnose cancel backend formatting (temporary)
+        if: failure()
+        run: ruff format --diff tests/test_workout_cancel_postgres.py
+
       - name: Lint
         run: ruff check .
 
