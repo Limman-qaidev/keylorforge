@@ -150,7 +150,8 @@ describe('transparent native exercise catalogue persistence', () => {
       expect(seedOfflineCatalogueFromApi).toHaveBeenCalledTimes(1),
     );
   });
-  it('retries a failed stale refresh automatically on foreground and retains the visible catalogue', async () => {
+
+  it('retries automatically on foreground after network failure', async () => {
     let nowMs = Date.parse('2026-10-09T12:00:00.000Z');
     jest.spyOn(Date, 'now').mockImplementation(() => nowMs);
 
@@ -203,5 +204,4 @@ describe('transparent native exercise catalogue persistence', () => {
     screen.unmount();
     expect(removeListener).toHaveBeenCalled();
   });
-
 });
