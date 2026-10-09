@@ -130,7 +130,9 @@ class FakeFinishDb implements SqliteWorkoutPort {
       result = row?.session_id === sessionId ? row : null;
     } else if (sql.includes('MAX(completed_at_utc)')) {
       const timestamps = this.sets
-        .filter((row) => row.subject === subject && row.session_id === sessionId)
+        .filter(
+          (row) => row.subject === subject && row.session_id === sessionId,
+        )
         .map((row) => row.completed_at_utc)
         .sort();
       result = {
