@@ -152,3 +152,107 @@ it('does not infer remote absence from malformed pages', async () => {
     acknowledgedLocalOnly: [],
   });
 });
+
+function fullOrderedPage() {
+  const first = Date.parse(remote.finished_at);
+  return Array.from({ length: 50 }, (_, index) => {
+    const sessionId =
+      '00000000-0000-4000-8000-' + (index + 1).toString(16).padStart(12, '0');
+    const snapshotId =
+      '00000000-0000-4000-8000-' + (index + 100).toString(16).padStart(12, '0');
+    return {
+      ...remote,
+      session_id: sessionId,
+      completion_snapshot_id: snapshotId,
+      finished_at: new Date(first - index * 1000).toISOString(),
+      completion_snapshot: {
+        ...snapshot,
+        session_id: sessionId,
+        completion_snapshot_id: snapshotId,
+      },
+    };
+  });
+}
+
+it('accepts a complete, stable two-page server scan without local writes', async () => {
+  const entries = fullOrderedPage();
+  const last = entries[49]!;
+  jest.mocked(requestApi)
+    .mockResolvedValueOnce({
+      status: 200,
+      json: async () => ({
+        entries,
+        next_before_finished_at: last.finished_at,
+        next_before_session_id: last.session_id,
+      }),
+    } as Response)
+    .mockResolvedValueOnce(http([]));
+  const { db, runAsync } = dbWith([]);
+  const result = await auditCompletedWorkoutHistory(db, auth().access);
+  expect(result).toMatchObject({
+    status: 'complete',
+    compared: 0,
+    acknowledgedLocalOnly: [],
+  });
+  expect(result.remoteOnly).toHaveLength(50);
+  expect(jest.mocked(requestApi)).toHaveBeenCalledTimes(2);
+  const secondPath = jest.mocked(requestApi).mock.calls[1]?.[0];
+  expect(secondPath).toContain('before_session_id=' + last.session_id);
+  expect(runAsync).not.toHaveBeenCalled();
+});
+
+it('refuses a dishonest cursor that skips some acknowledged history', async () => {
+  const entries = fullOrderedPage();
+  jest.mocked(requestApi).mockResolvedValue({
+    status: 200,
+    json: async () => ({
+      entries,
+      next_before_finished_at: entries[0]!.finished_at,
+      next_before_session_id: entries[0]!.session_id,
+    }),
+  } as Response);
+  const { db, runAsync } = dbWith([local]);
+  const result = await auditCompletedWorkoutHistory(db, auth().access);
+  expect(result).toMatchObject({
+    status: 'paused',
+    reason: 'invalidResponse',
+    acknowledgedLocalOnly: [],
+    remoteOnly: [],
+  });
+  expect(requestApi).toHaveBeenCalledTimes(1);
+  expect(runAsync).not.toHaveBeenCalled();
+});
+
+it('rejects server pages ordered oldest-first or overlapping a previous cursor', async () => {
+  const entries = fullOrderedPage();
+  jest.mocked(requestApi).mockResolvedValueOnce(http([
+    entries[1]!,
+    entries[0]!,
+  ]));
+  const db = dbWith([local]).db;
+  expect(await auditCompletedWorkoutHistory(db, auth().access)).toMatchObject({
+    status: 'paused',
+    reason: 'invalidResponse',
+    acknowledgedLocalOnly: [],
+  });
+
+  jest.mocked(requestApi).mockReset();
+  const last = entries[49]!;
+  jest.mocked(requestApi)
+    .mockResolvedValueOnce({
+      status: 200,
+      json: async () => ({
+        entries,
+        next_before_finished_at: last.finished_at,
+        next_before_session_id: last.session_id,
+      }),
+    } as Response)
+    .mockResolvedValueOnce(http([last]));
+  const result = await auditCompletedWorkoutHistory(db, auth().access);
+  expect(result).toMatchObject({
+    status: 'paused',
+    reason: 'invalidResponse',
+    acknowledgedLocalOnly: [],
+    remoteOnly: [],
+  });
+});
