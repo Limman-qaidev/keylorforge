@@ -107,7 +107,10 @@ function subjectOf(access: LocalSubjectAccess): string {
   return subject.toLowerCase();
 }
 
-function validEntry(value: unknown, subject: string): value is UnifiedFinishedHistoryEntry {
+function validEntry(
+  value: unknown,
+  subject: string,
+): value is UnifiedFinishedHistoryEntry {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     return false;
   }
