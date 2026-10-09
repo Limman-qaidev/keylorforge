@@ -174,7 +174,8 @@ def test_real_postgres_confirmations_are_owner_scoped_atomic_and_idempotent() ->
         missing = deepcopy(additional)
         missing["mutation_id"] = str(uuid4())
         missing["occurrence_id"] = str(uuid4())
-        missing["set_id"] = str(uuid4())  # Isolate missing-parent error from UUID collision.
+        # Isolate missing-parent error from a duplicate set-ID conflict.
+        missing["set_id"] = str(uuid4())
         assert (
             client.post(f"{path}/additional", headers=a, json=missing).status_code
             == 404
