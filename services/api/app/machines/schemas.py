@@ -23,9 +23,9 @@ class CreateMachineProfileRequest(BaseModel):
     manufacturer: str | None = Field(default=None, max_length=120)
     model_name: str | None = Field(default=None, max_length=120)
     native_load_unit: Literal["kg", "lb"] | None = None
-    load_entry_semantics: Literal[
-        "total", "per_implement", "machine_display", "assistance"
-    ] | None = None
+    load_entry_semantics: (
+        Literal["total", "per_implement", "machine_display", "assistance"] | None
+    ) = None
     technical_metadata: dict[str, object] = Field(default_factory=dict)
     # User-supplied data is only user-entered evidence, not verified manufacturer
     # evidence or a general conversion ratio for analytical comparison.
