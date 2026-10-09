@@ -143,29 +143,38 @@ def test_owned_profiles_and_configs_are_causal_set_dependencies() -> None:
         created_a = client.post("/machine-profiles", headers=a, json=machine_a)
         assert created_a.status_code == 201, created_a.text
         assert created_a.json()["native_load_unit"] == "kg"
-        assert client.get(
-            f"/machine-profiles/{machine_a['profile_id']}", headers=b
-        ).status_code == 404
-        assert client.get(
-            f"/machine-profiles/{machine_a['profile_id']}", headers=a
-        ).status_code == 200
+        assert (
+            client.get(
+                f"/machine-profiles/{machine_a['profile_id']}", headers=b
+            ).status_code
+            == 404
+        )
+        assert (
+            client.get(
+                f"/machine-profiles/{machine_a['profile_id']}", headers=a
+            ).status_code
+            == 200
+        )
 
         replay = deepcopy(machine_a)
         replay["technical_metadata"] = {"observation": {"known_ratio": False}}
-        assert client.post(
-            "/machine-profiles", headers=a, json=replay
-        ).json() == created_a.json()
+        assert (
+            client.post("/machine-profiles", headers=a, json=replay).json()
+            == created_a.json()
+        )
         changed = deepcopy(machine_a)
         changed["nickname"] = "Accidental rename on replay"
-        assert client.post(
-            "/machine-profiles", headers=a, json=changed
-        ).status_code == 409
-        assert client.post(
-            "/machine-profiles", headers=b, json=machine_a
-        ).status_code == 409
-        assert client.post(
-            "/machine-profiles", headers=a, json=machine_b
-        ).status_code == 201
+        assert (
+            client.post("/machine-profiles", headers=a, json=changed).status_code == 409
+        )
+        assert (
+            client.post("/machine-profiles", headers=b, json=machine_a).status_code
+            == 409
+        )
+        assert (
+            client.post("/machine-profiles", headers=a, json=machine_b).status_code
+            == 201
+        )
 
         config_a = {
             "protocol_version": 1,
@@ -178,17 +187,19 @@ def test_owned_profiles_and_configs_are_causal_set_dependencies() -> None:
             "metadata_source": "user_entered",
         }
         config_url = f"/machine-profiles/{machine_a['profile_id']}/configurations"
-        assert client.post(
-            config_url, headers=b, json=config_a
-        ).status_code == 404
+        assert client.post(config_url, headers=b, json=config_a).status_code == 404
         configured = client.post(config_url, headers=a, json=config_a)
         assert configured.status_code == 201, configured.text
-        assert client.post(
-            config_url, headers=a, json=config_a
-        ).json() == configured.json()
-        assert client.get(
-            f"{config_url}/{config_a['configuration_id']}", headers=b
-        ).status_code == 404
+        assert (
+            client.post(config_url, headers=a, json=config_a).json()
+            == configured.json()
+        )
+        assert (
+            client.get(
+                f"{config_url}/{config_a['configuration_id']}", headers=b
+            ).status_code
+            == 404
+        )
 
         start = {
             "protocol_version": 1,
@@ -197,15 +208,19 @@ def test_owned_profiles_and_configs_are_causal_set_dependencies() -> None:
             "started_at": "2026-10-09T07:00:00+00:00",
             "time_zone": "Europe/Madrid",
         }
-        assert client.post(
-            "/workout-sessions/start", headers=a, json=start
-        ).status_code == 201
+        assert (
+            client.post("/workout-sessions/start", headers=a, json=start).status_code
+            == 201
+        )
         blocked_cross_family = deepcopy(machine_a)
         blocked_cross_family["profile_id"] = str(uuid4())
         blocked_cross_family["mutation_id"] = start["mutation_id"]
-        assert client.post(
-            "/machine-profiles", headers=a, json=blocked_cross_family
-        ).status_code == 409
+        assert (
+            client.post(
+                "/machine-profiles", headers=a, json=blocked_cross_family
+            ).status_code
+            == 409
+        )
 
         session_id = start["session_id"]
         path = f"/workout-sessions/{session_id}/sets"
@@ -223,9 +238,10 @@ def test_owned_profiles_and_configs_are_causal_set_dependencies() -> None:
         first_response = client.post(f"{path}/first", headers=a, json=first)
         assert first_response.status_code == 201, first_response.text
         assert first_response.json()["machine_profile_id"] == machine_a["profile_id"]
-        assert client.post(
-            f"{path}/first", headers=a, json=first
-        ).json() == first_response.json()
+        assert (
+            client.post(f"{path}/first", headers=a, json=first).json()
+            == first_response.json()
+        )
 
         next_set = _set(
             session_id=session_id,
@@ -245,16 +261,18 @@ def test_owned_profiles_and_configs_are_causal_set_dependencies() -> None:
         bad_unit["mutation_id"] = str(uuid4())
         bad_unit["set_id"] = str(uuid4())
         bad_unit["load"]["unit"] = "kg"
-        assert client.post(
-            f"{path}/additional", headers=a, json=bad_unit
-        ).status_code == 422
+        assert (
+            client.post(f"{path}/additional", headers=a, json=bad_unit).status_code
+            == 422
+        )
         bad_config = deepcopy(next_set)
         bad_config["mutation_id"] = str(uuid4())
         bad_config["set_id"] = str(uuid4())
         bad_config["machine"]["configurationId"] = config_a["configuration_id"]
-        assert client.post(
-            f"{path}/additional", headers=a, json=bad_config
-        ).status_code == 404
+        assert (
+            client.post(f"{path}/additional", headers=a, json=bad_config).status_code
+            == 404
+        )
 
         with Session(engine) as db:
             stored = db.scalars(select(WorkoutSet)).all()
@@ -262,10 +280,12 @@ def test_owned_profiles_and_configs_are_causal_set_dependencies() -> None:
             assert len(db.scalars(select(WorkoutOccurrence)).all()) == 1
             assert {row.load_unit for row in stored} == {"kg", "lb"}
             assert {row.machine_profile_id for row in stored} == {
-                UUID(machine_a["profile_id"]), UUID(machine_b["profile_id"]),
+                UUID(machine_a["profile_id"]),
+                UUID(machine_b["profile_id"]),
             }
             assert {row.machine_snapshot["label"] for row in stored} == {
-                "Polea A", "Polea B",
+                "Polea A",
+                "Polea B",
             }
             assert len(db.scalars(select(MachineProfile)).all()) == 2
             assert len(db.scalars(select(MachineConfiguration)).all()) == 1
