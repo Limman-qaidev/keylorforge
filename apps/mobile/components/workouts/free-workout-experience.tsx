@@ -128,9 +128,7 @@ export function buildSetRequest(
     canonicalExerciseId: exercise.id,
     role,
     measurement,
-    load: raw
-      ? { decimal: raw, unit, entrySemantics: 'total' }
-      : null,
+    load: raw ? { decimal: raw, unit, entrySemantics: 'total' } : null,
   };
 }
 
@@ -308,13 +306,18 @@ export function FreeWorkoutExperience() {
     return (
       <View style={styles.center}>
         <Text accessibilityLiveRegion="polite">{error}</Text>
-        <Button title="Reintentar lectura" onPress={() => {
-          setLoading(true);
-          void reload().catch((reason: unknown) => {
-            setError(reason instanceof Error ? reason.message : 'Error local');
-            setLoading(false);
-          });
-        }} />
+        <Button
+          title="Reintentar lectura"
+          onPress={() => {
+            setLoading(true);
+            void reload().catch((reason: unknown) => {
+              setError(
+                reason instanceof Error ? reason.message : 'Error local',
+              );
+              setLoading(false);
+            });
+          }}
+        />
       </View>
     );
   }
@@ -323,7 +326,11 @@ export function FreeWorkoutExperience() {
     return (
       <View style={styles.root}>
         <View style={styles.toolbar}>
-          <Button title="Volver al entrenamiento" secondary onPress={() => setMode('catalogue')} />
+          <Button
+            title="Volver al entrenamiento"
+            secondary
+            onPress={() => setMode('catalogue')}
+          />
         </View>
         <ExerciseCatalogScreen onChooseExercise={choose} />
       </View>
@@ -333,17 +340,36 @@ export function FreeWorkoutExperience() {
   if (mode === 'set' && chosen) {
     const measurement = chosen.measurement_type as Measurement;
     return (
-      <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.page}
+        keyboardShouldPersistTaps="handled"
+      >
         <Text style={styles.eyebrow}>REGISTRAR SERIE</Text>
-        <Text accessibilityRole="header" style={styles.heading}>{chosen.name}</Text>
-        <Text style={styles.caption}>La serie solo se guarda cuando pulses «Confirmar serie».</Text>
+        <Text accessibilityRole="header" style={styles.heading}>
+          {chosen.name}
+        </Text>
+        <Text style={styles.caption}>
+          La serie solo se guarda cuando pulses «Confirmar serie».
+        </Text>
         <Text style={styles.label}>Tipo de serie</Text>
         <View style={styles.inline}>
-          <Button title="Trabajo" secondary={role !== 'WORKING'} onPress={() => setRole('WORKING')} />
-          <Button title="Calentamiento" secondary={role !== 'WARMUP'} onPress={() => setRole('WARMUP')} />
+          <Button
+            title="Trabajo"
+            secondary={role !== 'WORKING'}
+            onPress={() => setRole('WORKING')}
+          />
+          <Button
+            title="Calentamiento"
+            secondary={role !== 'WARMUP'}
+            onPress={() => setRole('WARMUP')}
+          />
         </View>
         <Text style={styles.label}>
-          {measurement === 'time' ? 'Duración (segundos)' : measurement === 'distance' ? 'Distancia' : 'Repeticiones'}
+          {measurement === 'time'
+            ? 'Duración (segundos)'
+            : measurement === 'distance'
+              ? 'Distancia'
+              : 'Repeticiones'}
         </Text>
         <TextInput
           accessibilityLabel="Cantidad realizada"
@@ -355,8 +381,16 @@ export function FreeWorkoutExperience() {
         />
         {measurement === 'distance' ? (
           <View style={styles.inline}>
-            <Button title="Metros" secondary={distanceUnit !== 'm'} onPress={() => setDistanceUnit('m')} />
-            <Button title="Kilómetros" secondary={distanceUnit !== 'km'} onPress={() => setDistanceUnit('km')} />
+            <Button
+              title="Metros"
+              secondary={distanceUnit !== 'm'}
+              onPress={() => setDistanceUnit('m')}
+            />
+            <Button
+              title="Kilómetros"
+              secondary={distanceUnit !== 'km'}
+              onPress={() => setDistanceUnit('km')}
+            />
           </View>
         ) : null}
         {measurement === 'reps' ? (
@@ -371,17 +405,38 @@ export function FreeWorkoutExperience() {
               value={load}
             />
             <View style={styles.inline}>
-              <Button title="kg" secondary={unit !== 'kg'} onPress={() => setUnit('kg')} />
-              <Button title="lb" secondary={unit !== 'lb'} onPress={() => setUnit('lb')} />
+              <Button
+                title="kg"
+                secondary={unit !== 'kg'}
+                onPress={() => setUnit('kg')}
+              />
+              <Button
+                title="lb"
+                secondary={unit !== 'lb'}
+                onPress={() => setUnit('lb')}
+              />
             </View>
           </>
         ) : null}
-        {error ? <Text accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
-        <Button title={busy ? 'Guardando…' : 'Confirmar serie'} onPress={confirmSet} disabled={busy} />
-        <Button title="Volver sin guardar" secondary disabled={busy} onPress={() => {
-          setChosen(null);
-          setMode('picker');
-        }} />
+        {error ? (
+          <Text accessibilityLiveRegion="polite" style={styles.error}>
+            {error}
+          </Text>
+        ) : null}
+        <Button
+          title={busy ? 'Guardando…' : 'Confirmar serie'}
+          onPress={confirmSet}
+          disabled={busy}
+        />
+        <Button
+          title="Volver sin guardar"
+          secondary
+          disabled={busy}
+          onPress={() => {
+            setChosen(null);
+            setMode('picker');
+          }}
+        />
       </ScrollView>
     );
   }
@@ -390,15 +445,25 @@ export function FreeWorkoutExperience() {
     return (
       <ScrollView contentContainerStyle={styles.page}>
         <Text style={styles.eyebrow}>MIS ENTRENAMIENTOS</Text>
-        <Text accessibilityRole="header" style={styles.heading}>Historial</Text>
+        <Text accessibilityRole="header" style={styles.heading}>
+          Historial
+        </Text>
         {history.map((item) => (
           <View key={item.session_id} style={styles.item}>
             <Text style={styles.itemTitle}>{item.local_date}</Text>
-            <Text>{item.total_sets} series · {item.working_sets} de trabajo</Text>
+            <Text>
+              {item.total_sets} series · {item.working_sets} de trabajo
+            </Text>
           </View>
         ))}
-        {history.length === 0 ? <Text>Todavía no hay entrenamientos finalizados.</Text> : null}
-        <Button title={overview ? 'Volver al entrenamiento' : 'Volver a Entrenar'} secondary onPress={() => setMode('catalogue')} />
+        {history.length === 0 ? (
+          <Text>Todavía no hay entrenamientos finalizados.</Text>
+        ) : null}
+        <Button
+          title={overview ? 'Volver al entrenamiento' : 'Volver a Entrenar'}
+          secondary
+          onPress={() => setMode('catalogue')}
+        />
       </ScrollView>
     );
   }
@@ -407,28 +472,65 @@ export function FreeWorkoutExperience() {
     return (
       <ScrollView contentContainerStyle={styles.page}>
         <Text style={styles.eyebrow}>KEYLORFORGE · ENTRENAR</Text>
-        <Text accessibilityRole="header" style={styles.heading}>Entrenamiento activo</Text>
-        <Text style={styles.caption}>{overview.totalSets} series confirmadas</Text>
+        <Text accessibilityRole="header" style={styles.heading}>
+          Entrenamiento activo
+        </Text>
+        <Text style={styles.caption}>
+          {overview.totalSets} series confirmadas
+        </Text>
         {overview.exercises.map((entry) => (
           <View key={entry.occurrence_id} style={styles.item}>
-            <Text style={styles.itemTitle}>{nameOf(entry.canonical_exercise_id)}</Text>
+            <Text style={styles.itemTitle}>
+              {nameOf(entry.canonical_exercise_id)}
+            </Text>
             {entry.sets.map((set, index) => (
               <Text key={set.set_id} style={styles.caption}>
-                {index + 1}. {set.set_role === 'WORKING' ? 'Trabajo' : 'Calentamiento'} · {' '}
-                {set.measurement_type === 'reps' ? `${set.reps} rep` : set.measurement_type === 'time' ? `${set.duration_seconds} s` : `${set.distance_decimal} ${set.distance_unit}`}
-                {set.load_decimal !== null ? ` · ${set.load_decimal} ${set.load_unit}` : ''}
+                {index + 1}.{' '}
+                {set.set_role === 'WORKING' ? 'Trabajo' : 'Calentamiento'} ·{' '}
+                {set.measurement_type === 'reps'
+                  ? `${set.reps} rep`
+                  : set.measurement_type === 'time'
+                    ? `${set.duration_seconds} s`
+                    : `${set.distance_decimal} ${set.distance_unit}`}
+                {set.load_decimal !== null
+                  ? ` · ${set.load_decimal} ${set.load_unit}`
+                  : ''}
               </Text>
             ))}
           </View>
         ))}
         {overview.exercises.length === 0 ? (
-          <Text style={styles.caption}>Elige un ejercicio y confirma tu primera serie.</Text>
+          <Text style={styles.caption}>
+            Elige un ejercicio y confirma tu primera serie.
+          </Text>
         ) : null}
-        {error ? <Text accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
-        <Button title="Añadir ejercicio o serie" disabled={busy} onPress={() => setMode('picker')} />
-        <Button title="Ver historial" secondary disabled={busy} onPress={() => setMode('history')} />
-        <Button title="Finalizar entrenamiento" secondary disabled={busy || overview.workingSets < 1} onPress={finish} />
-        {overview.workingSets === 0 ? <Text style={styles.caption}>Necesitas confirmar al menos una serie de trabajo para finalizar.</Text> : null}
+        {error ? (
+          <Text accessibilityLiveRegion="polite" style={styles.error}>
+            {error}
+          </Text>
+        ) : null}
+        <Button
+          title="Añadir ejercicio o serie"
+          disabled={busy}
+          onPress={() => setMode('picker')}
+        />
+        <Button
+          title="Ver historial"
+          secondary
+          disabled={busy}
+          onPress={() => setMode('history')}
+        />
+        <Button
+          title="Finalizar entrenamiento"
+          secondary
+          disabled={busy || overview.workingSets < 1}
+          onPress={finish}
+        />
+        {overview.workingSets === 0 ? (
+          <Text style={styles.caption}>
+            Necesitas confirmar al menos una serie de trabajo para finalizar.
+          </Text>
+        ) : null}
       </ScrollView>
     );
   }
@@ -436,10 +538,24 @@ export function FreeWorkoutExperience() {
   return (
     <View style={styles.root}>
       <View style={styles.toolbar}>
-        <Button title="Iniciar entrenamiento libre" onPress={begin} disabled={busy} />
-        {history.length > 0 ? <Button title="Historial" secondary onPress={() => setMode('history')} /> : null}
+        <Button
+          title="Iniciar entrenamiento libre"
+          onPress={begin}
+          disabled={busy}
+        />
+        {history.length > 0 ? (
+          <Button
+            title="Historial"
+            secondary
+            onPress={() => setMode('history')}
+          />
+        ) : null}
       </View>
-      {error ? <Text accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
+      {error ? (
+        <Text accessibilityLiveRegion="polite" style={styles.error}>
+          {error}
+        </Text>
+      ) : null}
       <ExerciseCatalogScreen />
     </View>
   );
@@ -448,19 +564,59 @@ export function FreeWorkoutExperience() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#f6f8fc' },
   page: { padding: 20, paddingBottom: 64, gap: 12 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, gap: 12 },
-  toolbar: { paddingHorizontal: 16, paddingVertical: 8, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  button: { backgroundColor: '#075bff', borderRadius: 12, paddingHorizontal: 18, paddingVertical: 14, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    gap: 12,
+  },
+  toolbar: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  button: {
+    backgroundColor: '#075bff',
+    borderRadius: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   buttonText: { color: '#ffffff', fontWeight: '700' },
   secondaryButton: { backgroundColor: '#e7efff' },
   secondaryText: { color: '#075bff' },
-  eyebrow: { fontSize: 12, fontWeight: '700', color: '#526074', letterSpacing: 1 },
+  eyebrow: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#526074',
+    letterSpacing: 1,
+  },
   heading: { fontSize: 26, fontWeight: '800', color: '#12213a' },
   label: { fontWeight: '700', fontSize: 15, color: '#12213a', marginTop: 8 },
   caption: { fontSize: 14, color: '#54657e', lineHeight: 22 },
   error: { color: '#b42318', fontSize: 14, padding: 12 },
   inline: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  input: { borderWidth: 1, borderColor: '#cbd6e4', backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 14, minHeight: 48, fontSize: 17 },
-  item: { padding: 16, borderRadius: 14, backgroundColor: '#fff', gap: 8, borderWidth: 1, borderColor: '#e8edf5' },
+  input: {
+    borderWidth: 1,
+    borderColor: '#cbd6e4',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    minHeight: 48,
+    fontSize: 17,
+  },
+  item: {
+    padding: 16,
+    borderRadius: 14,
+    backgroundColor: '#fff',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#e8edf5',
+  },
   itemTitle: { fontWeight: '700', fontSize: 17, color: '#12213a' },
 });
