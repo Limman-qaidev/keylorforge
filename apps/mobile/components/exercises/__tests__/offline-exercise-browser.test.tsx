@@ -79,7 +79,7 @@ describe('OfflineExerciseBrowser production integration', () => {
         access_token: 'test-token',
         user: { id: 'b35c00d6-243c-4dea-a095-000000000100' },
       },
-    } as ReturnType<typeof useAuth>);
+    } as unknown as ReturnType<typeof useAuth>);
     jest.mocked(openOfflineExerciseCatalogue).mockResolvedValue(
       {} as Awaited<ReturnType<typeof openOfflineExerciseCatalogue>>,
     );
