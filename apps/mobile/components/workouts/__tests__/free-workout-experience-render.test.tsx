@@ -87,18 +87,20 @@ beforeEach(() => {
     initialized: true,
     snapshot: { items: [] },
   } as unknown as ReturnType<typeof useCachedExerciseCatalogue>);
-  jest.mocked(openLocalWorkoutDatabase).mockResolvedValue(
-    {} as Awaited<ReturnType<typeof openLocalWorkoutDatabase>>,
-  );
+  jest
+    .mocked(openLocalWorkoutDatabase)
+    .mockResolvedValue(
+      {} as Awaited<ReturnType<typeof openLocalWorkoutDatabase>>,
+    );
   jest.mocked(listLocalFinishedWorkouts).mockResolvedValue([]);
   jest.mocked(readActiveFreeWorkoutOverview).mockResolvedValue(null);
   jest.mocked(beginFreeWorkout).mockResolvedValue(session);
-  jest.mocked(recordFreeWorkoutSet).mockResolvedValue(
-    {} as Awaited<ReturnType<typeof recordFreeWorkoutSet>>,
-  );
-  jest.mocked(endFreeWorkout).mockResolvedValue(
-    {} as Awaited<ReturnType<typeof endFreeWorkout>>,
-  );
+  jest
+    .mocked(recordFreeWorkoutSet)
+    .mockResolvedValue({} as Awaited<ReturnType<typeof recordFreeWorkoutSet>>);
+  jest
+    .mocked(endFreeWorkout)
+    .mockResolvedValue({} as Awaited<ReturnType<typeof endFreeWorkout>>);
 });
 
 describe('staged real Free Workout UI', () => {
