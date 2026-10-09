@@ -200,8 +200,7 @@ export async function cancelLocalFreeWorkout(
     if (
       (count.count > 0 && !lastSet?.completed_at_utc) ||
       (lastSet?.completed_at_utc &&
-        Date.parse(input.cancelledAtUtc) <
-          Date.parse(lastSet.completed_at_utc))
+        Date.parse(input.cancelledAtUtc) < Date.parse(lastSet.completed_at_utc))
     ) {
       throw new LocalCancelError('invalidInput');
     }
