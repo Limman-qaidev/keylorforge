@@ -56,7 +56,7 @@ def test_upgrade_clean_database_records_head(test_database_url: str) -> None:
             text("SELECT version_num FROM alembic_version")
         ).scalar_one()
 
-    assert revision == "20261008_0002"
+    assert revision == "20261009_0001"
 
     with engine.connect() as connection:
         display_name = connection.execute(
@@ -244,7 +244,7 @@ def test_catalog_migration_refuses_destructive_downgrade(
             revision = connection.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-        assert revision == "20261008_0002"
+        assert revision == "20261009_0001"
     finally:
         engine.dispose()
 
