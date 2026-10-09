@@ -424,14 +424,22 @@ async function transition(
     }
     const currentSet = await tx.getFirstAsync<LocalPerformedSet>(
       'SELECT * FROM local_workout_sets WHERE subject = ? AND mutation_id = ?',
-      row.subject, row.mutation_id,
+      row.subject,
+      row.mutation_id,
     );
     sameSubject(access, row.subject);
-    if (!currentSet || !sameJson(currentSet, performed) ||
-        !readCommand(row, currentSet, await tx.getFirstAsync<Occurrence>(
-          'SELECT * FROM local_workout_occurrences WHERE subject = ? AND session_id = ? AND occurrence_id = ?',
-          row.subject, row.session_id, currentSet.occurrence_id,
-        ) as Occurrence) ||
+    if (!currentSet || !sameJson(currentSet, performed)) {
+      throw new LocalWorkoutError('corruptLocalData');
+    }
+    const currentOccurrence = await tx.getFirstAsync<Occurrence>(
+      'SELECT * FROM local_workout_occurrences WHERE subject = ? AND session_id = ? AND occurrence_id = ?',
+      row.subject,
+      row.session_id,
+      currentSet.occurrence_id,
+    );
+    sameSubject(access, row.subject);
+    if (!currentOccurrence ||
+        !sameJson(readCommand(row, currentSet, currentOccurrence), command) ||
         (await machineReady(tx as SqliteWorkoutPort, access, row.subject, command)) !== 'ready') {
       throw new LocalWorkoutError('corruptLocalData');
     }
