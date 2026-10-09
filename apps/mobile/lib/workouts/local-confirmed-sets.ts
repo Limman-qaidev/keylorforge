@@ -236,8 +236,31 @@ function normalized(input: ConfirmLocalSetInput): ConfirmLocalSetInput {
   };
 }
 
+/**
+ * Stable JSON representation of immutable mutation intent. Object member
+ * order is not semantic; arrays retain order. Both fresh and legacy queued
+ * payloads are normalized when comparing idempotent retries.
+ */
+function canonicalizeJson(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(canonicalizeJson);
+  }
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+        .map(([key, item]) => [key, canonicalizeJson(item)]),
+    );
+  }
+  return value;
+}
+
+function canonicalJson(value: unknown): string {
+  return JSON.stringify(canonicalizeJson(value));
+}
+
 function immutablePayload(input: ConfirmLocalSetInput): string {
-  return JSON.stringify({
+  return canonicalJson({
     protocol_version: 1,
     kind: input.firstSet
       ? 'CONFIRM_FIRST_SET_WITH_OCCURRENCE'
@@ -285,8 +308,15 @@ export async function confirmLocalWorkoutSet(
       input.mutationId,
     );
     if (duplicate) {
+      let persistedPayload: string;
+      try {
+        // v1/v2 historical outbox may predate canonical serialization.
+        persistedPayload = canonicalJson(JSON.parse(duplicate.payload_json));
+      } catch {
+        throw new LocalConfirmedSetError('corruptLocalData');
+      }
       if (
-        duplicate.payload_json !== payload ||
+        persistedPayload !== payload ||
         duplicate.mutation_kind !== kind ||
         duplicate.session_id !== input.sessionId
       ) {
