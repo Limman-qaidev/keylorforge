@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
 
 DECIMAL_PATTERN = r"^(?:0|[1-9][0-9]{0,8})(?:\.[0-9]{1,3})?$"
 
@@ -13,13 +13,13 @@ DECIMAL_PATTERN = r"^(?:0|[1-9][0-9]{0,8})(?:\.[0-9]{1,3})?$"
 class RepsMeasurement(BaseModel):
     model_config = ConfigDict(extra="forbid")
     measurementType: Literal["reps"]
-    reps: int = Field(gt=0)
+    reps: int = Field(gt=0, le=2_147_483_647)
 
 
 class TimeMeasurement(BaseModel):
     model_config = ConfigDict(extra="forbid")
     measurementType: Literal["time"]
-    durationSeconds: int = Field(gt=0)
+    durationSeconds: int = Field(gt=0, le=2_147_483_647)
 
 
 class DistanceMeasurement(BaseModel):
@@ -27,6 +27,13 @@ class DistanceMeasurement(BaseModel):
     measurementType: Literal["distance"]
     distanceDecimal: str = Field(pattern=DECIMAL_PATTERN)
     distanceUnit: Literal["m", "km", "mi"]
+
+    @field_validator("distanceDecimal")
+    @classmethod
+    def positive_distance(cls, value: str) -> str:
+        if not any(char != "0" and char != "." for char in value):
+            raise ValueError("distance must be positive")
+        return value
 
 
 PerformedMeasurement = Annotated[
@@ -61,7 +68,7 @@ class _ConfirmPerformedSet(BaseModel):
     occurrence_id: UUID
     canonical_exercise_id: UUID
     agenda_item_id: UUID | None
-    actual_order: int = Field(ge=0)
+    actual_order: int = Field(ge=0, le=2_147_483_647)
     set_role: Literal["WARMUP", "WORKING"]
     measurement: PerformedMeasurement
     load: NativeLoad | None
