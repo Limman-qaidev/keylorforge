@@ -15,8 +15,12 @@ function TrainCatalogue() {
         onPress={() => router.push('/offline-exercises')}
         style={styles.offlineLink}
       >
-        <Text style={styles.offlineLinkText}>Consultar ejercicios sin conexión</Text>
-        <Text accessible={false} style={styles.chevron}>›</Text>
+        <Text style={styles.offlineLinkText}>
+          Consultar ejercicios sin conexión
+        </Text>
+        <Text accessible={false} style={styles.chevron}>
+          ›
+        </Text>
       </Pressable>
       <ExerciseCatalogScreen />
     </View>

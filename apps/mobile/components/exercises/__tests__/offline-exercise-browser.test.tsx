@@ -20,7 +20,8 @@ jest.mock('@/lib/exercises/offline-catalogue-adapter', () => ({
   openOfflineExerciseCatalogue: jest.fn(),
 }));
 
-const MUSCLE = 'muscle-pectoral', EQUIPMENT = 'equipment-barbell';
+const MUSCLE = 'muscle-pectoral',
+  EQUIPMENT = 'equipment-barbell';
 const EXERCISES: ExerciseListItem[] = [
   {
     id: 'exercise-one',
@@ -67,7 +68,10 @@ function seedData(items = EXERCISES) {
   });
   jest.mocked(searchOfflineExercises).mockImplementation(async (_db, args) => ({
     total: items.length,
-    items: items.slice(args?.offset ?? 0, (args?.offset ?? 0) + (args?.limit ?? 30)),
+    items: items.slice(
+      args?.offset ?? 0,
+      (args?.offset ?? 0) + (args?.limit ?? 30),
+    ),
   }));
 }
 
@@ -80,9 +84,11 @@ describe('OfflineExerciseBrowser production integration', () => {
         user: { id: 'b35c00d6-243c-4dea-a095-000000000100' },
       },
     } as unknown as ReturnType<typeof useAuth>);
-    jest.mocked(openOfflineExerciseCatalogue).mockResolvedValue(
-      {} as Awaited<ReturnType<typeof openOfflineExerciseCatalogue>>,
-    );
+    jest
+      .mocked(openOfflineExerciseCatalogue)
+      .mockResolvedValue(
+        {} as Awaited<ReturnType<typeof openOfflineExerciseCatalogue>>,
+      );
     seedData();
     jest.mocked(seedOfflineCatalogueFromApi).mockResolvedValue(ready);
   });
@@ -92,10 +98,12 @@ describe('OfflineExerciseBrowser production integration', () => {
     expect(await screen.findByText('Press inclinado')).toBeTruthy();
     expect(screen.getByText('Remo con polea')).toBeTruthy();
     expect(screen.getByText('Prensa de piernas')).toBeTruthy();
-    expect(screen.getByTestId('offline-catalogue-status').props.children)
-      .toBe('CATÁLOGO DISPONIBLE · 3 ejercicios');
-    expect(screen.getByTestId('offline-catalogue-results').props.children.join(''))
-      .toBe('3 de 3 ejercicios');
+    expect(screen.getByTestId('offline-catalogue-status').props.children).toBe(
+      'CATÁLOGO DISPONIBLE · 3 ejercicios',
+    );
+    expect(
+      screen.getByTestId('offline-catalogue-results').props.children.join(''),
+    ).toBe('3 de 3 ejercicios');
     expect(seedOfflineCatalogueFromApi).not.toHaveBeenCalled();
   });
 
@@ -103,12 +111,18 @@ describe('OfflineExerciseBrowser production integration', () => {
     const screen = render(<OfflineExerciseBrowser />);
     await screen.findByText('Prensa de piernas');
     await act(async () =>
-      fireEvent.changeText(screen.getByLabelText('Buscar ejercicios guardados'), 'PRÉNSA'),
+      fireEvent.changeText(
+        screen.getByLabelText('Buscar ejercicios guardados'),
+        'PRÉNSA',
+      ),
     );
     expect(screen.getByText('Prensa de piernas')).toBeTruthy();
     expect(screen.queryByText('Remo con polea')).toBeNull();
     await act(async () =>
-      fireEvent.changeText(screen.getByLabelText('Buscar ejercicios guardados'), ''),
+      fireEvent.changeText(
+        screen.getByLabelText('Buscar ejercicios guardados'),
+        '',
+      ),
     );
     await act(async () =>
       fireEvent.press(screen.getByLabelText('Filtrar músculo por Pectorales')),
@@ -118,24 +132,34 @@ describe('OfflineExerciseBrowser production integration', () => {
     await act(async () =>
       fireEvent.press(screen.getByLabelText('Filtrar equipamiento por Polea')),
     );
-    expect(screen.getByText('Ningún ejercicio coincide con la búsqueda y los filtros.')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'Ningún ejercicio coincide con la búsqueda y los filtros.',
+      ),
+    ).toBeTruthy();
   });
 
   it('shows a genuine unseeded state, then manually downloads and uses cached data', async () => {
-    jest.mocked(offlineCatalogueStatus)
+    jest
+      .mocked(offlineCatalogueStatus)
       .mockResolvedValueOnce({ state: 'unseeded' })
       .mockResolvedValue(ready);
     const screen = render(<OfflineExerciseBrowser />);
-    await screen.findByText('Todavía no hay ejercicios guardados en este dispositivo.');
+    await screen.findByText(
+      'Todavía no hay ejercicios guardados en este dispositivo.',
+    );
     expect(screen.getByText('CATÁLOGO NO DESCARGADO')).toBeTruthy();
     await act(async () =>
-      fireEvent.press(screen.getByLabelText('Descargar o actualizar catálogo offline')),
+      fireEvent.press(
+        screen.getByLabelText('Descargar o actualizar catálogo offline'),
+      ),
     );
     expect(await screen.findByText('Prensa de piernas')).toBeTruthy();
     expect(seedOfflineCatalogueFromApi).toHaveBeenCalledTimes(1);
     const [, auth] = jest.mocked(seedOfflineCatalogueFromApi).mock.calls[0];
-    expect(auth.currentAuthenticatedSubject())
-      .toBe('b35c00d6-243c-4dea-a095-000000000100');
+    expect(auth.currentAuthenticatedSubject()).toBe(
+      'b35c00d6-243c-4dea-a095-000000000100',
+    );
     expect(await auth.acquireCurrentCredentials()).toEqual({
       subject: 'b35c00d6-243c-4dea-a095-000000000100',
       accessToken: 'test-token',
@@ -143,17 +167,23 @@ describe('OfflineExerciseBrowser production integration', () => {
   });
 
   it('retains all locally visible exercises after a network refresh fails', async () => {
-    jest.mocked(seedOfflineCatalogueFromApi).mockRejectedValue(new Error('network offline'));
+    jest
+      .mocked(seedOfflineCatalogueFromApi)
+      .mockRejectedValue(new Error('network offline'));
     const screen = render(<OfflineExerciseBrowser />);
     await screen.findByText('Press inclinado');
     await act(async () =>
-      fireEvent.press(screen.getByLabelText('Descargar o actualizar catálogo offline')),
+      fireEvent.press(
+        screen.getByLabelText('Descargar o actualizar catálogo offline'),
+      ),
     );
     expect(screen.getByText('Press inclinado')).toBeTruthy();
     expect(screen.getByText('CATÁLOGO DISPONIBLE · 3 ejercicios')).toBeTruthy();
-    expect(screen.getByText(
-      'No se pudo actualizar el catálogo. Si ya estaba descargado, sigue disponible sin conexión.',
-    )).toBeTruthy();
+    expect(
+      screen.getByText(
+        'No se pudo actualizar el catálogo. Si ya estaba descargado, sigue disponible sin conexión.',
+      ),
+    ).toBeTruthy();
   });
 
   it('reads multiple local batches and renders count for >100 canonical exercises', async () => {
@@ -165,12 +195,15 @@ describe('OfflineExerciseBrowser production integration', () => {
     seedData(large);
     const screen = render(<OfflineExerciseBrowser />);
     await waitFor(() => {
-      expect(screen.getByTestId('offline-catalogue-results').props.children.join(''))
-        .toBe('101 de 101 ejercicios');
+      expect(
+        screen.getByTestId('offline-catalogue-results').props.children.join(''),
+      ).toBe('101 de 101 ejercicios');
     });
     expect(searchOfflineExercises).toHaveBeenCalledTimes(2);
-    expect(jest.mocked(searchOfflineExercises).mock.calls[1][1])
-      .toMatchObject({ offset: 100, limit: 100 });
+    expect(jest.mocked(searchOfflineExercises).mock.calls[1][1]).toMatchObject({
+      offset: 100,
+      limit: 100,
+    });
   });
 
   it('reopens a previously cached snapshot with no automatic download', async () => {
