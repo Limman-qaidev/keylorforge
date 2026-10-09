@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Annotated, Literal
+from datetime import UTC, datetime
+from typing import Annotated, Literal, Self
 from uuid import UUID
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 DECIMAL_PATTERN = r"^(?:0|[1-9][0-9]{0,8})(?:\.[0-9]{1,3})?$"
 
@@ -74,6 +81,15 @@ class _ConfirmPerformedSet(BaseModel):
     machine: MachineAtSet | None
     target_at_confirmation: dict[str, object] | None
     completed_at: AwareDatetime
+
+    @model_validator(mode="after")
+    def safe_completed_at(self) -> Self:
+        """Reject boundary instants whose UTC conversion would overflow."""
+        try:
+            self.completed_at.astimezone(UTC)
+        except (OverflowError, ValueError) as exc:
+            raise ValueError("completed_at outside supported UTC range") from exc
+        return self
 
 
 class ConfirmFirstSetRequest(_ConfirmPerformedSet):
