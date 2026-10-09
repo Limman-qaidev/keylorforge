@@ -154,7 +154,8 @@ class FakePerformedSQLite implements SqliteWorkoutPort {
     ...params: (string | number | null)[]
   ): Promise<unknown> {
     if (sql.includes('INSERT INTO local_workout_occurrences')) {
-      const [subject, sessionId, id, exercise, agenda, order, firstSet] = params;
+      const [subject, sessionId, id, exercise, agenda, order, firstSet] =
+        params;
       this.occurrences.set(
         String(subject) + ':' + String(sessionId) + ':' + String(id),
         {
