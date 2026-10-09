@@ -108,11 +108,31 @@ def upgrade() -> None:
             "owner_user_id", "mutation_id",
             name="uq_workout_sets_owner_mutation",
         ),
+        sa.UniqueConstraint(
+            "id", "occurrence_id", "owner_user_id",
+            name="uq_workout_sets_first_set_composite",
+        ),
     )
     op.create_index(
         "ix_workout_sets_owner_occurrence_completed",
         "workout_sets",
         ["owner_user_id", "occurrence_id", "completed_at"],
+    )
+
+    # Enforce that each live occurrence has its actual first performed set,
+    # including the same occurrence and owner. This FK is deferred because the
+    # two rows are inserted in one transaction; no phantom occurrence can commit.
+    # NO ACTION (not RESTRICT) permits the account purge to delete both rows
+    # in one transaction, without ever cascading away unrelated history.
+    op.create_foreign_key(
+        "fk_workout_occurrences_first_set",
+        "workout_occurrences",
+        "workout_sets",
+        ["first_set_id", "id", "owner_user_id"],
+        ["id", "occurrence_id", "owner_user_id"],
+        ondelete="NO ACTION",
+        deferrable=True,
+        initially="DEFERRED",
     )
 
     # Match START-session privacy: never publish workout history through Supabase
