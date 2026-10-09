@@ -32,6 +32,11 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
+      - name: Resolve Expo Crypto dependency (temporary, no commit)
+        run: |
+          npx expo install expo-crypto --npm
+          git diff -- package.json package-lock.json
+
       - name: Check formatting
         run: npm run format:check
 
