@@ -379,6 +379,10 @@ def test_finish_v4_upgrade():
         "SELECT profile_id,nickname FROM local_machine_profiles"
     ).fetchall()
 
+    # Capture an actual pre-upgrade v3 database for the rollback scenario.
+    broken = sqlite3.connect(":memory:")
+    db.backup(broken)
+
     db.execute("PRAGMA foreign_keys = OFF")
     db.executescript(sql("local-finish-schema.ts", "LOCAL_WORKOUT_V4_MIGRATION_SQL"))
     assert db.in_transaction
@@ -426,12 +430,6 @@ def test_finish_v4_upgrade():
     print("PASS: v4 retained v3 workouts/machines/outbox and supports causal FINISH")
 
     # A failed replacement must roll back the outbox copy and schema change.
-    broken = sqlite3.connect(":memory:")
-    db.backup(broken)
-    broken.execute("DELETE FROM local_workout_final_snapshots")
-    broken.execute("DELETE FROM local_workout_outbox WHERE mutation_id='finish-mut'")
-    broken.execute("DROP TABLE local_workout_final_snapshots")
-    broken.execute("PRAGMA user_version = 3")
     broken.execute("CREATE TABLE local_workout_final_snapshots (occupied INTEGER)")
     broken.commit()
     prefailed_outbox = broken.execute(
