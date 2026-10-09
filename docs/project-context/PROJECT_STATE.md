@@ -1,6 +1,6 @@
 # KeylorForge project state
 
-Last updated: 2026-10-08
+Last updated: 2026-10-09
 
 This is the fast handoff for resuming work. GitHub issues, PRs and `main` remain the final authority for real-time status.
 
@@ -39,7 +39,7 @@ Current focused remediation after audit #117:
 
 ### M3 implementation execution queue (open focused issues for real implementation slices as needed)
 
-The following is execution order and dependency tracking, **not another round of contracts**. **#129 / PR #130 MERGED** (commit `8da41d75`) — backend Free Workout start/active lookup, account-owned persistence and idempotency with security-review corrections. **#131 / PR #132 MERGED** (commit `9ef5e64b`) — subject-scoped local SQLite start/outbox, native Expo SQLite binding and isolated QA screen; Samsung physical validation confirmed persistence across relaunch and local reads in airplane mode. **#133 / M3-MOB-002 IN IMPLEMENTATION** — additive v2 migration and atomic confirmed occurrence+set/outbox local history; backend confirmation, full Free Workout UI, catalogue offline seed, Finish and sync remain pending. Each implementation PR must include code and tests, remain scoped, and require **physical Android validation of its user-visible flow and explicit Product Owner approval before merge**. CI/Codex alone are insufficient.
+The following is execution order and dependency tracking, **not another round of contracts**. **#129 / PR #130 MERGED** (commit `8da41d75`) — backend Free Workout start/active lookup, account-owned persistence and idempotency with security-review corrections. **#131 / PR #132 MERGED** (commit `9ef5e64b`) — subject-scoped local SQLite start/outbox, native Expo SQLite binding and isolated QA screen; Samsung physical validation confirmed persistence across relaunch and local reads in airplane mode. **#133 / PR #134 MERGED** (commit `8e0ea1a7`) — SQLite v1→v2 performed occurrence/set/outbox local history, Samsung physical persistence/offline/QA teardown PASS and four checks green. **#135 / M3-SRV-002 IN IMPLEMENTATION** — PostgreSQL authoritative occurrences/sets and FastAPI confirmation endpoints. Full Free Workout UI, machine/agenda dependency sync, catalogue offline cache, Finish and sync worker remain pending. Each implementation PR must include code and tests, remain scoped, and require **physical Android validation of its user-visible flow and explicit Product Owner approval before merge**. CI/Codex alone are insufficient.
 
 | Order | Deliverable | Concrete Done/verification | Dependencies / tracking |
 | --- | --- | --- | --- |
