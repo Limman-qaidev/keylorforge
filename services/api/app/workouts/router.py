@@ -5,10 +5,8 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import AwareDatetime
-from fastapi import Query
-
-from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import (
