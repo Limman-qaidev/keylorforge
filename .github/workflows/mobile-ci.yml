@@ -35,6 +35,12 @@ jobs:
       - name: Check formatting
         run: npm run format:check
 
+      - name: Diagnose Prettier cancellation changes (temporary)
+        if: failure()
+        run: |
+          npx prettier --write lib/workouts/local-cancel.ts lib/workouts/local-cancel-schema.ts lib/workouts/__tests__/local-cancel.test.ts lib/workouts/free-workout-flow.ts lib/workouts/__tests__/free-workout-flow.test.ts components/workouts/free-workout-experience.tsx
+          git diff -- lib/workouts/local-cancel.ts lib/workouts/local-cancel-schema.ts lib/workouts/__tests__/local-cancel.test.ts lib/workouts/free-workout-flow.ts lib/workouts/__tests__/free-workout-flow.test.ts components/workouts/free-workout-experience.tsx
+
       - name: Run lint
         run: npm run lint
 
