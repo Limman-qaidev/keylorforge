@@ -32,12 +32,6 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
-      # TEMPORARY: inspect exact Prettier output; remove before final review.
-      - name: Inspect test formatting
-        run: |
-          npx prettier lib/workouts/__tests__/local-confirmed-sets.test.ts > /tmp/m3-prettier.ts
-          diff -u lib/workouts/__tests__/local-confirmed-sets.test.ts /tmp/m3-prettier.ts || true
-
       - name: Check formatting
         run: npm run format:check
 
