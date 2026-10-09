@@ -39,6 +39,7 @@ type LocalSet = {
   subject: string;
   session_id: string;
   set_id: string;
+  completed_at_utc: string;
   set_role: 'WARMUP' | 'WORKING';
 };
 
@@ -86,6 +87,7 @@ class FakeFinishDb implements SqliteWorkoutPort {
         subject: SUBJECT,
         session_id: SESSION,
         set_id: SET_ID,
+        completed_at_utc: '2026-10-09T14:30:00.000Z',
         set_role: role,
       });
       this.outbox.set(SET_MUTATION, {
@@ -126,6 +128,14 @@ class FakeFinishDb implements SqliteWorkoutPort {
     } else if (sql.includes('FROM local_workout_final_snapshots')) {
       const row = this.snapshots.get(subject);
       result = row?.session_id === sessionId ? row : null;
+    } else if (sql.includes('MAX(completed_at_utc)')) {
+      const timestamps = this.sets
+        .filter((row) => row.subject === subject && row.session_id === sessionId)
+        .map((row) => row.completed_at_utc)
+        .sort();
+      result = {
+        last_completed_at_utc: timestamps[timestamps.length - 1] ?? null,
+      };
     } else if (sql.includes('COUNT(*) AS count')) {
       result = {
         count: this.sets.filter(
@@ -299,6 +309,12 @@ describe('M3 offline-first atomic Free Workout Finish', () => {
         finishedAtUtc: '2026-10-09T13:00:00.000Z',
       }),
     ).rejects.toMatchObject({ code: 'invalidInput' });
+    await expect(
+      finishLocalFreeWorkout(db, auth.access, {
+        ...input,
+        finishedAtUtc: '2026-10-09T14:15:00.000Z',
+      }),
+    ).rejects.toMatchObject({ code: 'invalidHistory' });
     db.sessions.set(SUBJECT, { ...sessionRow(), agenda_revision: 1 });
     await expect(
       finishLocalFreeWorkout(db, auth.access, input),
