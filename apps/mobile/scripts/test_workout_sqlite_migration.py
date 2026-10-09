@@ -421,8 +421,8 @@ def test_finish_v4_upgrade():
     )
     db.execute(
         "INSERT INTO local_workout_final_snapshots "
-        "(subject,session_id,finish_mutation_id,finished_at_utc,final_agenda_json) "
-        "VALUES (?,?,'finish-mut','2026-10-08T15:10:00Z','{\"items\":[]}')",
+        "(subject,session_id,finish_mutation_id,completion_snapshot_id,finished_at_utc,final_agenda_json) "
+        "VALUES (?,?,'finish-mut','some-stable-snapshot-id','2026-10-08T15:10:00Z','{\"items\":[]}')",
         (subject, session),
     )
     db.commit()
