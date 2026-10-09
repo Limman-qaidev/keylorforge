@@ -35,6 +35,12 @@ jobs:
       - name: Check formatting
         run: npm run format:check
 
+      - name: Diagnose one new test formatting (temporary)
+        if: failure()
+        run: |
+          npx prettier --write components/workouts/__tests__/free-workout-experience-render.test.tsx
+          git diff -- components/workouts/__tests__/free-workout-experience-render.test.tsx
+
       - name: Run lint
         run: npm run lint
 
