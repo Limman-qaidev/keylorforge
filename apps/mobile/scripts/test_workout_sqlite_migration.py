@@ -687,6 +687,7 @@ def test_finish_v4_upgrade():
     assert db.execute(
         "SELECT * FROM local_workout_sessions ORDER BY subject, session_id"
     ).fetchall() == original_sessions
+    other = "e426dd13-344a-4b69-8920-cb014715c6c1"
     remote_id = "6fbcfd94-2b37-4a29-9f57-ff58753a0011"
     db.execute(
         "INSERT INTO local_remote_workout_history "
