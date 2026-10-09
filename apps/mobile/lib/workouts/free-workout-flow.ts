@@ -239,7 +239,8 @@ export async function recordFreeWorkoutSet(
     );
     const matching = overview.exercises.find(
       (entry) =>
-        entry.canonical_exercise_id === request.canonicalExerciseId.toLowerCase(),
+        entry.canonical_exercise_id ===
+        request.canonicalExerciseId.toLowerCase(),
     );
     const [setId, mutationId, newOccurrenceId] = uniqueIds(ids, 3);
     const occurrenceId = matching?.occurrence_id ?? newOccurrenceId;
