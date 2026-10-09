@@ -19,6 +19,7 @@ import {
   type PerformedLoad,
 } from './local-confirmed-sets';
 import { finishLocalFreeWorkout, type LocalFinishRow } from './local-finish';
+import { cancelLocalFreeWorkout, type LocalCancelRow } from './local-cancel';
 import type { SqliteWorkoutPort } from './local-schema';
 import {
   startLocalFreeWorkout,
@@ -294,6 +295,34 @@ export async function endFreeWorkout(
       mutationId,
       completionSnapshotId,
       finishedAtUtc: nowUtc(clock),
+    });
+  });
+}
+
+/**
+ * Explicit cancellation, including zero-set workouts. Performed work must
+ * be explicitly confirmed for discard; it is never deleted. The causal
+ * cancellation outbox is sent by a separate (not-yet-enabled) worker.
+ */
+export async function cancelFreeWorkout(
+  db: SqliteWorkoutPort,
+  access: LocalSubjectAccess,
+  ids: WorkoutIdProvider,
+  clock: WorkoutClock,
+  confirmDiscardPerformedSets: boolean,
+): Promise<LocalCancelRow> {
+  return exclusiveFlow(db, async () => {
+    const overview = requireActive(
+      await readActiveFreeWorkoutOverview(db, access),
+    );
+    if (overview.totalSets > 0 && !confirmDiscardPerformedSets) {
+      throw new WorkoutFlowError('invalidInput');
+    }
+    return cancelLocalFreeWorkout(db, access, {
+      sessionId: overview.session.session_id,
+      mutationId: generatedId(ids),
+      cancelledAtUtc: nowUtc(clock),
+      confirmDiscardPerformedSets,
     });
   });
 }
