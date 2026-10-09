@@ -450,6 +450,44 @@ def test_finish_v4_upgrade():
     )
     db.commit()
     assert not db.execute("PRAGMA foreign_key_check").fetchall()
+    # Exercise the production history page query, not a test-only SQL copy.
+    history_source = (root / "local-finish-history.ts").read_text(encoding="utf-8")
+    array_body = history_source.split(
+        "export const LOCAL_FINISHED_HISTORY_SQL = [", 1
+    )[1].split("].join(' ');", 1)[0]
+    history_sql = " ".join(ast.literal_eval("[" + array_body + "]"))
+
+    def history(owner, limit=20, offset=0):
+        return json.loads(db.execute(
+            history_sql, (owner, limit, offset)
+        ).fetchone()[0])
+
+    # Merely creating a snapshot never grants completed-history status.
+    assert history(subject) == []
+    db.execute(
+        "UPDATE local_workout_sessions SET lifecycle_state='completed' "
+        "WHERE subject=? AND session_id=?",
+        (subject, session),
+    )
+    db.commit()
+    page = history(subject)
+    assert len(page) == 1
+    assert page[0]["session_id"] == session
+    assert page[0]["completion_snapshot_id"] == "some-stable-snapshot-id"
+    assert page[0]["total_sets"] == 1
+    assert page[0]["working_sets"] == 1
+    assert page[0]["sync_state"] == "pending"
+    assert history(subject, limit=1, offset=1) == []
+    assert history("e426dd13-344a-4b69-8920-cb014715c6c1") == []
+
+    db.execute(
+        "UPDATE local_workout_outbox SET delivery_state='acknowledged' "
+        "WHERE subject=? AND mutation_id='finish-mut'", (subject,)
+    )
+    db.commit()
+    assert history(subject)[0]["sync_state"] == "acknowledged"
+    print("PASS: production history JSON1 respects owner, paging and ACK")
+
     print("PASS: v4 retained v3 workouts/machines/outbox and supports causal FINISH")
 
     # A failed replacement must roll back the outbox copy and schema change.
