@@ -70,7 +70,29 @@ function validTime(value: unknown): value is string {
   return typeof value === 'string' && Number.isFinite(Date.parse(value));
 }
 
-function verifiedPage(value: unknown): RemotePage | null {
+/**
+ * Check the server's DESC keyset order conservatively. Submillisecond
+ * precision may be truncated by JS Date.parse; only require UUID order when
+ * the timestamps are byte-for-byte equal.
+ */
+function strictlyAfterCursor(
+  entry: RemoteEntry,
+  newerFinishedAt: string,
+  newerSessionId: string,
+): boolean {
+  const current = Date.parse(entry.finished_at);
+  const newer = Date.parse(newerFinishedAt);
+  if (current > newer) return false;
+  if (current < newer) return true;
+  return entry.finished_at !== newerFinishedAt ||
+    entry.session_id.toLowerCase() < newerSessionId.toLowerCase();
+}
+
+function verifiedPage(
+  value: unknown,
+  beforeFinishedAt: string | null,
+  beforeSessionId: string | null,
+): RemotePage | null {
   const page = object(value);
   if (
     !page ||
@@ -91,6 +113,8 @@ function verifiedPage(value: unknown): RemotePage | null {
   ) {
     return null;
   }
+  let previousFinishedAt = beforeFinishedAt;
+  let previousSessionId = beforeSessionId;
   for (const item of page.entries) {
     const row = object(item);
     const snapshot = object(row?.completion_snapshot);
@@ -118,6 +142,26 @@ function verifiedPage(value: unknown): RemotePage | null {
     ) {
       return null;
     }
+    const entry = row as RemoteEntry;
+    if (
+      previousFinishedAt !== null &&
+      previousSessionId !== null &&
+      !strictlyAfterCursor(entry, previousFinishedAt, previousSessionId)
+    ) {
+      return null;
+    }
+    previousFinishedAt = entry.finished_at;
+    previousSessionId = entry.session_id;
+  }
+  // An advancing cursor MUST be the exact last row in the returned page;
+  // otherwise an incomplete/misordered response can silently skip workouts.
+  if (
+    page.next_before_finished_at !== null &&
+    (page.next_before_finished_at !== previousFinishedAt ||
+      page.next_before_session_id?.toLowerCase() !==
+        previousSessionId?.toLowerCase())
+  ) {
+    return null;
   }
   return page as RemotePage;
 }
@@ -240,7 +284,7 @@ export async function auditCompletedWorkoutHistory(
       clearTimeout(timeout);
     }
     checkOwner(access, owner);
-    const page = verifiedPage(raw);
+    const page = verifiedPage(raw, beforeFinished, beforeSession);
     if (!page) return partial('invalidResponse', pendingLocal);
     for (const entry of page.entries) {
       const id = entry.session_id.toLowerCase();
