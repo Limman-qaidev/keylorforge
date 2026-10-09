@@ -84,8 +84,10 @@ function strictlyAfterCursor(
   const newer = Date.parse(newerFinishedAt);
   if (current > newer) return false;
   if (current < newer) return true;
-  return entry.finished_at !== newerFinishedAt ||
-    entry.session_id.toLowerCase() < newerSessionId.toLowerCase();
+  return (
+    entry.finished_at !== newerFinishedAt ||
+    entry.session_id.toLowerCase() < newerSessionId.toLowerCase()
+  );
 }
 
 function verifiedPage(
