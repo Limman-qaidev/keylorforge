@@ -8,6 +8,9 @@ from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from keylorforge_database.models import (
+    MachineConfiguration,
+    MachineMutationReceipt,
+    MachineProfile,
     WorkoutMutationReceipt,
     WorkoutOccurrence,
     WorkoutSession,
@@ -28,6 +31,21 @@ def purge_account_workout_data(session: Session, owner_user_id: UUID) -> None:
         delete(WorkoutOccurrence).where(
             WorkoutOccurrence.owner_user_id == owner_user_id
         )
+    )
+    # Once performed sets are gone, machine setup and profile references
+    # can be purged without changing another account's historical snapshots.
+    session.execute(
+        delete(MachineMutationReceipt).where(
+            MachineMutationReceipt.owner_user_id == owner_user_id
+        )
+    )
+    session.execute(
+        delete(MachineConfiguration).where(
+            MachineConfiguration.owner_user_id == owner_user_id
+        )
+    )
+    session.execute(
+        delete(MachineProfile).where(MachineProfile.owner_user_id == owner_user_id)
     )
     session.execute(
         delete(WorkoutMutationReceipt).where(

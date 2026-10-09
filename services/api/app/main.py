@@ -9,6 +9,7 @@ from app.config import Settings
 from app.exercises.router import router as exercises_router
 from app.identity.router import router as identity_router
 from app.logging_config import configure_logging
+from app.machines.router import router as machines_router
 from app.workouts.router import router as workouts_router
 
 
@@ -27,6 +28,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.state.settings = resolved_settings
     application.include_router(identity_router)
     application.include_router(exercises_router)
+    application.include_router(machines_router)
     application.include_router(workouts_router)
 
     @application.get("/health", response_model=HealthResponse)

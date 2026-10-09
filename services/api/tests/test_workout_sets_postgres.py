@@ -205,7 +205,7 @@ def test_real_postgres_confirmations_are_owner_scoped_atomic_and_idempotent() ->
             client.post(
                 f"{path}/additional", headers=a, json=blocked_machine
             ).status_code
-            == 409
+            == 404
         )
         unknown_agenda = deepcopy(additional)
         unknown_agenda["mutation_id"] = str(uuid4())
