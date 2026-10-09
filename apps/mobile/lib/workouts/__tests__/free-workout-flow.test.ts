@@ -1,10 +1,12 @@
 import { readActiveFreeWorkoutOverview } from '../active-workout-overview';
 import { confirmLocalWorkoutSet } from '../local-confirmed-sets';
 import { finishLocalFreeWorkout } from '../local-finish';
+import { cancelLocalFreeWorkout } from '../local-cancel';
 import type { SqliteWorkoutPort } from '../local-schema';
 import { startLocalFreeWorkout, type LocalSubjectAccess } from '../local-store';
 import {
   beginFreeWorkout,
+  cancelFreeWorkout,
   endFreeWorkout,
   recordFreeWorkoutSet,
   type WorkoutIdProvider,
@@ -19,6 +21,9 @@ jest.mock('../local-confirmed-sets', () => ({
 }));
 jest.mock('../local-finish', () => ({
   finishLocalFreeWorkout: jest.fn(),
+}));
+jest.mock('../local-cancel', () => ({
+  cancelLocalFreeWorkout: jest.fn(),
 }));
 jest.mock('../local-store', () => ({
   startLocalFreeWorkout: jest.fn(),
@@ -100,6 +105,9 @@ beforeEach(() => {
   jest.mocked(confirmLocalWorkoutSet).mockResolvedValue({
     set_id: FRESH_IDS[0],
   } as Awaited<ReturnType<typeof confirmLocalWorkoutSet>>);
+  jest.mocked(cancelLocalFreeWorkout).mockResolvedValue({
+    session_id: SESSION,
+  } as Awaited<ReturnType<typeof cancelLocalFreeWorkout>>);
   jest.mocked(finishLocalFreeWorkout).mockResolvedValue({
     session_id: SESSION,
   } as Awaited<ReturnType<typeof finishLocalFreeWorkout>>);
@@ -186,6 +194,31 @@ describe('local Free Workout journey coordinator', () => {
       completionSnapshotId: FRESH_IDS[1],
       finishedAtUtc: '2026-10-09T15:00:00.000Z',
     });
+  });
+
+  it('allows cancelling an empty active workout but not silently discarding confirmed sets', async () => {
+    jest.mocked(readActiveFreeWorkoutOverview).mockResolvedValue(overview(0));
+    await cancelFreeWorkout(db, access, provider(), clock, false);
+    expect(cancelLocalFreeWorkout).toHaveBeenCalledWith(db, access, {
+      sessionId: SESSION,
+      mutationId: FRESH_IDS[0],
+      cancelledAtUtc: '2026-10-09T15:00:00.000Z',
+      confirmDiscardPerformedSets: false,
+    });
+    jest.mocked(readActiveFreeWorkoutOverview).mockResolvedValue({
+      ...overview(1, true),
+      totalSets: 1,
+    });
+    await expect(
+      cancelFreeWorkout(db, access, provider(), clock, false),
+    ).rejects.toMatchObject({ code: 'invalidInput' });
+    expect(cancelLocalFreeWorkout).toHaveBeenCalledTimes(1);
+    await cancelFreeWorkout(db, access, provider(), clock, true);
+    expect(cancelLocalFreeWorkout).toHaveBeenLastCalledWith(
+      db,
+      access,
+      expect.objectContaining({ confirmDiscardPerformedSets: true }),
+    );
   });
 
   it('prevents two simultaneous writes and rejects insecure or repeated IDs', async () => {
