@@ -11,6 +11,8 @@ const A = 'a3dbf764-e0e3-41aa-9895-6e58eadfbb14';
 const B = 'e426dd13-344a-4b69-8920-cb014715c6c1';
 const SESSION = '1f2d27bc-4904-4f4f-9367-39565d78f211';
 const FIRST_MUTATION = 'bf6ba981-334f-4d88-b081-c74d65b940fa';
+const AGENDA_ONE = 'a753beba-f120-4a86-a731-ceab9d329313';
+const AGENDA_TWO = 'e5719511-e087-4f7b-8f3b-6865858f15d4';
 
 const first: ConfirmLocalSetInput = {
   sessionId: SESSION,
@@ -47,6 +49,7 @@ type Occurrence = {
   session_id: string;
   occurrence_id: string;
   canonical_exercise_id: string;
+  agenda_item_id: string | null;
   actual_order: number;
   first_set_id: string;
 };
@@ -151,7 +154,7 @@ class FakePerformedSQLite implements SqliteWorkoutPort {
     ...params: (string | number | null)[]
   ): Promise<unknown> {
     if (sql.includes('INSERT INTO local_workout_occurrences')) {
-      const [subject, sessionId, id, exercise, , order, firstSet] = params;
+      const [subject, sessionId, id, exercise, agenda, order, firstSet] = params;
       this.occurrences.set(
         String(subject) + ':' + String(sessionId) + ':' + String(id),
         {
@@ -159,6 +162,7 @@ class FakePerformedSQLite implements SqliteWorkoutPort {
           session_id: String(sessionId),
           occurrence_id: String(id),
           canonical_exercise_id: String(exercise),
+          agenda_item_id: agenda === null ? null : String(agenda),
           actual_order: Number(order),
           first_set_id: String(firstSet),
         },
@@ -288,6 +292,57 @@ describe('M3 actual confirmed workout history', () => {
       db.outbox.get(A + ':' + next.mutationId)?.depends_on_mutation_id,
     ).toBe(first.mutationId);
   });
+
+  it('preserves accepted agenda identity in occurrence and later outbox payload', async () => {
+    const db = new FakePerformedSQLite();
+    const access = auth().access;
+    const firstWithAgenda = { ...first, agendaItemId: AGENDA_ONE };
+    const nextWithAgenda = {
+      ...next,
+      agendaItemId: AGENDA_ONE.toUpperCase(),
+    };
+    await confirmLocalWorkoutSet(db, access, firstWithAgenda);
+    const row = await confirmLocalWorkoutSet(db, access, nextWithAgenda);
+    expect(row.set_role).toBe('WORKING');
+    expect(db.occurrences.size).toBe(1);
+    expect(
+      db.occurrences.get(A + ':' + SESSION + ':' + first.occurrenceId)
+        ?.agenda_item_id,
+    ).toBe(AGENDA_ONE);
+    const queued = JSON.parse(
+      db.outbox.get(A + ':' + next.mutationId)!.payload_json,
+    ) as { agenda_item_id: string | null };
+    expect(queued.agenda_item_id).toBe(AGENDA_ONE);
+  });
+
+  it.each([
+    { firstAgenda: AGENDA_ONE, nextAgenda: AGENDA_TWO },
+    { firstAgenda: AGENDA_ONE, nextAgenda: null },
+    { firstAgenda: null, nextAgenda: AGENDA_ONE },
+  ])(
+    'refuses changed or missing agenda provenance without persisting a later set: %j',
+    async ({ firstAgenda, nextAgenda }) => {
+      const db = new FakePerformedSQLite();
+      const access = auth().access;
+      await confirmLocalWorkoutSet(db, access, {
+        ...first,
+        agendaItemId: firstAgenda,
+      });
+      await expect(
+        confirmLocalWorkoutSet(db, access, {
+          ...next,
+          agendaItemId: nextAgenda,
+        }),
+      ).rejects.toMatchObject({ code: 'agendaMismatch' });
+      expect(db.sets.size).toBe(1);
+      expect(db.occurrences.size).toBe(1);
+      expect(db.outbox.size).toBe(2);
+      expect(
+        db.occurrences.get(A + ':' + SESSION + ':' + first.occurrenceId)
+          ?.agenda_item_id,
+      ).toBe(firstAgenda);
+    },
+  );
 
   it('replaying the same first set with uppercase UUIDs is idempotent', async () => {
     const db = new FakePerformedSQLite();
