@@ -35,18 +35,6 @@ jobs:
       - name: Check formatting
         run: npm run format:check
 
-      - name: Diagnose cancel transport Prettier (temporary)
-        if: failure()
-        run: |
-          npx prettier --write lib/workouts/cancel-session-sync.ts lib/workouts/__tests__/cancel-session-sync.test.ts
-          git diff -- lib/workouts/cancel-session-sync.ts lib/workouts/__tests__/cancel-session-sync.test.ts
-
-      - name: Diagnose Prettier cancellation transport (temporary)
-        if: failure()
-        run: |
-          npx prettier --write lib/workouts/cancel-session-sync.ts lib/workouts/__tests__/cancel-session-sync.test.ts
-          git diff -- lib/workouts/cancel-session-sync.ts lib/workouts/__tests__/cancel-session-sync.test.ts
-
       - name: Run lint
         run: npm run lint
 
