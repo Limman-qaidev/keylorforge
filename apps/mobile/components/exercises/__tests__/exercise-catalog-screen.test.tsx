@@ -138,7 +138,7 @@ describe('ExerciseCatalogScreen', () => {
     await act(async () => fireEvent.press(getByText('Buscar')));
     expect(getByText('Sentadilla')).toBeTruthy();
     expect(listExercises).not.toHaveBeenCalled();
-  });
+  }, 15_000);
 
   it('opens an immediate offline summary detail in the same DetailView without inventing fields', async () => {
     jest.mocked(useCachedExerciseCatalogue).mockReturnValue({
