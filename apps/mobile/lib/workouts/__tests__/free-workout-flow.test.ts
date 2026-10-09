@@ -70,22 +70,24 @@ function overview(workingSets = 1, existing = false) {
     exercises: existing
       ? [
           {
-          occurrence_id: OCCURRENCE,
-          canonical_exercise_id: EXERCISE,
-          actual_order: 0,
-          agenda_item_id: null as const,
-          sets: [{
-            set_id: FRESH_IDS[0]!,
-            set_role: 'WORKING' as const,
-            measurement_type: 'reps' as const,
-            reps: 8,
-            duration_seconds: null,
-            distance_decimal: null,
-            distance_unit: null,
-            load_decimal: null,
-            load_unit: null,
-            completed_at_utc: '2026-10-09T14:30:00.000Z',
-          }],
+            occurrence_id: OCCURRENCE,
+            canonical_exercise_id: EXERCISE,
+            actual_order: 0,
+            agenda_item_id: null as const,
+            sets: [
+              {
+                set_id: FRESH_IDS[0]!,
+                set_role: 'WORKING' as const,
+                measurement_type: 'reps' as const,
+                reps: 8,
+                duration_seconds: null,
+                distance_decimal: null,
+                distance_unit: null,
+                load_decimal: null,
+                load_unit: null,
+                completed_at_utc: '2026-10-09T14:30:00.000Z',
+              },
+            ],
           },
         ]
       : [],
