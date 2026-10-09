@@ -15,13 +15,13 @@ from app.auth.dependencies import (
 )
 from app.auth.jwt_verifier import AuthenticatedPrincipal
 from app.workouts.schemas import StartFreeWorkoutRequest, WorkoutSessionResponse
+from app.workouts.service import get_active_free_workout, start_free_workout
 from app.workouts.set_schemas import (
     ConfirmAdditionalSetRequest,
     ConfirmedSetResponse,
     ConfirmFirstSetRequest,
 )
 from app.workouts.set_service import confirm_performed_set
-from app.workouts.service import get_active_free_workout, start_free_workout
 
 router = APIRouter(
     prefix="/workout-sessions",
@@ -79,6 +79,5 @@ def confirm_additional_performed_set(
     session: Annotated[Session, Depends(get_database_session)],
 ) -> ConfirmedSetResponse:
     if request.session_id != session_id:
-        from fastapi import HTTPException
         raise HTTPException(status_code=422, detail="session ID mismatch")
     return confirm_performed_set(session=session, principal=principal, request=request)
