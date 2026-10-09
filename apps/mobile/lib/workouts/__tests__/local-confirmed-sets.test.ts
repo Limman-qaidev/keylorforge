@@ -364,6 +364,80 @@ describe('M3 actual confirmed workout history', () => {
     expect(db.outbox.size).toBe(2);
   });
 
+  it('replays the same nested JSON intent despite reordered fields in a legacy outbox payload', async () => {
+    const db = new FakePerformedSQLite();
+    const access = auth().access;
+    const command: ConfirmLocalSetInput = {
+      ...first,
+      machine: {
+        ...first.machine!,
+        snapshot: {
+          label: 'Polea A',
+          setup: { pin: 'top', seat: 4 },
+          ratio: 'unknown',
+        },
+      },
+      targetAtConfirmation: {
+        target: { reps: 12, effort: 'RPE8' },
+        sequence: [1, 2],
+      },
+    };
+    const initial = await confirmLocalWorkoutSet(db, access, command);
+    const stored = db.outbox.get(A + ':' + first.mutationId)!;
+    const legacy = JSON.parse(stored.payload_json);
+    legacy.machine.snapshot = {
+      ratio: 'unknown',
+      setup: { seat: 4, pin: 'top' },
+      label: 'Polea A',
+    };
+    legacy.target_at_confirmation = {
+      sequence: [1, 2],
+      target: { effort: 'RPE8', reps: 12 },
+    };
+    stored.payload_json = JSON.stringify(legacy);
+
+    const replay = await confirmLocalWorkoutSet(db, access, {
+      ...command,
+      machine: {
+        ...command.machine!,
+        snapshot: {
+          ratio: 'unknown',
+          setup: { seat: 4, pin: 'top' },
+          label: 'Polea A',
+        },
+      },
+      targetAtConfirmation: {
+        sequence: [1, 2],
+        target: { effort: 'RPE8', reps: 12 },
+      },
+    });
+    expect(replay).toEqual(initial);
+    expect(db.outbox.size).toBe(2);
+    expect(db.sets.size).toBe(1);
+
+    await expect(
+      confirmLocalWorkoutSet(db, access, {
+        ...command,
+        targetAtConfirmation: {
+          sequence: [2, 1],
+          target: { effort: 'RPE8', reps: 12 },
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'mutationConflict' });
+  });
+
+  it('rejects corrupted persisted JSON rather than treating it as a new mutation', async () => {
+    const db = new FakePerformedSQLite();
+    const access = auth().access;
+    await confirmLocalWorkoutSet(db, access, first);
+    db.outbox.get(A + ':' + first.mutationId)!.payload_json = '{broken';
+    await expect(
+      confirmLocalWorkoutSet(db, access, first),
+    ).rejects.toMatchObject({ code: 'corruptLocalData' });
+    expect(db.sets.size).toBe(1);
+    expect(db.outbox.size).toBe(2);
+  });
+
   it('rejects mutation ID reuse with changed performed work', async () => {
     const db = new FakePerformedSQLite();
     const access = auth().access;
