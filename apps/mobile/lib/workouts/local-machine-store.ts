@@ -13,10 +13,7 @@ const UUID =
 
 type Unit = 'kg' | 'lb';
 type LoadSemantics =
-  | 'total'
-  | 'per_implement'
-  | 'machine_display'
-  | 'assistance';
+  'total' | 'per_implement' | 'machine_display' | 'assistance';
 
 export class LocalMachineError extends Error {
   constructor(
@@ -96,7 +93,8 @@ type MachineOutboxRow = {
 
 function activeSubject(access: LocalSubjectAccess): string {
   const value = access.currentAuthenticatedSubject();
-  if (!value || !UUID.test(value)) throw new LocalMachineError('notAuthenticated');
+  if (!value || !UUID.test(value))
+    throw new LocalMachineError('notAuthenticated');
   return value.toLowerCase();
 }
 
@@ -179,7 +177,8 @@ function validateSemantics(value: unknown): LoadSemantics | null {
     value !== 'per_implement' &&
     value !== 'machine_display' &&
     value !== 'assistance'
-  ) throw new LocalMachineError('invalidInput');
+  )
+    throw new LocalMachineError('invalidInput');
   return value;
 }
 
@@ -222,7 +221,8 @@ export async function createLocalMachineProfile(
   raw: CreateLocalMachineProfileInput,
 ): Promise<LocalMachineProfile> {
   const subject = activeSubject(access);
-  if (!validInstant(raw.createdAtUtc)) throw new LocalMachineError('invalidInput');
+  if (!validInstant(raw.createdAtUtc))
+    throw new LocalMachineError('invalidInput');
   const profileId = uuid(raw.profileId);
   const mutationId = uuid(raw.mutationId);
   const nickname = name(raw.nickname);
@@ -259,8 +259,13 @@ export async function createLocalMachineProfile(
     guard(access, subject);
     if (duplicate) {
       checkOutboxReplay(duplicate, {
-        subject, mutationId, entityId: profileId, profileId,
-        kind: 'CREATE_MACHINE_PROFILE', payload, dependsOn: null,
+        subject,
+        mutationId,
+        entityId: profileId,
+        profileId,
+        kind: 'CREATE_MACHINE_PROFILE',
+        payload,
+        dependsOn: null,
       });
       created = await tx.getFirstAsync<LocalMachineProfile>(
         'SELECT * FROM local_machine_profiles WHERE subject = ? AND profile_id = ?',
@@ -286,7 +291,12 @@ export async function createLocalMachineProfile(
         (subject, mutation_id, mutation_kind, profile_id, entity_id,
          protocol_version, payload_json, created_at_utc)
        VALUES (?, ?, 'CREATE_MACHINE_PROFILE', ?, ?, 1, ?, ?)`,
-      subject, mutationId, profileId, profileId, payload, raw.createdAtUtc,
+      subject,
+      mutationId,
+      profileId,
+      profileId,
+      payload,
+      raw.createdAtUtc,
     );
     guard(access, subject);
     await tx.runAsync(
@@ -296,14 +306,23 @@ export async function createLocalMachineProfile(
          technical_metadata_json, metadata_source, created_at_utc,
          create_mutation_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'user_entered', ?, ?)`,
-      subject, profileId, nickname, catalogEquipmentId, manufacturer, modelName,
-      nativeLoadUnit, loadEntrySemantics, immutableJson(metadata),
-      raw.createdAtUtc, mutationId,
+      subject,
+      profileId,
+      nickname,
+      catalogEquipmentId,
+      manufacturer,
+      modelName,
+      nativeLoadUnit,
+      loadEntrySemantics,
+      immutableJson(metadata),
+      raw.createdAtUtc,
+      mutationId,
     );
     guard(access, subject);
     created = await tx.getFirstAsync<LocalMachineProfile>(
       'SELECT * FROM local_machine_profiles WHERE subject = ? AND profile_id = ?',
-      subject, profileId,
+      subject,
+      profileId,
     );
     guard(access, subject);
     if (!created) throw new LocalMachineError('corruptLocalData');
@@ -320,7 +339,8 @@ export async function createLocalMachineConfiguration(
   raw: CreateLocalMachineConfigurationInput,
 ): Promise<LocalMachineConfiguration> {
   const subject = activeSubject(access);
-  if (!validInstant(raw.createdAtUtc)) throw new LocalMachineError('invalidInput');
+  if (!validInstant(raw.createdAtUtc))
+    throw new LocalMachineError('invalidInput');
   const configurationId = uuid(raw.configurationId);
   const mutationId = uuid(raw.mutationId);
   const profileId = uuid(raw.profileId);
@@ -342,13 +362,15 @@ export async function createLocalMachineConfiguration(
     guard(access, subject);
     const profile = await tx.getFirstAsync<LocalMachineProfile>(
       'SELECT * FROM local_machine_profiles WHERE subject = ? AND profile_id = ?',
-      subject, profileId,
+      subject,
+      profileId,
     );
     guard(access, subject);
     if (!profile) throw new LocalMachineError('profileMissing');
     const predecessor = await tx.getFirstAsync<MachineOutboxRow>(
       'SELECT * FROM local_machine_outbox WHERE subject = ? AND mutation_id = ?',
-      subject, profile.create_mutation_id,
+      subject,
+      profile.create_mutation_id,
     );
     guard(access, subject);
     if (
@@ -362,18 +384,24 @@ export async function createLocalMachineConfiguration(
 
     const duplicate = await tx.getFirstAsync<MachineOutboxRow>(
       'SELECT * FROM local_machine_outbox WHERE subject = ? AND mutation_id = ?',
-      subject, mutationId,
+      subject,
+      mutationId,
     );
     guard(access, subject);
     if (duplicate) {
       checkOutboxReplay(duplicate, {
-        subject, mutationId, entityId: configurationId, profileId,
-        kind: 'CREATE_MACHINE_CONFIGURATION', payload,
+        subject,
+        mutationId,
+        entityId: configurationId,
+        profileId,
+        kind: 'CREATE_MACHINE_CONFIGURATION',
+        payload,
         dependsOn: profile.create_mutation_id,
       });
       created = await tx.getFirstAsync<LocalMachineConfiguration>(
         'SELECT * FROM local_machine_configurations WHERE subject = ? AND configuration_id = ?',
-        subject, configurationId,
+        subject,
+        configurationId,
       );
       guard(access, subject);
       if (!created || created.create_mutation_id !== mutationId) {
@@ -394,8 +422,13 @@ export async function createLocalMachineConfiguration(
         (subject, mutation_id, mutation_kind, profile_id, entity_id,
          protocol_version, payload_json, created_at_utc, depends_on_mutation_id)
        VALUES (?, ?, 'CREATE_MACHINE_CONFIGURATION', ?, ?, 1, ?, ?, ?)`,
-      subject, mutationId, profileId, configurationId, payload,
-      raw.createdAtUtc, profile.create_mutation_id,
+      subject,
+      mutationId,
+      profileId,
+      configurationId,
+      payload,
+      raw.createdAtUtc,
+      profile.create_mutation_id,
     );
     guard(access, subject);
     await tx.runAsync(
@@ -403,13 +436,19 @@ export async function createLocalMachineConfiguration(
         (subject, configuration_id, profile_id, label, material_setup_json,
          metadata_source, created_at_utc, create_mutation_id)
        VALUES (?, ?, ?, ?, ?, 'user_entered', ?, ?)`,
-      subject, configurationId, profileId, label, immutableJson(setup),
-      raw.createdAtUtc, mutationId,
+      subject,
+      configurationId,
+      profileId,
+      label,
+      immutableJson(setup),
+      raw.createdAtUtc,
+      mutationId,
     );
     guard(access, subject);
     created = await tx.getFirstAsync<LocalMachineConfiguration>(
       'SELECT * FROM local_machine_configurations WHERE subject = ? AND configuration_id = ?',
-      subject, configurationId,
+      subject,
+      configurationId,
     );
     guard(access, subject);
     if (!created) throw new LocalMachineError('corruptLocalData');
