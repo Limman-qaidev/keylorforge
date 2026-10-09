@@ -105,7 +105,12 @@ export async function drainWorkoutSync(
           return { state: 'paused', acknowledged, stage, reason: 'conflict' };
         }
         if (result.state === 'blocked' || result.state === 'retryable') {
-          return { state: 'paused', acknowledged, stage, reason: result.reason };
+          return {
+            state: 'paused',
+            acknowledged,
+            stage,
+            reason: result.reason,
+          };
         }
       }
       if (!progress) {
