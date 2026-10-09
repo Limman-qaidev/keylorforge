@@ -2,10 +2,7 @@ import { readActiveFreeWorkoutOverview } from '../active-workout-overview';
 import { confirmLocalWorkoutSet } from '../local-confirmed-sets';
 import { finishLocalFreeWorkout } from '../local-finish';
 import type { SqliteWorkoutPort } from '../local-schema';
-import {
-  startLocalFreeWorkout,
-  type LocalSubjectAccess,
-} from '../local-store';
+import { startLocalFreeWorkout, type LocalSubjectAccess } from '../local-store';
 import {
   beginFreeWorkout,
   endFreeWorkout,
