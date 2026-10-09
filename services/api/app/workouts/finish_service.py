@@ -46,7 +46,10 @@ def finish_free_workout(
     """One owner lock and one SQL transaction; caller commits after response."""
     owner = _active_owner(session, principal, lock=True)
     digest = _hash_finish(request)
-    if session.get(MachineMutationReceipt, (request.mutation_id, owner.id)) is not None:
+    if (
+        session.get(MachineMutationReceipt, (request.mutation_id, owner.id))
+        is not None
+    ):
         raise HTTPException(409, detail="mutation ID already used for machine")
     receipt = session.get(WorkoutMutationReceipt, (request.mutation_id, owner.id))
     if receipt is not None:
@@ -63,12 +66,11 @@ def finish_free_workout(
     finished_at = snapshot.finished_at_utc.astimezone(UTC)
     if finished_at < workout.started_at.astimezone(UTC):
         raise HTTPException(422, detail="finish before session start")
+    empty_agenda = {"schema_version": 1, "origin": "free", "items": []}
     if (
         workout.origin != "free"
         or workout.agenda_revision != 0
-        or workout.start_prescription != {
-            "schema_version": 1, "origin": "free", "items": []
-        }
+        or workout.start_prescription != empty_agenda
         or snapshot.time_zone != workout.time_zone
         or snapshot.local_date != workout.local_date
     ):
@@ -103,9 +105,7 @@ def finish_free_workout(
     expected: list[dict[str, object]] = []
     linked = set()
     for occurrence in occurrences:
-        relevant = [
-            row for row in confirmed if row.occurrence_id == occurrence.id
-        ]
+        relevant = [row for row in confirmed if row.occurrence_id == occurrence.id]
         if not relevant or occurrence.agenda_item_id is not None:
             raise HTTPException(409, detail="unsupported or corrupt occurrence history")
         linked.update(row.id for row in relevant)
@@ -121,8 +121,7 @@ def finish_free_workout(
     if len(linked) != len(confirmed):
         raise HTTPException(409, detail="incomplete performed history")
     actual = [
-        row.model_dump(mode="json")
-        for row in snapshot.unplanned_performed_occurrences
+        row.model_dump(mode="json") for row in snapshot.unplanned_performed_occurrences
     ]
     if actual != expected:
         raise HTTPException(409, detail="stale or unacknowledged performed history")
