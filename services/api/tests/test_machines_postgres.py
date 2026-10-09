@@ -238,7 +238,10 @@ def test_owned_profiles_and_configs_are_causal_set_dependencies() -> None:
         first_response = client.post(f"{path}/first", headers=a, json=first)
         assert first_response.status_code == 201, first_response.text
         assert first_response.json()["machine_profile_id"] == machine_a["profile_id"]
-        assert first_response.json()["machine_configuration_id"] == config_a["configuration_id"]
+        assert (
+            first_response.json()["machine_configuration_id"]
+            == config_a["configuration_id"]
+        )
         assert (
             client.post(f"{path}/first", headers=a, json=first).json()
             == first_response.json()
