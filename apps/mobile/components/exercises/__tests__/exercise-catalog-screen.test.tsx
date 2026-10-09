@@ -336,7 +336,7 @@ describe('ExerciseCatalogScreen', () => {
   it('chooses from the existing detail without recording an exercise as performed', async () => {
     const onChoose = jest.fn();
     const user = userEvent.setup();
-    const { findByText, getByLabelText, getByText } = render(
+    const { findByText, getByLabelText, getByText } = await render(
       <QueryClientProvider client={queryClient()}>
         <ExerciseCatalogScreen onChooseExercise={onChoose} />
       </QueryClientProvider>,
