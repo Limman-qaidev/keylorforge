@@ -5,6 +5,9 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
+from pydantic import AwareDatetime
+from fastapi import Query
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -24,6 +27,10 @@ from app.workouts.finish_schemas import (
     FinishFreeWorkoutResponse,
 )
 from app.workouts.finish_service import finish_free_workout
+from app.workouts.history_service import (
+    CompletedWorkoutHistoryPage,
+    list_authoritative_completed_workouts,
+)
 from app.workouts.schemas import StartFreeWorkoutRequest, WorkoutSessionResponse
 from app.workouts.service import get_active_free_workout, start_free_workout
 from app.workouts.set_schemas import (
@@ -59,6 +66,23 @@ def active_session(
     session: Annotated[Session, Depends(get_database_session)],
 ) -> WorkoutSessionResponse | None:
     return get_active_free_workout(session=session, principal=principal)
+
+
+@router.get("/history", response_model=CompletedWorkoutHistoryPage)
+def completed_history(
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_authenticated_principal)],
+    session: Annotated[Session, Depends(get_database_session)],
+    limit: Annotated[int, Query(ge=1, le=50)] = 20,
+    before_finished_at: Annotated[AwareDatetime | None, Query()] = None,
+    before_session_id: Annotated[UUID | None, Query()] = None,
+) -> CompletedWorkoutHistoryPage:
+    return list_authoritative_completed_workouts(
+        session=session,
+        principal=principal,
+        limit=limit,
+        before_finished_at=before_finished_at,
+        before_session_id=before_session_id,
+    )
 
 
 @router.post(
