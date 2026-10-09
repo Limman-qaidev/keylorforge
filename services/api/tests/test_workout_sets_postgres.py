@@ -1,4 +1,5 @@
 """Real PostgreSQL first/additional performed-work and idempotent receipt tests."""
+
 from __future__ import annotations
 
 import os
@@ -47,8 +48,7 @@ def _set_payload(
     return {
         "protocol_version": 1,
         "kind": (
-            "CONFIRM_FIRST_SET_WITH_OCCURRENCE"
-            if first else "CONFIRM_ADDITIONAL_SET"
+            "CONFIRM_FIRST_SET_WITH_OCCURRENCE" if first else "CONFIRM_ADDITIONAL_SET"
         ),
         "session_id": session_id,
         "mutation_id": mutation_id or str(uuid4()),
@@ -115,9 +115,7 @@ def test_real_postgres_confirmations_are_owner_scoped_atomic_and_idempotent() ->
             "started_at": "2026-10-08T14:30:00+00:00",
             "time_zone": "Europe/Madrid",
         }
-        created = client.post(
-            "/workout-sessions/start", headers=a, json=workout_start
-        )
+        created = client.post("/workout-sessions/start", headers=a, json=workout_start)
         assert created.status_code == 201, created.text
         path = f"/workout-sessions/{workout_start['session_id']}/sets"
         first = _set_payload(workout_start["session_id"], str(exercise_id))
@@ -132,10 +130,11 @@ def test_real_postgres_confirmations_are_owner_scoped_atomic_and_idempotent() ->
         assert replay.json() == confirmed.json()
 
         reordered = deepcopy(first)
-        reordered["target_at_confirmation"] = {
-            "target": {"effort": "RPE8", "reps": 12}
-        }
-        assert client.post(f"{path}/first", headers=a, json=reordered).json() == confirmed.json()
+        reordered["target_at_confirmation"] = {"target": {"effort": "RPE8", "reps": 12}}
+        assert (
+            client.post(f"{path}/first", headers=a, json=reordered).json()
+            == confirmed.json()
+        )
 
         tampered = deepcopy(first)
         tampered["measurement"]["reps"] = 15
@@ -158,13 +157,23 @@ def test_real_postgres_confirmations_are_owner_scoped_atomic_and_idempotent() ->
         mismatch = deepcopy(additional)
         mismatch["mutation_id"] = str(uuid4())
         mismatch["actual_order"] = 5
-        assert client.post(f"{path}/additional", headers=a, json=mismatch).status_code == 409
-        assert client.post(f"{path}/additional", headers=b, json=additional).status_code == 404
+        assert (
+            client.post(f"{path}/additional", headers=a, json=mismatch).status_code
+            == 409
+        )
+        assert (
+            client.post(f"{path}/additional", headers=b, json=additional).status_code
+            == 404
+        )
 
         missing = deepcopy(additional)
         missing["mutation_id"] = str(uuid4())
         missing["occurrence_id"] = str(uuid4())
-        assert client.post(f"{path}/additional", headers=a, json=missing).status_code == 404
+        missing["set_id"] = str(uuid4())  # Isolate missing-parent error from UUID collision.
+        assert (
+            client.post(f"{path}/additional", headers=a, json=missing).status_code
+            == 404
+        )
 
         blocked_machine = deepcopy(additional)
         blocked_machine["mutation_id"] = str(uuid4())
@@ -173,19 +182,33 @@ def test_real_postgres_confirmations_are_owner_scoped_atomic_and_idempotent() ->
             "configurationId": None,
             "snapshot": {"label": "Unknown pulley"},
         }
-        assert client.post(f"{path}/additional", headers=a, json=blocked_machine).status_code == 409
+        assert (
+            client.post(
+                f"{path}/additional", headers=a, json=blocked_machine
+            ).status_code
+            == 409
+        )
         unknown_agenda = deepcopy(additional)
         unknown_agenda["mutation_id"] = str(uuid4())
         unknown_agenda["agenda_item_id"] = str(uuid4())
-        assert client.post(f"{path}/additional", headers=a, json=unknown_agenda).status_code == 409
+        assert (
+            client.post(
+                f"{path}/additional", headers=a, json=unknown_agenda
+            ).status_code
+            == 409
+        )
 
         invalid = deepcopy(additional)
         invalid["mutation_id"] = str(uuid4())
         invalid["measurement"] = {
-            "measurementType": "distance", "distanceDecimal": "0",
+            "measurementType": "distance",
+            "distanceDecimal": "0",
             "distanceUnit": "km",
         }
-        assert client.post(f"{path}/additional", headers=a, json=invalid).status_code == 422
+        assert (
+            client.post(f"{path}/additional", headers=a, json=invalid).status_code
+            == 422
+        )
 
         with Session(engine) as db:
             occurrences = db.scalars(select(WorkoutOccurrence)).all()
