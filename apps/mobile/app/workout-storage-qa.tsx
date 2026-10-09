@@ -243,7 +243,9 @@ function StorageDiagnosticScreen() {
           );
         }
       });
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const onDownloadCache = async () => {
@@ -255,7 +257,9 @@ function StorageDiagnosticScreen() {
       setCacheStatus(status);
       setCacheFeedback('Catálogo completo descargado y guardado en SQLite.');
     } catch (error) {
-      setCacheFeedback(error instanceof Error ? error.message : 'Error de descarga.');
+      setCacheFeedback(
+        error instanceof Error ? error.message : 'Error de descarga.',
+      );
     } finally {
       setBusy(false);
     }
@@ -269,11 +273,15 @@ function StorageDiagnosticScreen() {
       const status = await offlineCatalogueStatus(db);
       const result = await searchOfflineExercises(db, { limit: 1 });
       setCacheStatus(status);
-      setCacheFeedback(status.state === 'ready'
-        ? `Lectura LOCAL: ${result.total} ejercicios. Ejemplo: ${result.items[0]?.name ?? 'sin registros'}.`
-        : 'Sin catálogo descargado. La lectura no utiliza red.');
+      setCacheFeedback(
+        status.state === 'ready'
+          ? `Lectura LOCAL: ${result.total} ejercicios. Ejemplo: ${result.items[0]?.name ?? 'sin registros'}.`
+          : 'Sin catálogo descargado. La lectura no utiliza red.',
+      );
     } catch (error) {
-      setCacheFeedback(error instanceof Error ? error.message : 'Error al leer.');
+      setCacheFeedback(
+        error instanceof Error ? error.message : 'Error al leer.',
+      );
     } finally {
       setBusy(false);
     }
@@ -507,8 +515,8 @@ function StorageDiagnosticScreen() {
       <View style={styles.panel}>
         <Text style={styles.label}>CATÁLOGO OFFLINE · M3-MOB-008</Text>
         <Text style={styles.detail}>
-          Base SQLite pública de ejercicios, independiente de las sesiones y series.
-          Descargar requiere conexión; leer no utiliza la red.
+          Base SQLite pública de ejercicios, independiente de las sesiones y
+          series. Descargar requiere conexión; leer no utiliza la red.
         </Text>
         <Text testID="qa-catalogue-cache-status" style={styles.value}>
           {cacheStatus.state === 'ready'
@@ -521,7 +529,9 @@ function StorageDiagnosticScreen() {
           onPress={() => void onDownloadCache()}
           style={[styles.button, busy && styles.disabled]}
         >
-          <Text style={styles.buttonText}>Descargar catálogo completo (API)</Text>
+          <Text style={styles.buttonText}>
+            Descargar catálogo completo (API)
+          </Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -529,7 +539,9 @@ function StorageDiagnosticScreen() {
           onPress={() => void onReadCache()}
           style={[styles.secondary, busy && styles.disabled]}
         >
-          <Text style={styles.secondaryText}>Leer catálogo en SQLite (sin red)</Text>
+          <Text style={styles.secondaryText}>
+            Leer catálogo en SQLite (sin red)
+          </Text>
         </Pressable>
         {cacheFeedback ? (
           <Text testID="qa-catalogue-cache-feedback" style={styles.detail}>
