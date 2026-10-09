@@ -348,26 +348,42 @@ function StorageDiagnosticScreen() {
           {(firstSet ? 1 : 0) + (secondSet ? 1 : 0)} serie(s)
         </Text>
         {firstSet ? (
-          <Text testID="qa-first-set-persisted" style={styles.detail}>
-            WARMUP: {firstSet.reps} reps · {firstSet.load_decimal}{' '}
-            {firstSet.load_unit}
-            {'\n'}Máquina (SQLite): {firstMachine?.label}
-            {'\n'}Perfil (SQLite): {firstMachine?.profileId}
-            {'\n'}{firstMachine?.matchesExpected
-              ? 'CONTEXTO MÁQUINA A VERIFICADO'
-              : 'ERROR: CONTEXTO MÁQUINA A NO COINCIDE'}
-          </Text>
+          <View testID="qa-first-set-persisted">
+            <Text style={styles.detail}>
+              WARMUP: {firstSet.reps} reps · {firstSet.load_decimal}{' '}
+              {firstSet.load_unit}
+            </Text>
+            <Text style={styles.detail}>
+              Máquina (SQLite): {firstMachine?.label}
+            </Text>
+            <Text style={styles.detail}>
+              Perfil (SQLite): {firstMachine?.profileId}
+            </Text>
+            <Text style={styles.detail}>
+              {firstMachine?.matchesExpected
+                ? 'CONTEXTO MÁQUINA A VERIFICADO'
+                : 'ERROR: CONTEXTO MÁQUINA A NO COINCIDE'}
+            </Text>
+          </View>
         ) : null}
         {secondSet ? (
-          <Text testID="qa-second-set-persisted" style={styles.detail}>
-            WORKING: {secondSet.reps} reps · {secondSet.load_decimal}{' '}
-            {secondSet.load_unit}
-            {'\n'}Máquina (SQLite): {secondMachine?.label}
-            {'\n'}Perfil (SQLite): {secondMachine?.profileId}
-            {'\n'}{secondMachine?.matchesExpected
-              ? 'CONTEXTO MÁQUINA B VERIFICADO'
-              : 'ERROR: CONTEXTO MÁQUINA B NO COINCIDE'}
-          </Text>
+          <View testID="qa-second-set-persisted">
+            <Text style={styles.detail}>
+              WORKING: {secondSet.reps} reps · {secondSet.load_decimal}{' '}
+              {secondSet.load_unit}
+            </Text>
+            <Text style={styles.detail}>
+              Máquina (SQLite): {secondMachine?.label}
+            </Text>
+            <Text style={styles.detail}>
+              Perfil (SQLite): {secondMachine?.profileId}
+            </Text>
+            <Text style={styles.detail}>
+              {secondMachine?.matchesExpected
+                ? 'CONTEXTO MÁQUINA B VERIFICADO'
+                : 'ERROR: CONTEXTO MÁQUINA B NO COINCIDE'}
+            </Text>
+          </View>
         ) : null}
       </View>
       <Pressable
