@@ -1,0 +1,32 @@
+name: Temporary M3-008 Prettier
+on:
+  push:
+    branches:
+      - feat/m3-mob-008-offline-exercise-cache
+    paths:
+      - .github/workflows/pr151-auto-prettier.yml
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.14.0'
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: apps/mobile
+      - name: Format source/tests and self-remove
+        run: |
+          cd apps/mobile
+          npx prettier --write lib/exercises/offline-catalogue.ts lib/exercises/offline-catalogue-adapter.ts lib/exercises/__tests__/offline-catalogue.test.ts
+          cd ../..
+          git rm .github/workflows/pr151-auto-prettier.yml
+          git add apps/mobile/lib/exercises/offline-catalogue.ts apps/mobile/lib/exercises/offline-catalogue-adapter.ts apps/mobile/lib/exercises/__tests__/offline-catalogue.test.ts
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'style(m3): format offline canonical catalogue cache'
+          git push origin HEAD:refs/heads/feat/m3-mob-008-offline-exercise-cache
