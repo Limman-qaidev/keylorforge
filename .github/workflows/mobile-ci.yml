@@ -32,6 +32,13 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
+      # TEMPORARY: capture exact formatting of new isolated v3 files.
+      - name: Export machine v3 formatted files
+        run: |
+          printf 'M3_V3_SOURCE:%s\\n' "$(npx prettier lib/workouts/local-machine-store.ts | base64 -w0)"
+          printf 'M3_V3_SCHEMA:%s\\n' "$(npx prettier lib/workouts/local-machine-schema.ts | base64 -w0)"
+          printf 'M3_V3_TEST:%s\\n' "$(npx prettier lib/workouts/__tests__/local-machine-store.test.ts | base64 -w0)"
+
       - name: Check formatting
         run: npm run format:check
 
