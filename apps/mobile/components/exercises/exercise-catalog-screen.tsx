@@ -22,6 +22,7 @@ import {
   listExercises,
   listMuscles,
 } from '@/lib/exercises/catalog-api';
+import { useCachedExerciseCatalogue } from '@/lib/exercises/use-cached-exercise-catalogue';
 
 type AuthenticatedRequestContext = {
   accessToken: string;
@@ -79,6 +80,13 @@ function measurementLabel(value: string): string {
     time: 'Tiempo',
   };
   return labels[value] ?? value;
+}
+
+function fold(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('es');
 }
 
 function roleLabel(value: string): string {
@@ -321,6 +329,7 @@ function DetailView({ detail, onBack }: DetailViewProps) {
 export function ExerciseCatalogScreen() {
   const { invalidateSession, refreshSession, session } = useAuth();
   const accessToken = session?.access_token ?? null;
+  const { snapshot, initialized } = useCachedExerciseCatalogue(session);
   const [searchDraft, setSearchDraft] = useState('');
   const [search, setSearch] = useState('');
   const [primaryMuscleId, setPrimaryMuscleId] = useState<string | null>(null);
@@ -328,6 +337,7 @@ export function ExerciseCatalogScreen() {
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(
     null,
   );
+  const [localLimit, setLocalLimit] = useState(30);
 
   const requestContext = useMemo<AuthenticatedRequestContext | null>(() => {
     if (!accessToken) {
@@ -336,8 +346,22 @@ export function ExerciseCatalogScreen() {
     return { accessToken, invalidateSession, refreshSession };
   }, [accessToken, invalidateSession, refreshSession]);
 
+  const onlineEnabled = requestContext !== null && initialized && !snapshot;
+  const locallyMatched = useMemo(() => {
+    if (!snapshot) return [];
+    const query = fold(search.trim());
+    return snapshot.items.filter(
+      (item) =>
+        (!query || fold(item.name).includes(query)) &&
+        (!primaryMuscleId ||
+          item.primary_muscles.some((ref) => ref.id === primaryMuscleId)) &&
+        (!equipmentId ||
+          item.equipment.some((ref) => ref.id === equipmentId)),
+    );
+  }, [snapshot, search, primaryMuscleId, equipmentId]);
+
   const musclesQuery = useQuery({
-    enabled: requestContext !== null,
+    enabled: onlineEnabled,
     queryKey: ['exercise-catalog-muscles', 'es'],
     queryFn: () => {
       if (!requestContext) {
@@ -349,7 +373,7 @@ export function ExerciseCatalogScreen() {
   });
 
   const equipmentQuery = useQuery({
-    enabled: requestContext !== null,
+    enabled: onlineEnabled,
     queryKey: ['exercise-catalog-equipment', 'es'],
     queryFn: () => {
       if (!requestContext) {
@@ -361,7 +385,7 @@ export function ExerciseCatalogScreen() {
   });
 
   const exercisesQuery = useInfiniteQuery({
-    enabled: requestContext !== null,
+    enabled: onlineEnabled,
     initialPageParam: 1,
     queryKey: ['exercise-catalog', 'es', search, primaryMuscleId, equipmentId],
     queryFn: ({ pageParam }) => {
@@ -412,6 +436,25 @@ export function ExerciseCatalogScreen() {
   }
 
   if (selectedExerciseId) {
+    // A list snapshot has only these fields; never invent server-only detail.
+    // Show the same DetailView immediately while a richer online detail loads.
+    const cached = snapshot?.items.find((item) => item.id === selectedExerciseId);
+    const cachedDetail: ExerciseDetail | null = cached
+      ? {
+          ...cached,
+          mechanics: null,
+          force_type: null,
+          muscles: cached.primary_muscles.map((ref) => ({ ...ref, role: 'primary' })),
+        }
+      : null;
+    if (detailQuery.data || cachedDetail) {
+      return (
+        <DetailView
+          detail={detailQuery.data ?? cachedDetail!}
+          onBack={() => setSelectedExerciseId(null)}
+        />
+      );
+    }
     if (detailQuery.isPending) {
       return (
         <View style={styles.centered}>
@@ -456,19 +499,23 @@ export function ExerciseCatalogScreen() {
     );
   }
 
-  const filtersPending = musclesQuery.isPending || equipmentQuery.isPending;
-  const initialPending = exercisesQuery.isPending || filtersPending;
+  const filtersPending = !snapshot && (musclesQuery.isPending || equipmentQuery.isPending);
+  const initialPending = !initialized || (!snapshot && (exercisesQuery.isPending || filtersPending));
   const baseError =
     exercisesQuery.error ?? musclesQuery.error ?? equipmentQuery.error;
-  const filterError = musclesQuery.error ?? equipmentQuery.error;
-  const isRefreshingResults =
+  const filterError = snapshot ? null : musclesQuery.error ?? equipmentQuery.error;
+  const isRefreshingResults = !snapshot &&
     exercisesQuery.isPlaceholderData && exercisesQuery.isFetching;
-  const items = exercisesQuery.isPlaceholderData
-    ? []
-    : (exercisesQuery.data?.pages.flatMap((page) => page.items) ?? []);
-  const total = exercisesQuery.isPlaceholderData
-    ? 0
-    : (exercisesQuery.data?.pages[0]?.total ?? 0);
+  const items = snapshot
+    ? locallyMatched.slice(0, localLimit)
+    : exercisesQuery.isPlaceholderData
+      ? []
+      : (exercisesQuery.data?.pages.flatMap((page) => page.items) ?? []);
+  const total = snapshot
+    ? locallyMatched.length
+    : exercisesQuery.isPlaceholderData
+      ? 0
+      : (exercisesQuery.data?.pages[0]?.total ?? 0);
   const hasActiveFilters =
     Boolean(search) || primaryMuscleId !== null || equipmentId !== null;
 
@@ -477,6 +524,7 @@ export function ExerciseCatalogScreen() {
     setSearch('');
     setPrimaryMuscleId(null);
     setEquipmentId(null);
+    setLocalLimit(30);
   };
 
   const retryAll = () => {
@@ -506,7 +554,7 @@ export function ExerciseCatalogScreen() {
           accessibilityLabel="Buscar ejercicios"
           autoCapitalize="none"
           onChangeText={setSearchDraft}
-          onSubmitEditing={() => setSearch(searchDraft.trim())}
+          onSubmitEditing={() => { setSearch(searchDraft.trim()); setLocalLimit(30); }}
           placeholder="Buscar por nombre"
           returnKeyType="search"
           style={styles.searchInput}
@@ -514,7 +562,7 @@ export function ExerciseCatalogScreen() {
         />
         <Pressable
           accessibilityRole="button"
-          onPress={() => setSearch(searchDraft.trim())}
+          onPress={() => { setSearch(searchDraft.trim()); setLocalLimit(30); }}
           style={styles.searchButton}
         >
           <Text style={styles.searchButtonText}>Buscar</Text>
@@ -523,14 +571,14 @@ export function ExerciseCatalogScreen() {
 
       <FilterRow
         label="Músculo"
-        onSelect={setPrimaryMuscleId}
-        options={musclesQuery.data ?? []}
+        onSelect={(id) => { setPrimaryMuscleId(id); setLocalLimit(30); }}
+        options={snapshot?.muscles ?? musclesQuery.data ?? []}
         selectedId={primaryMuscleId}
       />
       <FilterRow
         label="Equipamiento"
-        onSelect={setEquipmentId}
-        options={equipmentQuery.data ?? []}
+        onSelect={(id) => { setEquipmentId(id); setLocalLimit(30); }}
+        options={snapshot?.equipment ?? equipmentQuery.data ?? []}
         selectedId={equipmentId}
       />
 
@@ -625,7 +673,19 @@ export function ExerciseCatalogScreen() {
         )
       }
       ListFooterComponent={
-        exercisesQuery.isFetchNextPageError ? (
+        snapshot ? (
+          locallyMatched.length > localLimit ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setLocalLimit((count) => count + 30)}
+              style={styles.loadMoreButton}
+            >
+              <Text style={styles.loadMoreText}>Cargar más</Text>
+            </Pressable>
+          ) : (
+            <View style={styles.footerSpace} />
+          )
+        ) : exercisesQuery.isFetchNextPageError ? (
           <View style={styles.paginationError}>
             <Text
               accessibilityLiveRegion="polite"
