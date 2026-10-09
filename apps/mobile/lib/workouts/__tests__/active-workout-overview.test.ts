@@ -72,9 +72,9 @@ class Reader implements SqliteWorkoutPort {
   ): Promise<T | null> {
     this.calls.push(sql);
     if (sql.includes('FROM local_workout_sessions')) {
-      return (this.active?.subject === params[0]
-        ? this.active
-        : null) as T | null;
+      return (
+        this.active?.subject === params[0] ? this.active : null
+      ) as T | null;
     }
     if (sql === ACTIVE_WORKOUT_OVERVIEW_SQL) {
       this.duringOverview?.();
