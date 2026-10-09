@@ -128,7 +128,7 @@ class FakeCancelDb implements SqliteWorkoutPort {
     this.writes++;
     const subject = String(params[0]);
     if (sql.includes('INSERT INTO local_workout_outbox')) {
-      const [sub, mutation, session, payload, _time, parent] = params;
+      const [sub, mutation, session, payload, , parent] = params;
       this.mutations.push({
         subject: String(sub),
         mutation_id: String(mutation),
