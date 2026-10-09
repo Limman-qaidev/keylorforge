@@ -28,6 +28,7 @@ import {
 } from '@/lib/workouts/active-workout-overview';
 import {
   beginFreeWorkout,
+  cancelFreeWorkout,
   endFreeWorkout,
   recordFreeWorkoutSet,
   type RecordSetRequest,
@@ -290,6 +291,54 @@ function FreeWorkoutSessionExperience({
     );
   };
 
+  const cancel = () => {
+    if (!overview || busy) return;
+    const hasPerformed = overview.totalSets > 0;
+    const cancelConfirmed = () => {
+      void perform(async () => {
+        const db = await openLocalWorkoutDatabase();
+        await cancelFreeWorkout(
+          db,
+          access,
+          secureWorkoutIds,
+          deviceWorkoutClock,
+          hasPerformed,
+        );
+        setMode('catalogue');
+      });
+    };
+    if (hasPerformed) {
+      Alert.alert(
+        'Cancelar entrenamiento',
+        `Has confirmado ${overview.totalSets} series. Cancelarlo hará que esta sesión no cuente como entrenamiento completado. Las series se conservarán como registro de la cancelación.`,
+        [
+          { text: 'Seguir entrenando', style: 'cancel' },
+          ...(overview.workingSets > 0
+            ? [{ text: 'Finalizar en su lugar', onPress: finish }]
+            : []),
+          {
+            text: 'Cancelar igualmente',
+            style: 'destructive',
+            onPress: cancelConfirmed,
+          },
+        ],
+      );
+      return;
+    }
+    Alert.alert(
+      'Cancelar entrenamiento',
+      'No hay series confirmadas. ¿Quieres cancelar esta sesión?',
+      [
+        { text: 'Seguir entrenando', style: 'cancel' },
+        {
+          text: 'Cancelar',
+          style: 'destructive',
+          onPress: cancelConfirmed,
+        },
+      ],
+    );
+  };
+
   const choose = (exercise: ExerciseDetail) => {
     setChosen(exercise);
     setRole('WORKING');
@@ -539,6 +588,12 @@ function FreeWorkoutSessionExperience({
           secondary
           disabled={busy || overview.workingSets < 1}
           onPress={finish}
+        />
+        <Button
+          title="Cancelar entrenamiento"
+          secondary
+          disabled={busy}
+          onPress={cancel}
         />
         {overview.workingSets === 0 ? (
           <Text style={styles.caption}>
