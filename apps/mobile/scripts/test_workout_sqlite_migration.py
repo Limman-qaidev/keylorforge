@@ -660,6 +660,56 @@ def test_finish_v4_upgrade():
         "WHERE name='local_workout_outbox_v5'"
     ).fetchone() is None
     print("PASS: failed SQLite v5 cancel migration preserves exact v4 outbox")
+    # v6 is additive: it must not alter local sessions, sets or pending outbox.
+    original_outbox = db.execute(
+        "SELECT * FROM local_workout_outbox ORDER BY subject, mutation_id"
+    ).fetchall()
+    original_sets = db.execute(
+        "SELECT * FROM local_workout_sets ORDER BY subject, set_id"
+    ).fetchall()
+    original_sessions = db.execute(
+        "SELECT * FROM local_workout_sessions ORDER BY subject, session_id"
+    ).fetchall()
+    db.executescript(
+        sql("local-remote-history-schema.ts", "LOCAL_WORKOUT_V6_MIGRATION_SQL")
+    )
+    assert db.in_transaction
+    assert not db.execute("PRAGMA foreign_key_check").fetchall()
+    db.execute("PRAGMA user_version = 6")
+    db.commit()
+    assert db.execute("PRAGMA user_version").fetchone()[0] == 6
+    assert db.execute(
+        "SELECT * FROM local_workout_outbox ORDER BY subject, mutation_id"
+    ).fetchall() == original_outbox
+    assert db.execute(
+        "SELECT * FROM local_workout_sets ORDER BY subject, set_id"
+    ).fetchall() == original_sets
+    assert db.execute(
+        "SELECT * FROM local_workout_sessions ORDER BY subject, session_id"
+    ).fetchall() == original_sessions
+    remote_id = "6fbcfd94-2b37-4a29-9f57-ff58753a0011"
+    db.execute(
+        "INSERT INTO local_remote_workout_history "
+        "(subject,session_id,completion_snapshot_id,finish_mutation_id,"
+        "finished_at_utc,observed_at_utc,occurrence_count,total_sets,"
+        "working_sets,detail_json) VALUES (?,?,?,?,?,?,?,?,?,?)",
+        (other, remote_id, "3f0f41e3-bfa4-4598-a680-389617f6a0ff",
+         "fa6ed1b5-1f03-4aa0-b810-68a4fb6de001",
+         "2026-10-09T15:00:00Z", "2026-10-09T15:10:00Z",
+         1, 1, 1, '{"confirmed":true}'),
+    )
+    db.commit()
+    assert db.execute(
+        "SELECT COUNT(*) FROM local_remote_workout_history WHERE subject=?", (other,)
+    ).fetchone()[0] == 1
+    assert db.execute(
+        "SELECT COUNT(*) FROM local_remote_workout_history WHERE subject=?", (subject,)
+    ).fetchone()[0] == 0
+    assert db.execute(
+        "SELECT * FROM local_workout_outbox ORDER BY subject, mutation_id"
+    ).fetchall() == original_outbox
+    print("PASS: v6 remote-only cache preserves local sessions, sets and outbox")
+
 
 
 if __name__ == "__main__":
