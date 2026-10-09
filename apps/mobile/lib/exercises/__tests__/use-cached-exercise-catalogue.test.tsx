@@ -52,7 +52,7 @@ function TestScreen() {
 
 describe('transparent native exercise catalogue persistence', () => {
   beforeEach(() => {
-    jest.resetAllMocks();
+    jest.clearAllMocks();
     jest.mocked(openOfflineExerciseCatalogue).mockResolvedValue(
       {} as Awaited<ReturnType<typeof openOfflineExerciseCatalogue>>,
     );
