@@ -72,7 +72,7 @@ function validTime(value: unknown): value is string {
 
 /** Preserve PostgreSQL microsecond order even though Date.parse truncates it. */
 function subMillisecondPart(timestamp: string): number {
-  const fractional = /\\.(\\d+)(?:Z|[+-]\\d{2}:\\d{2})$/i.exec(timestamp)?.[1] ?? '';
+  const fractional = /[.]([0-9]+)(?:Z|[+-][0-9]{2}:[0-9]{2})$/i.exec(timestamp)?.[1] ?? '';
   return Number((fractional.slice(3, 9) + '000000').slice(0, 6));
 }
 
