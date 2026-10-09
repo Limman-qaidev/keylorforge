@@ -42,10 +42,10 @@ type Performed = {
   load_decimal: string;
   load_unit: string;
   load_entry_semantics: string;
-  machine_profile_id: null;
-  machine_configuration_id: null;
-  machine_snapshot_json: null;
-  target_at_confirmation_json: null;
+  machine_profile_id: string | null;
+  machine_configuration_id: string | null;
+  machine_snapshot_json: string | null;
+  target_at_confirmation_json: string | null;
   completed_at_utc: string;
 };
 
@@ -317,6 +317,33 @@ describe('M3 causally sequenced confirmed-set transport', () => {
       expect(requestApi).not.toHaveBeenCalled();
     }
   });
+  it('never silently discards a machine or target persisted in SQLite history', async () => {
+    for (const field of ['machine_profile_id', 'target_at_confirmation_json'] as const) {
+      const db = new FakeDB();
+      if (field === 'machine_profile_id') {
+        db.sets.get(FIRST)!.machine_profile_id = EXERCISE;
+      } else {
+        db.sets.get(FIRST)!.target_at_confirmation_json = '{"target":{"reps":12}}';
+      }
+      expect(await syncNextPendingConfirmedSet(db, account().access)).toEqual({
+        state: 'blocked',
+        reason: 'localData',
+      });
+      expect(db.state(FIRST)).toBe('pending');
+    }
+    expect(requestApi).not.toHaveBeenCalled();
+  });
+
+  it('rejects an acknowledged predecessor belonging to another workout', async () => {
+    const db = new FakeDB();
+    db.rows.get(START)!.session_id = OTHER;
+    expect(await syncNextPendingConfirmedSet(db, account().access)).toEqual({
+      state: 'blocked',
+      reason: 'dependency',
+    });
+    expect(requestApi).not.toHaveBeenCalled();
+  });
+
   it('detects altered performed set intent before network transmission', async () => {
     const db = new FakeDB();
     db.modify(FIRST, (cmd) => {
