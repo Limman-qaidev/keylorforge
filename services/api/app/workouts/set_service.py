@@ -79,6 +79,10 @@ def confirm_performed_set(
     # agenda/profile or falsely acknowledging a dependent offline mutation.
     if request.agenda_item_id is not None:
         raise HTTPException(409, detail="agenda item dependency not yet synchronized")
+    if request.target_at_confirmation is not None:
+        # Unverified targets cannot be authoritative performed-history
+        # provenance until an applied agenda revision has been acknowledged.
+        raise HTTPException(409, detail="target dependency not yet synchronized")
     if request.machine is not None:
         raise HTTPException(
             409, detail="machine profile dependency not yet synchronized"
@@ -91,6 +95,9 @@ def confirm_performed_set(
         or exercise.canonical_exercise_id is not None
     ):
         raise HTTPException(422, detail="canonical exercise not available")
+
+    if exercise.measurement_type.value != request.measurement.measurementType:
+        raise HTTPException(422, detail="measurement incompatible with exercise")
 
     if session.get(WorkoutSet, request.set_id) is not None:
         raise HTTPException(409, detail="set ID already in use")
