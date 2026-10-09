@@ -49,6 +49,10 @@ jobs:
           python -m pip install -c constraints.txt -e ".[dev]"
           python -m pip check
 
+      # TEMPORARY: inspect formatter diff, remove after diagnosis.
+      - name: Inspect set regression formatting
+        run: ruff format --diff tests/test_workout_sets_postgres.py || true
+
       - name: Check formatting
         run: ruff format --check .
 
