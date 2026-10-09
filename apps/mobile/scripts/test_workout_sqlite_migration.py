@@ -539,6 +539,129 @@ def test_finish_v4_upgrade():
     ).fetchone() is None
     print("PASS: v4 failed migration rolls back with legacy outbox intact")
 
+    # Upgrade a v4 database holding an acknowledged FINISH, dependent set
+    # outbox, and machine data. No historical rows or ACK states may change.
+    before_v5_outbox = db.execute(
+        "SELECT subject,mutation_id,session_id,mutation_kind,protocol_version,"
+        "payload_json,delivery_state,created_at_utc,depends_on_mutation_id "
+        "FROM local_workout_outbox ORDER BY rowid"
+    ).fetchall()
+    before_v5_sets = db.execute(
+        "SELECT subject,set_id,mutation_id,load_decimal,load_unit "
+        "FROM local_workout_sets"
+    ).fetchall()
+    before_v5_final = db.execute(
+        "SELECT * FROM local_workout_final_snapshots"
+    ).fetchall()
+    before_v5_machines = db.execute(
+        "SELECT * FROM local_machine_profiles"
+    ).fetchall()
+    before_v5_sessions = db.execute(
+        "SELECT subject,session_id,lifecycle_state FROM local_workout_sessions"
+    ).fetchall()
+    broken_v5 = sqlite3.connect(":memory:")
+    db.backup(broken_v5)
+
+    db.execute("PRAGMA foreign_keys = OFF")
+    db.executescript(sql("local-cancel-schema.ts", "LOCAL_WORKOUT_V5_MIGRATION_SQL"))
+    assert db.in_transaction
+    assert not db.execute("PRAGMA foreign_key_check").fetchall()
+    db.execute("PRAGMA user_version = 5")
+    db.commit()
+    db.execute("PRAGMA foreign_keys = ON")
+    assert db.execute("PRAGMA user_version").fetchone()[0] == 5
+    assert db.execute(
+        "SELECT subject,mutation_id,session_id,mutation_kind,protocol_version,"
+        "payload_json,delivery_state,created_at_utc,depends_on_mutation_id "
+        "FROM local_workout_outbox ORDER BY rowid"
+    ).fetchall() == before_v5_outbox
+    assert db.execute(
+        "SELECT subject,set_id,mutation_id,load_decimal,load_unit "
+        "FROM local_workout_sets"
+    ).fetchall() == before_v5_sets
+    assert db.execute("SELECT * FROM local_workout_final_snapshots").fetchall() == before_v5_final
+    assert db.execute("SELECT * FROM local_machine_profiles").fetchall() == before_v5_machines
+    assert db.execute(
+        "SELECT subject,session_id,lifecycle_state FROM local_workout_sessions"
+    ).fetchall() == before_v5_sessions
+
+    # Cancellation of a distinct active session must retain its START and
+    # never appear in finished-workout history or the completed snapshot table.
+    cancelled = "a46d8ad9-386d-4a6e-9ad2-9cbd721abf92"
+    cancel_mutation = "a2993dd2-af9b-4759-8877-afb9f4928414"
+    cancel_start = "c35497dc-539e-4cd5-b332-cc68784a1c38"
+    db.execute(
+        "INSERT INTO local_workout_sessions "
+        "(subject,session_id,origin,started_at_utc,time_zone,utc_offset_minutes,"
+        "local_date,original_agenda_json) "
+        "VALUES (?,?,'free','2026-10-08T14:30:00Z','Europe/Madrid',120,"
+        "'2026-10-08','{}')",
+        (subject, cancelled),
+    )
+    db.execute(
+        "INSERT INTO local_workout_outbox "
+        "(subject,mutation_id,session_id,mutation_kind,protocol_version,"
+        "payload_json,created_at_utc) VALUES (?,?,?,'START_SESSION',1,'{}',"
+        "'2026-10-08T14:30:00Z')",
+        (subject, cancel_start, cancelled),
+    )
+    db.execute(
+        "INSERT INTO local_workout_outbox "
+        "(subject,mutation_id,session_id,mutation_kind,protocol_version,"
+        "payload_json,created_at_utc,depends_on_mutation_id) "
+        "VALUES (?,?,?,'CANCEL_SESSION',1,'{}',"
+        "'2026-10-08T15:10:00Z',?)",
+        (subject, cancel_mutation, cancelled, cancel_start),
+    )
+    db.execute(
+        "INSERT INTO local_workout_cancellations "
+        "(subject,session_id,cancel_mutation_id,cancelled_at_utc,prior_confirmed_sets) "
+        "VALUES (?,?,?,'2026-10-08T15:10:00Z',0)",
+        (subject, cancelled, cancel_mutation),
+    )
+    db.execute(
+        "UPDATE local_workout_sessions SET lifecycle_state='cancelled' "
+        "WHERE subject=? AND session_id=?",
+        (subject, cancelled),
+    )
+    db.commit()
+    assert db.execute("PRAGMA foreign_key_check").fetchall() == []
+    assert all(row["session_id"] != cancelled for row in history(subject))
+    assert db.execute(
+        "SELECT COUNT(*) FROM local_workout_outbox "
+        "WHERE subject=? AND session_id=?", (subject, cancelled)
+    ).fetchone()[0] == 2
+    assert db.execute(
+        "SELECT lifecycle_state FROM local_workout_sessions "
+        "WHERE subject=? AND session_id=?", (subject, cancelled)
+    ).fetchone() == ("cancelled",)
+    print("PASS: v5 retains finish/sets/machines and cancelled sessions are not completed")
+
+    # A conflicting v5 table must leave v4 data and the outbox completely intact.
+    broken_v5.execute("CREATE TABLE local_workout_cancellations (occupied INTEGER)")
+    broken_v5.commit()
+    broken_v5.execute("PRAGMA foreign_keys = OFF")
+    try:
+        broken_v5.executescript(
+            sql("local-cancel-schema.ts", "LOCAL_WORKOUT_V5_MIGRATION_SQL")
+        )
+    except sqlite3.OperationalError:
+        broken_v5.rollback()
+    else:
+        raise AssertionError("Conflicting v5 cancellation table was not rejected")
+    assert broken_v5.execute("PRAGMA user_version").fetchone()[0] == 4
+    assert broken_v5.execute(
+        "SELECT subject,mutation_id,session_id,mutation_kind,protocol_version,"
+        "payload_json,delivery_state,created_at_utc,depends_on_mutation_id "
+        "FROM local_workout_outbox ORDER BY rowid"
+    ).fetchall() == before_v5_outbox
+    assert broken_v5.execute(
+        "SELECT name FROM sqlite_master "
+        "WHERE name='local_workout_outbox_v5'"
+    ).fetchone() is None
+    print("PASS: failed SQLite v5 cancel migration preserves exact v4 outbox")
+
+
 if __name__ == "__main__":
     test_upgrade()
     test_machine_v3_upgrade()
