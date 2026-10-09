@@ -5,12 +5,17 @@
  * state, user-owned history, or any inferred equivalence between movements.
  * A failed download/identity change leaves the previously committed snapshot.
  */
-import { listExercises, type ExerciseListItem, type ExercisePage } from './catalog-api';
+import {
+  listExercises,
+  type ExerciseListItem,
+  type ExercisePage,
+} from './catalog-api';
 import type { SqliteWorkoutPort } from '../workouts/local-schema';
 import type { LocalSubjectAccess } from '../workouts/local-store';
 import type { StartSyncAccess } from '../workouts/start-session-sync';
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const PAGE_SIZE = 100;
 const MAX_ITEMS = 20_000;
 const LOCALE = 'es';
@@ -44,7 +49,10 @@ export type CachedExerciseResult = {
   total: number;
   items: ExerciseListItem[];
 };
-export type DownloadPage = (page: number, pageSize: number) => Promise<ExercisePage>;
+export type DownloadPage = (
+  page: number,
+  pageSize: number,
+) => Promise<ExercisePage>;
 
 export class OfflineCatalogueError extends Error {
   constructor(
@@ -92,40 +100,62 @@ function guard(access: LocalSubjectAccess, subject: string): void {
     throw new OfflineCatalogueError('notAuthenticated');
   }
 }
-function reference(
-  value: unknown,
-): value is { id: string; name: string } {
+function reference(value: unknown): value is { id: string; name: string } {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const row = value as Record<string, unknown>;
-  return typeof row.id === 'string' && UUID.test(row.id) &&
-    typeof row.name === 'string' && row.name.trim().length > 0;
+  return (
+    typeof row.id === 'string' &&
+    UUID.test(row.id) &&
+    typeof row.name === 'string' &&
+    row.name.trim().length > 0
+  );
 }
 function validItem(value: ExerciseListItem): boolean {
-  return !!value && typeof value === 'object' &&
-    typeof value.id === 'string' && UUID.test(value.id) &&
-    typeof value.name === 'string' && value.name.trim().length > 0 &&
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    typeof value.id === 'string' &&
+    UUID.test(value.id) &&
+    typeof value.name === 'string' &&
+    value.name.trim().length > 0 &&
     ['reps', 'time', 'distance'].includes(value.measurement_type) &&
     (value.category === null || typeof value.category === 'string') &&
     (value.difficulty_level === null ||
       typeof value.difficulty_level === 'string') &&
-    Array.isArray(value.primary_muscles) && value.primary_muscles.every(reference) &&
-    Array.isArray(value.equipment) && value.equipment.every(reference) &&
+    Array.isArray(value.primary_muscles) &&
+    value.primary_muscles.every(reference) &&
+    Array.isArray(value.equipment) &&
+    value.equipment.every(reference) &&
     (value.alias_ids === undefined ||
       (Array.isArray(value.alias_ids) &&
-        value.alias_ids.every(id => typeof id === 'string' && UUID.test(id))));
+        value.alias_ids.every((id) => typeof id === 'string' && UUID.test(id))))
+  );
 }
-function validatedPage(page: ExercisePage, expectedPage: number, total: number | null):
-  boolean {
-  if (!page || !Number.isSafeInteger(page.page) ||
-      page.page !== expectedPage || page.page_size !== PAGE_SIZE ||
-      !Number.isSafeInteger(page.total) || page.total <= 0 ||
-      page.total > MAX_ITEMS || (total !== null && page.total !== total) ||
-      page.total_pages !== Math.ceil(page.total / PAGE_SIZE) ||
-      !Array.isArray(page.items)) return false;
+function validatedPage(
+  page: ExercisePage,
+  expectedPage: number,
+  total: number | null,
+): boolean {
+  if (
+    !page ||
+    !Number.isSafeInteger(page.page) ||
+    page.page !== expectedPage ||
+    page.page_size !== PAGE_SIZE ||
+    !Number.isSafeInteger(page.total) ||
+    page.total <= 0 ||
+    page.total > MAX_ITEMS ||
+    (total !== null && page.total !== total) ||
+    page.total_pages !== Math.ceil(page.total / PAGE_SIZE) ||
+    !Array.isArray(page.items)
+  )
+    return false;
   const start = (page.page - 1) * PAGE_SIZE;
   const expectedLength = Math.min(PAGE_SIZE, page.total - start);
-  return expectedLength > 0 && page.items.length === expectedLength &&
-    page.items.every(validItem);
+  return (
+    expectedLength > 0 &&
+    page.items.length === expectedLength &&
+    page.items.every(validItem)
+  );
 }
 function checkSnapshot(items: readonly ExerciseListItem[]): void {
   const canonical = new Set<string>();
@@ -148,8 +178,10 @@ function checkSnapshot(items: readonly ExerciseListItem[]): void {
 function parseCachedRow(row: CachedRow): ExerciseListItem {
   try {
     const item: unknown = JSON.parse(row.payload_json);
-    if (!validItem(item as ExerciseListItem) ||
-        (item as ExerciseListItem).id.toLowerCase() !== row.exercise_id) {
+    if (
+      !validItem(item as ExerciseListItem) ||
+      (item as ExerciseListItem).id.toLowerCase() !== row.exercise_id
+    ) {
       throw new OfflineCatalogueError('corruptCache');
     }
     return item as ExerciseListItem;
@@ -189,9 +221,12 @@ export async function seedOfflineExerciseCatalogue(
   guard(access, subject);
 
   const seededAtUtc = new Date().toISOString();
-  await db.withExclusiveTransactionAsync(async tx => {
+  await db.withExclusiveTransactionAsync(async (tx) => {
     guard(access, subject);
-    await tx.runAsync('DELETE FROM public_exercise_cache WHERE locale = ?', LOCALE);
+    await tx.runAsync(
+      'DELETE FROM public_exercise_cache WHERE locale = ?',
+      LOCALE,
+    );
     guard(access, subject);
     for (const item of items) {
       await tx.runAsync(
@@ -222,14 +257,15 @@ export async function seedOfflineCatalogueFromApi(
   const subject = currentSubject(access);
   const credentials = await access.acquireCurrentCredentials();
   guard(access, subject);
-  if (!credentials || credentials.subject.toLowerCase() !== subject ||
-      !credentials.accessToken) {
+  if (
+    !credentials ||
+    credentials.subject.toLowerCase() !== subject ||
+    !credentials.accessToken
+  ) {
     throw new OfflineCatalogueError('notAuthenticated');
   }
-  return seedOfflineExerciseCatalogue(
-    db,
-    access,
-    (page, pageSize) => listExercises(credentials.accessToken, { page, pageSize }),
+  return seedOfflineExerciseCatalogue(db, access, (page, pageSize) =>
+    listExercises(credentials.accessToken, { page, pageSize }),
   );
 }
 
@@ -245,16 +281,23 @@ export async function offlineCatalogueStatus(
     'SELECT COUNT(*) AS count FROM public_exercise_cache WHERE locale = ?',
     LOCALE,
   );
-  if (!count || count.count !== meta.total || meta.total <= 0 ||
-      !Number.isSafeInteger(meta.total) ||
-      !Number.isFinite(Date.parse(meta.seeded_at_utc))) {
+  if (
+    !count ||
+    count.count !== meta.total ||
+    meta.total <= 0 ||
+    !Number.isSafeInteger(meta.total) ||
+    !Number.isFinite(Date.parse(meta.seeded_at_utc))
+  ) {
     throw new OfflineCatalogueError('corruptCache');
   }
   return { state: 'ready', total: meta.total, seededAtUtc: meta.seeded_at_utc };
 }
 
 function folded(value: string): string {
-  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es');
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('es');
 }
 
 /** Offline read of previously committed public reference data, no token needed. */
@@ -264,10 +307,15 @@ export async function searchOfflineExercises(
 ): Promise<CachedExerciseResult> {
   const offset = options.offset ?? 0;
   const limit = options.limit ?? 30;
-  if (!Number.isSafeInteger(offset) || offset < 0 ||
-      !Number.isSafeInteger(limit) || limit < 1 || limit > 100 ||
-      (options.primaryMuscleId != null && !UUID.test(options.primaryMuscleId)) ||
-      (options.equipmentId != null && !UUID.test(options.equipmentId))) {
+  if (
+    !Number.isSafeInteger(offset) ||
+    offset < 0 ||
+    !Number.isSafeInteger(limit) ||
+    limit < 1 ||
+    limit > 100 ||
+    (options.primaryMuscleId != null && !UUID.test(options.primaryMuscleId)) ||
+    (options.equipmentId != null && !UUID.test(options.equipmentId))
+  ) {
     throw new OfflineCatalogueError('invalidSearch');
   }
   if ((await offlineCatalogueStatus(db)).state === 'unseeded') {
@@ -278,16 +326,31 @@ export async function searchOfflineExercises(
     LOCALE,
   );
   const query = folded(options.search?.trim() ?? '');
-  const results = rows.map(parseCachedRow).filter(item => (
-    (!query || folded(item.name).includes(query)) &&
-    (!options.primaryMuscleId ||
-      item.primary_muscles.some(muscle => muscle.id.toLowerCase() ===
-        options.primaryMuscleId!.toLowerCase())) &&
-    (!options.equipmentId ||
-      item.equipment.some(eq => eq.id.toLowerCase() === options.equipmentId!.toLowerCase()))
-  )).sort((left, right) => left.name.localeCompare(right.name, 'es') ||
-    left.id.localeCompare(right.id));
-  return { total: results.length, items: results.slice(offset, offset + limit) };
+  const results = rows
+    .map(parseCachedRow)
+    .filter(
+      (item) =>
+        (!query || folded(item.name).includes(query)) &&
+        (!options.primaryMuscleId ||
+          item.primary_muscles.some(
+            (muscle) =>
+              muscle.id.toLowerCase() ===
+              options.primaryMuscleId!.toLowerCase(),
+          )) &&
+        (!options.equipmentId ||
+          item.equipment.some(
+            (eq) => eq.id.toLowerCase() === options.equipmentId!.toLowerCase(),
+          )),
+    )
+    .sort(
+      (left, right) =>
+        left.name.localeCompare(right.name, 'es') ||
+        left.id.localeCompare(right.id),
+    );
+  return {
+    total: results.length,
+    items: results.slice(offset, offset + limit),
+  };
 }
 
 export async function resolveOfflineCanonicalExercise(
@@ -303,8 +366,11 @@ export async function resolveOfflineCanonicalExercise(
   const requested = rawId.toLowerCase();
   for (const row of rows) {
     const item = parseCachedRow(row);
-    if (item.id.toLowerCase() === requested ||
-        item.alias_ids?.some(id => id.toLowerCase() === requested)) return item;
+    if (
+      item.id.toLowerCase() === requested ||
+      item.alias_ids?.some((id) => id.toLowerCase() === requested)
+    )
+      return item;
   }
   return null;
 }
