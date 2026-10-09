@@ -64,7 +64,9 @@ async function exclusiveFlow<T>(
   db: SqliteWorkoutPort,
   task: () => Promise<T>,
 ): Promise<T> {
-  if (busyDatabases.has(db)) throw new WorkoutFlowError('busy');
+  if (busyDatabases.has(db)) {
+    throw new WorkoutFlowError('busy');
+  }
   busyDatabases.add(db);
   try {
     return await task();
@@ -82,7 +84,10 @@ function generatedId(factory: WorkoutIdProvider): string {
 }
 
 function uniqueIds(factory: WorkoutIdProvider, count: 2): [string, string];
-function uniqueIds(factory: WorkoutIdProvider, count: 3): [string, string, string];
+function uniqueIds(
+  factory: WorkoutIdProvider,
+  count: 3,
+): [string, string, string];
 function uniqueIds(
   factory: WorkoutIdProvider,
   count: 2 | 3,
@@ -91,7 +96,9 @@ function uniqueIds(
   if (new Set(values).size !== count) {
     throw new WorkoutFlowError('invalidInput');
   }
-  if (count === 2) return [values[0]!, values[1]!];
+  if (count === 2) {
+    return [values[0]!, values[1]!];
+  }
   return [values[0]!, values[1]!, values[2]!];
 }
 
@@ -151,7 +158,14 @@ function startInput(
     String(month).padStart(2, '0'),
     String(day).padStart(2, '0'),
   ].join('-');
-  const localEpochSeconds = Date.UTC(year, month - 1, day, hour, minute, second);
+  const localEpochSeconds = Date.UTC(
+    year,
+    month - 1,
+    day,
+    hour,
+    minute,
+    second,
+  );
   const instant = new Date(startedAtUtc);
   const utcEpochSeconds = Date.UTC(
     instant.getUTCFullYear(),
@@ -187,11 +201,15 @@ export async function beginFreeWorkout(
 function requireActive(
   overview: ActiveFreeWorkoutOverview | null,
 ): ActiveFreeWorkoutOverview {
-  if (!overview) throw new WorkoutFlowError('noActiveWorkout');
+  if (!overview) {
+    throw new WorkoutFlowError('noActiveWorkout');
+  }
   if (
     overview.session.origin !== 'free' ||
     overview.session.agenda_revision !== 0
-  ) throw new WorkoutFlowError('unsupportedAgenda');
+  ) {
+    throw new WorkoutFlowError('unsupportedAgenda');
+  }
   return overview;
 }
 
@@ -220,7 +238,8 @@ export async function recordFreeWorkoutSet(
       await readActiveFreeWorkoutOverview(db, access),
     );
     const matching = overview.exercises.find(
-      (entry) => entry.canonical_exercise_id === request.canonicalExerciseId.toLowerCase(),
+      (entry) =>
+        entry.canonical_exercise_id === request.canonicalExerciseId.toLowerCase(),
     );
     const [setId, mutationId, newOccurrenceId] = uniqueIds(ids, 3);
     const occurrenceId = matching?.occurrence_id ?? newOccurrenceId;
