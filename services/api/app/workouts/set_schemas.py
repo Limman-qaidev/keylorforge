@@ -113,3 +113,4 @@ class ConfirmedSetResponse(BaseModel):
     load_decimal: str | None
     load_unit: str | None
     machine_profile_id: UUID | None
+    machine_configuration_id: UUID | None = None
