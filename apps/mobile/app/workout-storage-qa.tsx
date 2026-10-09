@@ -399,8 +399,8 @@ function StorageDiagnosticScreen() {
         M3 · Diagnóstico SQLite
       </Text>
       <Text style={styles.description}>
-        Prueba aislada en el Samsung: no modifica sesiones reales ni envía datos
-        al servidor.
+        Las pruebas de sesiones no modifican entrenamientos reales ni se
+        sincronizan. Solo la descarga voluntaria del catálogo consulta la API.
       </Text>
       <View style={styles.panel}>
         <Text style={styles.label}>ESTADO LOCAL</Text>
