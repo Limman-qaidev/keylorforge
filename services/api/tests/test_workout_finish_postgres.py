@@ -40,15 +40,18 @@ class _Verifier:
 
 
 def _first_set(
-    session_id: str, exercise_id: str, occurrence_id: str, mutation_id: str,
-    set_id: str, *, warmup: bool,
+    session_id: str,
+    exercise_id: str,
+    occurrence_id: str,
+    mutation_id: str,
+    set_id: str,
+    *,
+    warmup: bool,
 ) -> dict[str, object]:
+    kind = "CONFIRM_FIRST_SET_WITH_OCCURRENCE" if warmup else "CONFIRM_ADDITIONAL_SET"
     return {
         "protocol_version": 1,
-        "kind": (
-            "CONFIRM_FIRST_SET_WITH_OCCURRENCE" if warmup
-            else "CONFIRM_ADDITIONAL_SET"
-        ),
+        "kind": kind,
         "session_id": session_id,
         "mutation_id": mutation_id,
         "set_id": set_id,
@@ -161,8 +164,12 @@ def test_postgres_finish_is_atomic_idempotent_and_owner_scoped() -> None:
         warmup_id, working_id = str(uuid4()), str(uuid4())
         sets_path = f"/workout-sessions/{workout_id}/sets"
         warmup = _first_set(
-            workout_id, str(exercise_id), occurrence,
-            str(uuid4()), warmup_id, warmup=True,
+            workout_id,
+            str(exercise_id),
+            occurrence,
+            str(uuid4()),
+            warmup_id,
+            warmup=True,
         )
         first = client.post(f"{sets_path}/first", headers=a, json=warmup)
         assert first.status_code == 201, first.text
@@ -175,27 +182,28 @@ def test_postgres_finish_is_atomic_idempotent_and_owner_scoped() -> None:
             assert db.get(WorkoutSession, UUID(workout_id)).lifecycle_state == "active"
 
         additional = _first_set(
-            workout_id, str(exercise_id), occurrence,
-            str(uuid4()), working_id, warmup=False,
+            workout_id,
+            str(exercise_id),
+            occurrence,
+            str(uuid4()),
+            working_id,
+            warmup=False,
         )
         second = client.post(f"{sets_path}/additional", headers=a, json=additional)
         assert second.status_code == 201, second.text
 
         # Server canonical order is completed_at and then UUID, not client UI order.
         command = _finish(
-            workout_id, occurrence, str(exercise_id),
-            sorted([warmup_id, working_id]),
+            workout_id, occurrence, str(exercise_id), sorted([warmup_id, working_id])
         )
         assert client.post(finish_url, headers=b, json=command).status_code == 404
-        assert client.post(finish_url, headers=a, json={
-            **command, "session_id": str(uuid4())
-        }).status_code == 422
+        mismatch = {**command, "session_id": str(uuid4())}
+        assert client.post(finish_url, headers=a, json=mismatch).status_code == 422
 
         missing = deepcopy(command)
         missing["mutation_id"] = str(uuid4())
-        missing["completion_snapshot"]["unplanned_performed_occurrences"][0][
-            "set_ids"
-        ] = [warmup_id]
+        missing_item = missing["completion_snapshot"]["unplanned_performed_occurrences"][0]
+        missing_item["set_ids"] = [warmup_id]
         assert client.post(finish_url, headers=a, json=missing).status_code == 409
 
         too_early = deepcopy(command)
@@ -207,7 +215,9 @@ def test_postgres_finish_is_atomic_idempotent_and_owner_scoped() -> None:
 
         invalid_agenda = deepcopy(command)
         invalid_agenda["completion_snapshot"]["agenda_items"] = [{"fake": True}]
-        assert client.post(finish_url, headers=a, json=invalid_agenda).status_code == 422
+        assert (
+            client.post(finish_url, headers=a, json=invalid_agenda).status_code == 422
+        )
 
         finished = client.post(finish_url, headers=a, json=command)
         assert finished.status_code == 201, finished.text
@@ -225,11 +235,15 @@ def test_postgres_finish_is_atomic_idempotent_and_owner_scoped() -> None:
         fresh_id = deepcopy(command)
         fresh_id["mutation_id"] = str(uuid4())
         assert client.post(finish_url, headers=a, json=fresh_id).status_code == 409
-        assert client.post(
-            f"{sets_path}/additional", headers=a, json={
-                **additional, "set_id": str(uuid4()), "mutation_id": str(uuid4())
-            }
-        ).status_code == 409
+        attempted_set = {
+            **additional,
+            "set_id": str(uuid4()),
+            "mutation_id": str(uuid4()),
+        }
+        assert (
+            client.post(f"{sets_path}/additional", headers=a, json=attempted_set).status_code
+            == 409
+        )
 
         with Session(engine) as db:
             completed = db.get(WorkoutSession, UUID(workout_id))
