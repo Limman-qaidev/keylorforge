@@ -221,6 +221,45 @@ function validateDetail(
   };
 }
 
+/**
+ * Defense in depth at the SQLite write boundary. The remote GET and history
+ * audit occur outside this transaction; never trust metadata independently
+ * of the exact native-set detail being persisted.
+ */
+export function isVerifiedRemoteHistoryCandidate(
+  candidate: RemoteRecoveryCandidate,
+  requestedSessionId: string,
+): boolean {
+  if (
+    !id(requestedSessionId) ||
+    candidate.preview.sessionId !== requestedSessionId ||
+    !id(candidate.completionSnapshotId) ||
+    !id(candidate.finishMutationId) ||
+    typeof candidate.detailJson !== 'string' ||
+    candidate.detailJson.length > 512_000
+  ) {
+    return false;
+  }
+  try {
+    const data: unknown = JSON.parse(candidate.detailJson);
+    const source = record(data);
+    const preview = validateDetail(data, requestedSessionId);
+    return (
+      source !== null &&
+      preview !== null &&
+      source.completion_snapshot_id === candidate.completionSnapshotId &&
+      source.finish_mutation_id === candidate.finishMutationId &&
+      preview.sessionId === candidate.preview.sessionId &&
+      preview.finishedAt === candidate.preview.finishedAt &&
+      preview.occurrenceCount === candidate.preview.occurrenceCount &&
+      preview.confirmedSets === candidate.preview.confirmedSets &&
+      preview.workingSets === candidate.preview.workingSets
+    );
+  } catch {
+    return false;
+  }
+}
+
 async function hasAnyLocalTrace(
   db: SqliteWorkoutPort,
   subject: string,

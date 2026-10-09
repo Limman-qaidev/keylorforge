@@ -7,6 +7,7 @@
 import type { SqliteQueryPort, SqliteWorkoutPort } from './local-schema';
 import {
   fetchRemoteOnlyWorkoutCandidate,
+  isVerifiedRemoteHistoryCandidate,
   type RemoteRecoveryCandidate,
   type RemoteRecoveryCheck,
   type RemoteRecoveryPreview,
@@ -119,6 +120,10 @@ export async function cacheRemoteOnlyWorkout(
   };
   await db.withExclusiveTransactionAsync(async (tx) => {
     fence(access, owner);
+    if (!isVerifiedRemoteHistoryCandidate(candidate, sessionId.toLowerCase())) {
+      outcome = { status: 'paused', reason: 'invalidResponse' };
+      return;
+    }
     if (await hasLocalTrace(tx, owner, candidate.preview.sessionId)) {
       outcome = { status: 'paused', reason: 'localCollision' };
       return;

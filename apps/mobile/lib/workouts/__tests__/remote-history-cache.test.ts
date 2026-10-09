@@ -7,6 +7,7 @@ import type { SqliteQueryPort, SqliteWorkoutPort } from '../local-schema';
 import type { StartSyncAccess } from '../start-session-sync';
 
 jest.mock('../remote-history-preview', () => ({
+  ...jest.requireActual('../remote-history-preview'),
   fetchRemoteOnlyWorkoutCandidate: jest.fn(),
 }));
 
@@ -15,6 +16,57 @@ const OTHER = 'e426dd13-344a-4b69-8920-cb014715c6c1';
 const SESSION = '1f2d27bc-4904-4f4f-9367-39565d78f211';
 const SNAPSHOT = '17e1a62d-965f-4caf-a509-c95ab2fe6438';
 const FINISH = '0d72c629-6248-4221-8ab2-d9b9f1b63901';
+const OCCURRENCE = 'c226a777-d460-4d5f-bad6-f75667a9d022';
+const SET = '1b428bd6-781d-44ec-8609-57af594a5511';
+const EXERCISE = '502c4c87-80a5-4567-9aaf-296e43bfc4d1';
+
+const detail = {
+  session_id: SESSION,
+  lifecycle_state: 'completed',
+  started_at: '2026-10-09T14:00:00+00:00',
+  finished_at: '2026-10-09T15:00:00+00:00',
+  completion_snapshot_id: SNAPSHOT,
+  finish_mutation_id: '0d72c629-6248-4221-8ab2-d9b9f1b63901',
+  completion_snapshot: {
+    session_id: SESSION,
+    completion_snapshot_id: SNAPSHOT,
+    unplanned_performed_occurrences: [
+      {
+        occurrence_id: OCCURRENCE,
+        canonical_exercise_id: EXERCISE,
+        actual_order: 0,
+        set_ids: [SET],
+      },
+    ],
+  },
+  occurrences: [
+    {
+      occurrence_id: OCCURRENCE,
+      canonical_exercise_id: EXERCISE,
+      actual_order: 0,
+      first_set_id: SET,
+      sets: [
+        {
+          set_id: SET,
+          mutation_id: 'c4b03454-a640-4b84-a525-6bf05f068b9e',
+          occurrence_id: OCCURRENCE,
+          set_role: 'WORKING',
+          measurement_type: 'reps',
+          reps: 8,
+          duration_seconds: null,
+          distance_decimal: null,
+          distance_unit: null,
+          load_decimal: '27.500',
+          load_unit: 'lb',
+          load_entry_semantics: 'machine_display',
+          machine_profile_id: null,
+          machine_configuration_id: null,
+          completed_at: '2026-10-09T14:30:00+00:00',
+        },
+      ],
+    },
+  ],
+};
 
 const preview = {
   sessionId: SESSION,
@@ -28,7 +80,7 @@ function candidate() {
   return {
     status: 'candidate' as const,
     preview,
-    detailJson: '{"immutable_server_history":true}',
+    detailJson: JSON.stringify(detail),
     completionSnapshotId: SNAPSHOT,
     finishMutationId: FINISH,
   };
@@ -237,6 +289,75 @@ describe('remote-only workout immutable local read model', () => {
     ).rejects.toThrow('notAuthenticated');
     expect(db.rows.size).toBe(0);
     expect(db.writes).toBe(0);
+  });
+
+  it('rejects inconsistent candidate metadata and malformed native details without SQLite writes', async () => {
+    const db = new FakeDb();
+    const good = candidate();
+    const invalid = [
+      { ...good, preview: { ...preview, workingSets: 2 } },
+      { ...good, completionSnapshotId: OTHER },
+      { ...good, finishMutationId: OTHER },
+      { ...good, detailJson: '{invalid-json' },
+      {
+        ...good,
+        detailJson: JSON.stringify({ ...detail, lifecycle_state: 'cancelled' }),
+      },
+      {
+        ...good,
+        detailJson: JSON.stringify({
+          ...detail,
+          occurrences: [{ ...detail.occurrences[0], sets: [] }],
+        }),
+      },
+      { ...good, preview: { ...preview, sessionId: OTHER } },
+    ];
+    for (const invalidCandidate of invalid) {
+      jest
+        .mocked(fetchRemoteOnlyWorkoutCandidate)
+        .mockResolvedValueOnce(invalidCandidate);
+      expect(
+        await cacheRemoteOnlyWorkout(db, identity().access, SESSION),
+      ).toEqual({
+        status: 'paused',
+        reason: 'invalidResponse',
+      });
+    }
+    expect(db.writes).toBe(0);
+    expect(db.rows.size).toBe(0);
+  });
+
+  it('keeps the native measurement payload intact without creating local mutations', async () => {
+    const db = new FakeDb();
+    const { access } = identity();
+    const payload = {
+      ...detail,
+      occurrences: [
+        {
+          ...detail.occurrences[0],
+          sets: [
+            {
+              ...detail.occurrences[0]!.sets[0],
+              machine_snapshot: { equipment: 'cable', calibration: 'original' },
+              target_at_confirmation: { kind: 'reps', goal: 8 },
+            },
+          ],
+        },
+      ],
+    };
+    const detailJson = JSON.stringify(payload);
+    jest.mocked(fetchRemoteOnlyWorkoutCandidate).mockResolvedValueOnce({
+      ...candidate(),
+      detailJson,
+    });
+    expect(await cacheRemoteOnlyWorkout(db, access, SESSION)).toEqual({
+      status: 'stored',
+      preview,
+    });
+    expect(
+      (await readCachedRemoteOnlyWorkout(db, access, SESSION))?.detailJson,
+    ).toBe(detailJson);
+    expect(db.writes).toBe(1);
   });
 
   it('fences cached detail reads after account switching and logout', async () => {
