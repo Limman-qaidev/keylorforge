@@ -1,29 +1,27 @@
-# M3-MOB-009 — Physical Android production offline exercise browser QA
+# M3-MOB-009 — Samsung acceptance: seamless Entrenar catalogue
 
-**Issue:** #152
-**PR:** #153 (DRAFT)
-**Status:** PENDING Product Owner physical verification. This checklist is not a passed test.
+**Issue:** #152. **PR:** #153, DRAFT and NOT approved to merge.
+**Product Owner corrected the earlier implementation:** there must NOT be a separate user-facing offline catalogue or download control.
 
-## Pre-flight
+## Safe preflight
 
-- Use the already-installed Expo Go on the Galaxy S22 Ultra. Do NOT uninstall or clear app data.
-- Use PR #153 JavaScript/Metro on a new isolated worktree; leave existing user worktrees and diagnostic QA SQLite data untouched.
-- The independent public catalogue SQLite database was previously confirmed to retain 897 canonical exercises after force-stop on #151.
-- Confirm the user is authenticated. A new account requires initial server bootstrap; public canonical catalogue contains no account-owned rows.
-- If downloading/updating again via the PC-hosted API, Android requires ADB reverse port 8000 as well as Metro. Browsing must NOT depend on port 8000.
+- Install no new APK, do not uninstall Expo Go or clear app/SQLite data.
+- Use the already set up PR #153 detached worktree, existing authenticated user and public SQLite cache of 897 canonical exercises.
+- Open Expo Go via Metro 8081, using ADB USB redirection. The backend on port 8000 is only needed for first bootstrap/stale refresh; browsing already cached records must work with it unavailable.
+- Existing workouts diagnostic DB must not change.
 
-## Product UI (no workout writes)
+## Physical user-flow acceptance
 
-1. Open normal Entrenar tab. Confirm existing online M2 exercise catalogue is still reachable and there is an entry named **Consultar ejercicios sin conexión**.
-2. Tap the entry; expect **Ejercicios sin conexión** and **CATÁLOGO DISPONIBLE · 897 ejercicios**, from local SQLite, without pressing Download.
-3. Enable airplane mode and disable Wi-Fi. Search **Abdominal Otis** (accent/case-insensitive); ensure result appears without API calls.
-4. Clear search; choose muscle and equipment filters, verifying result count and rows. No session created.
-5. While still in airplane mode, force-stop only Expo Go and reopen PR #153. Verify cache status persists and local search continues to work.
-6. While offline, tap **Descargar / actualizar catálogo**; expect a controlled error and retention of cached results. Do not use the destructive QA reset.
-7. Check existing workout diagnostic DB active session/outbox/sets retain their previous values. This browser must not START, confirm sets, Finish, or write History.
+1. On the normal **Entrenar** destination, ensure **Catálogo de ejercicios** appears with the usual search, chips, exercise rows and detail view. The rejected **Consultar ejercicios sin conexión** product entry and **Ejercicios sin conexión** route must be absent.
+2. With network on, the cached catalogue is loaded automatically; no download button, cache status badge or user-selected mode is shown.
+3. Enable airplane mode, ensure Wi-Fi off, **without navigating elsewhere**, and search for **Abdominal Otis** in the usual search. Clear search; apply muscle/equipment filters. Normal exercise rows and result counts must remain available without server connectivity.
+4. Open a cached exercise; the SAME detail view must open immediately. Fields absent from the M2 list snapshot must remain explicitly unspecified, not invented. Return normally.
+5. Force-stop only Expo Go and reopen the **ordinary Entrenar** tab still in airplane mode. Verify the same UI/search works from all 897 cached canonical exercises. Never clear SQLite.
+6. Restore Wi-Fi and resume app; catalogue remains visible while background update is retried opportunistically. A broken/blocked API must not clear or hide an existing complete cache. In a pristine installation without cache, the existing online catalogue may bootstrap in background when authenticated and online; no promise of offline availability before the first successful seed.
+7. Verify previous diagnostic active workout sessions/sets/outbox remain untouched.
 
 ## Stop conditions
 
-If cached list disappears after failed refresh, a user-owned row leaks across subjects, the app crashes offline, or existing diagnostic workout data changes: STOP, record QA failure, fix PR.
+Any separate offline product page/button, disappearance of exercises when toggling network, empty cache after failed refresh, route-level crash, canonical identity mismatches, loss of persisted cache, or mutation of workout data: **STOP, document failure, fix PR before merge**.
 
-After successful physical QA record screenshots and CI evidence in #153; require explicit new Product Owner approval to merge. Close #152 ONLY after successful merge. Keep #143 open for remaining transport QA/independent review.
+Record screenshots for normal UI online/offline and post-force-stop and CI. Do not close #152 until the corrected PR is explicitly approved and merged. #143 remains open for independent security review and workout transport.
