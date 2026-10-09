@@ -201,7 +201,9 @@ describe('transparent native exercise catalogue persistence', () => {
       handlers.onChange?.('active');
     });
     expect(seedOfflineCatalogueFromApi).toHaveBeenCalledTimes(2);
-    screen.unmount();
+    await act(async () => {
+      screen.unmount();
+    });
     expect(removeListener).toHaveBeenCalled();
   });
 });
