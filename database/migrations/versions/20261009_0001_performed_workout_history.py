@@ -80,18 +80,18 @@ def upgrade() -> None:
             name="ck_workout_sets_role",
         ),
         sa.CheckConstraint(
-            "(measurement_type = 'reps' AND reps > 0 AND duration_seconds IS NULL "
+            "(measurement_type = 'reps' AND reps IS NOT NULL AND reps > 0 AND duration_seconds IS NULL "
             "AND distance_value IS NULL AND distance_unit IS NULL) OR "
-            "(measurement_type = 'time' AND reps IS NULL AND duration_seconds > 0 "
+            "(measurement_type = 'time' AND reps IS NULL AND duration_seconds IS NOT NULL AND duration_seconds > 0 "
             "AND distance_value IS NULL AND distance_unit IS NULL) OR "
             "(measurement_type = 'distance' AND reps IS NULL AND duration_seconds IS NULL "
-            "AND distance_value > 0 AND distance_unit IN ('m', 'km', 'mi'))",
+            "AND distance_value IS NOT NULL AND distance_value > 0 AND distance_unit IS NOT NULL AND distance_unit IN ('m', 'km', 'mi'))",
             name="ck_workout_sets_measurement",
         ),
         sa.CheckConstraint(
             "(load_value IS NULL AND load_unit IS NULL AND load_entry_semantics IS NULL) "
-            "OR (load_value >= 0 AND load_unit IN ('kg', 'lb') AND "
-            "load_entry_semantics IN ('total', 'per_implement', 'machine_display', 'assistance'))",
+            "OR (load_value IS NOT NULL AND load_value >= 0 AND load_unit IS NOT NULL AND load_unit IN ('kg', 'lb') AND "
+            "load_entry_semantics IS NOT NULL AND load_entry_semantics IN ('total', 'per_implement', 'machine_display', 'assistance'))",
             name="ck_workout_sets_load",
         ),
         sa.CheckConstraint(
