@@ -74,7 +74,8 @@ function validSet(row: Record<string, unknown>, occurrence: string): boolean {
     row.occurrence_id !== occurrence ||
     !['WARMUP', 'WORKING'].includes(String(row.set_role)) ||
     !timestamp(row.completed_at)
-  ) return false;
+  )
+    return false;
   const reps = row.measurement_type === 'reps';
   const time = row.measurement_type === 'time';
   const distance = row.measurement_type === 'distance';
@@ -82,24 +83,26 @@ function validSet(row: Record<string, unknown>, occurrence: string): boolean {
     (!reps && !time && !distance) ||
     (reps && !positive(row.reps)) ||
     (time && !positive(row.duration_seconds)) ||
-    (distance && (!validDecimal(row.distance_decimal) ||
-      !['m', 'km', 'mi'].includes(String(row.distance_unit)))) ||
+    (distance &&
+      (!validDecimal(row.distance_decimal) ||
+        !['m', 'km', 'mi'].includes(String(row.distance_unit)))) ||
     (!reps && row.reps !== null) ||
     (!time && row.duration_seconds !== null) ||
     (!distance && (row.distance_decimal !== null || row.distance_unit !== null))
-  ) return false;
+  )
+    return false;
   const hasLoad = row.load_decimal !== null;
   if (
     hasLoad !== (row.load_unit !== null) ||
     hasLoad !== (row.load_entry_semantics !== null) ||
-    (hasLoad && (
-      !validDecimal(row.load_decimal, true) ||
-      !['kg', 'lb'].includes(String(row.load_unit)) ||
-      !['total', 'per_implement', 'machine_display', 'assistance'].includes(
-        String(row.load_entry_semantics)
-      )
-    ))
-  ) return false;
+    (hasLoad &&
+      (!validDecimal(row.load_decimal, true) ||
+        !['kg', 'lb'].includes(String(row.load_unit)) ||
+        !['total', 'per_implement', 'machine_display', 'assistance'].includes(
+          String(row.load_entry_semantics),
+        )))
+  )
+    return false;
   return (
     (row.machine_profile_id === null || id(row.machine_profile_id)) &&
     (row.machine_configuration_id === null ||
@@ -131,7 +134,8 @@ function validateDetail(
     Date.parse(response.finished_at) < Date.parse(response.started_at) ||
     !Array.isArray(response.occurrences) ||
     !Array.isArray(snapshot.unplanned_performed_occurrences)
-  ) return null;
+  )
+    return null;
 
   const declared = new Map<string, Record<string, unknown>>();
   for (const entry of snapshot.unplanned_performed_occurrences) {
@@ -140,7 +144,8 @@ function validateDetail(
       !occurrence ||
       !id(occurrence.occurrence_id) ||
       declared.has(occurrence.occurrence_id)
-    ) return null;
+    )
+      return null;
     declared.set(occurrence.occurrence_id, occurrence);
   }
   const seen = new Set<string>();
@@ -150,9 +155,8 @@ function validateDetail(
   for (const rawOccurrence of response.occurrences) {
     const occurrence = record(rawOccurrence);
     const occurrenceId = occurrence?.occurrence_id;
-    const expected = typeof occurrenceId === 'string'
-      ? declared.get(occurrenceId)
-      : undefined;
+    const expected =
+      typeof occurrenceId === 'string' ? declared.get(occurrenceId) : undefined;
     if (
       !occurrence ||
       !id(occurrenceId) ||
@@ -167,7 +171,8 @@ function validateDetail(
       !Array.isArray(occurrence.sets) ||
       occurrence.sets.length < 1 ||
       !Array.isArray(expected.set_ids)
-    ) return null;
+    )
+      return null;
     orders.add(occurrence.actual_order as number);
     const localSetIds = new Set<string>();
     for (const entry of occurrence.sets) {
@@ -177,9 +182,12 @@ function validateDetail(
         !validSet(row, occurrenceId) ||
         seen.has(row.set_id as string) ||
         localSetIds.has(row.set_id as string) ||
-        Date.parse(row.completed_at as string) < Date.parse(response.started_at) ||
-        Date.parse(row.completed_at as string) > Date.parse(response.finished_at)
-      ) return null;
+        Date.parse(row.completed_at as string) <
+          Date.parse(response.started_at) ||
+        Date.parse(row.completed_at as string) >
+          Date.parse(response.finished_at)
+      )
+        return null;
       seen.add(row.set_id as string);
       localSetIds.add(row.set_id as string);
       if (row.set_role === 'WORKING') working++;
@@ -190,7 +198,8 @@ function validateDetail(
       !localSetIds.has(occurrence.first_set_id) ||
       expected.set_ids.length !== localSetIds.size ||
       !expected.set_ids.every((setId) => localSetIds.has(setId))
-    ) return null;
+    )
+      return null;
     declared.delete(occurrenceId);
   }
   if (declared.size || working < 1 || sets < 1) return null;
@@ -243,8 +252,11 @@ export async function previewRemoteOnlyWorkout(
   fence(access, subject);
   const credentials = await access.acquireCurrentCredentials();
   fence(access, subject);
-  if (!credentials || credentials.subject.toLowerCase() !== subject ||
-      !credentials.accessToken) {
+  if (
+    !credentials ||
+    credentials.subject.toLowerCase() !== subject ||
+    !credentials.accessToken
+  ) {
     return { status: 'paused', reason: 'auth' };
   }
   const controller = new AbortController();
