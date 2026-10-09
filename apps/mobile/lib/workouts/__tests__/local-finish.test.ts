@@ -237,7 +237,7 @@ function identity() {
 }
 
 describe('M3 offline-first atomic Free Workout Finish', () => {
-  it('commits completed session, immutable snapshot and causally dependent outbox', async () => {
+  it('commits session, final snapshot and causal outbox', async () => {
     const db = new FakeFinishDb();
     const auth = identity();
     const finish = await finishLocalFreeWorkout(db, auth.access, input);
@@ -263,12 +263,14 @@ describe('M3 offline-first atomic Free Workout Finish', () => {
     expect(await readLocalFinishedWorkout(db, auth.access, SESSION)).toEqual(
       finish,
     );
-    expect(await finishLocalFreeWorkout(db, auth.access, input)).toEqual(finish);
+    expect(await finishLocalFreeWorkout(db, auth.access, input)).toEqual(
+      finish,
+    );
     expect(db.outbox.size).toBe(3);
     expect(db.sets).toHaveLength(1);
   });
 
-  it('rejects zero performed sets and WARMUP-only work without side effects', async () => {
+  it('rejects empty and WARMUP-only work atomically', async () => {
     for (const role of [null, 'WARMUP'] as const) {
       const db = new FakeFinishDb(role);
       await expect(
@@ -280,7 +282,7 @@ describe('M3 offline-first atomic Free Workout Finish', () => {
     }
   });
 
-  it('rejects malformed input, unsupported agendas and stale session state', async () => {
+  it('rejects invalid input, agendas and session state', async () => {
     const db = new FakeFinishDb();
     const auth = identity();
     await expect(
@@ -305,7 +307,7 @@ describe('M3 offline-first atomic Free Workout Finish', () => {
     ).rejects.toMatchObject({ code: 'sessionNotActive' });
   });
 
-  it('rejects mismatched repeated mutation or second Finish attempt', async () => {
+  it('rejects conflicting mutation and second Finish', async () => {
     const db = new FakeFinishDb();
     const auth = identity();
     await finishLocalFreeWorkout(db, auth.access, input);
@@ -324,7 +326,7 @@ describe('M3 offline-first atomic Free Workout Finish', () => {
     expect(db.snapshots.size).toBe(1);
   });
 
-  it('rolls back all writes after storage failure or mid-transaction logout', async () => {
+  it('rolls back on SQLite error and identity switch', async () => {
     const first = new FakeFinishDb();
     first.failSnapshotWrite = true;
     await expect(
@@ -344,7 +346,7 @@ describe('M3 offline-first atomic Free Workout Finish', () => {
     expect(second.sessions.get(SUBJECT)?.lifecycle_state).toBe('active');
   });
 
-  it('never exposes a subject-owned finished workout to another subject', async () => {
+  it('isolates finished history between accounts', async () => {
     const db = new FakeFinishDb();
     await finishLocalFreeWorkout(db, identity().access, input);
     const other = identity();
@@ -356,7 +358,7 @@ describe('M3 offline-first atomic Free Workout Finish', () => {
     expect(db.snapshots.size).toBe(1);
   });
 
-  it('rejects missing dependency without queuing a finish mutation', async () => {
+  it('rejects missing parent without enqueuing', async () => {
     const db = new FakeFinishDb();
     db.hasParent = false;
     await expect(
