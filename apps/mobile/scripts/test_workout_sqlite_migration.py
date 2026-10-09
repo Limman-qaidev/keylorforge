@@ -64,5 +64,78 @@ def test_upgrade():
     assert not db.execute("PRAGMA foreign_key_check").fetchall()
     print("PASS: SQLite migration retained dependent mutations and stored atomic first-set rows")
 
+    # A second subject sharing the same schema must not be affected by QA reset.
+    other = "e426dd13-344a-4b69-8920-cb014715c6c1"
+    other_session = "d811e91f-2fc2-4af6-a8d7-90bc9a816922"
+    db.execute(
+        "INSERT INTO local_workout_sessions "
+        "(subject,session_id,origin,started_at_utc,time_zone,"
+        "utc_offset_minutes,local_date,original_agenda_json) "
+        "VALUES (?,?,'free','2026-10-08T14:30:00Z',"
+        "'Europe/Madrid',120,'2026-10-08','{}')",
+        (other, other_session),
+    )
+    db.execute(
+        "INSERT INTO local_workout_outbox "
+        "(subject,mutation_id,session_id,mutation_kind,protocol_version,"
+        "payload_json,created_at_utc) "
+        "VALUES (?,'other-start',?,'START_SESSION',1,'{}',"
+        "'2026-10-08T14:30:00Z')",
+        (other, other_session),
+    )
+    db.commit()
+
+    # Regression: the original bulk-delete fails with ON DELETE RESTRICT.
+    try:
+        db.execute("DELETE FROM local_workout_outbox WHERE subject=?", (subject,))
+    except sqlite3.IntegrityError:
+        db.rollback()
+    else:
+        raise AssertionError("Dependent outbox bulk delete unexpectedly succeeded")
+
+    db.execute("DELETE FROM local_workout_sets WHERE subject=?", (subject,))
+    db.execute("DELETE FROM local_workout_occurrences WHERE subject=?", (subject,))
+
+    removed = []
+    while True:
+        leaf = db.execute(
+            "SELECT parent.mutation_id "
+            "FROM local_workout_outbox AS parent "
+            "WHERE parent.subject = ? "
+            "AND NOT EXISTS ( "
+            "  SELECT 1 FROM local_workout_outbox AS child "
+            "  WHERE child.subject = parent.subject "
+            "    AND child.depends_on_mutation_id = parent.mutation_id "
+            ") LIMIT 1",
+            (subject,),
+        ).fetchone()
+        if leaf is None:
+            assert db.execute(
+                "SELECT COUNT(*) FROM local_workout_outbox WHERE subject=?",
+                (subject,),
+            ).fetchone()[0] == 0
+            break
+        db.execute(
+            "DELETE FROM local_workout_outbox "
+            "WHERE subject=? AND mutation_id=?",
+            (subject, leaf[0]),
+        )
+        removed.append(leaf[0])
+
+    db.execute("DELETE FROM local_workout_sessions WHERE subject=?", (subject,))
+    db.commit()
+    assert removed == [mutation, "m2", "m1"]
+    assert db.execute(
+        "SELECT COUNT(*) FROM local_workout_sessions WHERE subject=?", (subject,)
+    ).fetchone()[0] == 0
+    assert db.execute(
+        "SELECT COUNT(*) FROM local_workout_outbox WHERE subject=?", (other,)
+    ).fetchone()[0] == 1
+    assert db.execute(
+        "SELECT COUNT(*) FROM local_workout_sessions WHERE subject=?", (other,)
+    ).fetchone()[0] == 1
+    assert not db.execute("PRAGMA foreign_key_check").fetchall()
+    print("PASS: QA reset deletes FK-dependent outbox leaves first; other subject retained")
+
 if __name__ == "__main__":
     test_upgrade()
