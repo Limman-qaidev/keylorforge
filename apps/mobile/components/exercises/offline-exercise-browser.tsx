@@ -115,7 +115,9 @@ function measurement(value: string): string {
 export function OfflineExerciseBrowser() {
   const { session } = useAuth();
   const sessionRef = useRef(session);
-  sessionRef.current = session;
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
   const mounted = useRef(false);
   const [status, setStatus] = useState<CachedCatalogueStatus>({ state: 'unseeded' });
   const [items, setItems] = useState<ExerciseListItem[]>([]);
