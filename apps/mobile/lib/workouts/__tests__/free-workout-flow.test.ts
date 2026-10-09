@@ -70,7 +70,7 @@ function overview(workingSets = 1, existing = false) {
             occurrence_id: OCCURRENCE,
             canonical_exercise_id: EXERCISE,
             actual_order: 0,
-            agenda_item_id: null as const,
+            agenda_item_id: null,
             sets: [
               {
                 set_id: FRESH_IDS[0]!,
