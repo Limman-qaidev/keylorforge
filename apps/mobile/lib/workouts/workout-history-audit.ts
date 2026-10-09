@@ -70,11 +70,13 @@ function validTime(value: unknown): value is string {
   return typeof value === 'string' && Number.isFinite(Date.parse(value));
 }
 
-/**
- * Check the server's DESC keyset order conservatively. Submillisecond
- * precision may be truncated by JS Date.parse; only require UUID order when
- * the timestamps are byte-for-byte equal.
- */
+/** Preserve PostgreSQL microsecond order even though Date.parse truncates it. */
+function subMillisecondPart(timestamp: string): number {
+  const fractional = /\\.(\\d+)(?:Z|[+-]\\d{2}:\\d{2})$/i.exec(timestamp)?.[1] ?? '';
+  return Number((fractional.slice(3, 9) + '000000').slice(0, 6));
+}
+
+/** Verify DESC keyset order without discarding precision in server timestamps. */
 function strictlyAfterCursor(
   entry: RemoteEntry,
   newerFinishedAt: string,
@@ -84,10 +86,11 @@ function strictlyAfterCursor(
   const newer = Date.parse(newerFinishedAt);
   if (current > newer) return false;
   if (current < newer) return true;
-  return (
-    entry.finished_at !== newerFinishedAt ||
-    entry.session_id.toLowerCase() < newerSessionId.toLowerCase()
-  );
+  const currentFraction = subMillisecondPart(entry.finished_at);
+  const newerFraction = subMillisecondPart(newerFinishedAt);
+  if (currentFraction > newerFraction) return false;
+  if (currentFraction < newerFraction) return true;
+  return entry.session_id.toLowerCase() < newerSessionId.toLowerCase();
 }
 
 function verifiedPage(
