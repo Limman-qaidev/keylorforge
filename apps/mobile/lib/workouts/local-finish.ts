@@ -180,6 +180,7 @@ function parsePerformed(json: string): PerformedOccurrenceSnapshot[] {
       !row ||
       !UUID.test(row.occurrence_id ?? '') ||
       !UUID.test(row.canonical_exercise_id ?? '') ||
+      typeof row.actual_order !== 'number' ||
       !Number.isSafeInteger(row.actual_order) ||
       (row.actual_order ?? -1) < 0 ||
       row.agenda_item_id !== null ||
@@ -381,7 +382,14 @@ export async function finishLocalFreeWorkout(
       subject,
       input.sessionId,
     );
-    if (!saved) throw new LocalFinishError('corruptLocalData');
+    const completed = await tx.getFirstAsync<LocalWorkoutSession>(
+      'SELECT * FROM local_workout_sessions WHERE subject = ? AND session_id = ?',
+      subject,
+      input.sessionId,
+    );
+    if (!saved || completed?.lifecycle_state !== 'completed') {
+      throw new LocalFinishError('corruptLocalData');
+    }
     fence(access, subject);
   });
   fence(access, subject);
