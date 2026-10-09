@@ -540,6 +540,23 @@ class WorkoutSet(Base):
             "ix_workout_sets_owner_occurrence_completed",
             "owner_user_id", "occurrence_id", "completed_at",
         ),
+        ForeignKeyConstraint(
+            ["machine_profile_id", "owner_user_id"],
+            ["machine_profiles.id", "machine_profiles.owner_user_id"],
+            name="fk_workout_sets_machine_profile_owner",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["machine_configuration_id", "machine_profile_id", "owner_user_id"],
+            ["machine_configurations.id", "machine_configurations.machine_profile_id",
+             "machine_configurations.owner_user_id"],
+            name="fk_workout_sets_machine_configuration_profile_owner",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "machine_profile_id IS NULL OR machine_snapshot IS NOT NULL",
+            name="machine_snapshot",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
@@ -564,3 +581,110 @@ class WorkoutSet(Base):
     machine_snapshot: Mapped[dict[str, object] | None] = mapped_column(JSONB)
     target_at_confirmation: Mapped[dict[str, object] | None] = mapped_column(JSONB)
     completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class MachineProfile(Base):
+    """User-owned real equipment identity; never a universal resistance scale."""
+
+    __tablename__ = "machine_profiles"
+    __table_args__ = (
+        UniqueConstraint("id", "owner_user_id", name="uq_machine_profiles_id_owner"),
+        Index("ix_machine_profiles_owner", "owner_user_id"),
+        CheckConstraint("length(trim(nickname)) > 0", name="nickname"),
+        CheckConstraint(
+            "native_load_unit IS NULL OR native_load_unit IN ('kg', 'lb')",
+            name="native_unit",
+        ),
+        CheckConstraint(
+            "load_entry_semantics IS NULL OR load_entry_semantics "
+            "IN ('total', 'per_implement', 'machine_display', 'assistance')",
+            name="entry_semantics",
+        ),
+        CheckConstraint(
+            "metadata_source IS NULL OR metadata_source "
+            "IN ('user_entered', 'manufacturer_declared', 'curated')",
+            name="provenance",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    owner_user_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("application_users.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    nickname: Mapped[str] = mapped_column(String(120), nullable=False)
+    catalog_equipment_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("catalog_equipment.id", ondelete="RESTRICT")
+    )
+    manufacturer: Mapped[str | None] = mapped_column(String(120))
+    model_name: Mapped[str | None] = mapped_column(String(120))
+    native_load_unit: Mapped[str | None] = mapped_column(String(2))
+    load_entry_semantics: Mapped[str | None] = mapped_column(String(24))
+    technical_metadata: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    metadata_source: Mapped[str | None] = mapped_column(String(24))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class MachineConfiguration(Base):
+    """Actual known setup of one machine, owned by the same authenticated user."""
+
+    __tablename__ = "machine_configurations"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["machine_profile_id", "owner_user_id"],
+            ["machine_profiles.id", "machine_profiles.owner_user_id"],
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint(
+            "id", "machine_profile_id", "owner_user_id",
+            name="uq_machine_configurations_profile_owner",
+        ),
+        Index(
+            "ix_machine_configurations_owner_profile",
+            "owner_user_id", "machine_profile_id",
+        ),
+        CheckConstraint("length(trim(label)) > 0", name="label"),
+        CheckConstraint(
+            "metadata_source IS NULL OR metadata_source "
+            "IN ('user_entered', 'manufacturer_declared', 'curated')",
+            name="provenance",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    owner_user_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    machine_profile_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    label: Mapped[str] = mapped_column(String(120), nullable=False)
+    material_setup: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    metadata_source: Mapped[str | None] = mapped_column(String(24))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class MachineMutationReceipt(Base):
+    """Cross-session machine create retry receipt scoped by immutable owner."""
+
+    __tablename__ = "machine_mutation_receipts"
+    __table_args__ = (
+        CheckConstraint(
+            "mutation_kind IN ('CREATE_MACHINE_PROFILE', "
+            "'CREATE_MACHINE_CONFIGURATION')",
+            name="kind",
+        ),
+    )
+
+    mutation_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    owner_user_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("application_users.id", ondelete="RESTRICT"),
+        primary_key=True,
+    )
+    entity_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    mutation_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    intent_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    response_payload: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
