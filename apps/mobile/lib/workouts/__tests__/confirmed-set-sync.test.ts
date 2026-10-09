@@ -318,12 +318,16 @@ describe('M3 causally sequenced confirmed-set transport', () => {
     }
   });
   it('never silently discards a machine or target persisted in SQLite history', async () => {
-    for (const field of ['machine_profile_id', 'target_at_confirmation_json'] as const) {
+    for (const field of [
+      'machine_profile_id',
+      'target_at_confirmation_json',
+    ] as const) {
       const db = new FakeDB();
       if (field === 'machine_profile_id') {
         db.sets.get(FIRST)!.machine_profile_id = EXERCISE;
       } else {
-        db.sets.get(FIRST)!.target_at_confirmation_json = '{"target":{"reps":12}}';
+        db.sets.get(FIRST)!.target_at_confirmation_json =
+          '{"target":{"reps":12}}';
       }
       expect(await syncNextPendingConfirmedSet(db, account().access)).toEqual({
         state: 'blocked',
