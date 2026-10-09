@@ -1,5 +1,4 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
-import { Pressable, Text, View } from 'react-native';
 
 import { FreeWorkoutExperience } from '../free-workout-experience';
 import { useAuth } from '@/lib/auth/auth-provider';
@@ -38,30 +37,37 @@ jest.mock('@/lib/workouts/native-workout-platform', () => ({
     timeZone: () => 'Europe/Madrid',
   },
 }));
-jest.mock('@/components/exercises/exercise-catalog-screen', () => ({
-  ExerciseCatalogScreen: ({
-    onChooseExercise,
-  }: {
-    onChooseExercise?: (exercise: unknown) => void;
-  }) => (
-    <View>
-      <Text>CATÁLOGO CANÓNICO</Text>
-      {onChooseExercise ? (
-        <Pressable
-          onPress={() =>
-            onChooseExercise({
-              id: '502c4c87-80a5-4567-9aaf-296e43bfc4d1',
-              name: 'Press de banca',
-              measurement_type: 'reps',
-            })
-          }
-        >
-          <Text>Elegir Press de banca</Text>
-        </Pressable>
-      ) : null}
-    </View>
-  ),
-}));
+jest.mock('@/components/exercises/exercise-catalog-screen', () => {
+  const {
+    Pressable: MockPressable,
+    Text: MockText,
+    View: MockView,
+  } = jest.requireActual('react-native');
+  return {
+    ExerciseCatalogScreen: ({
+      onChooseExercise,
+    }: {
+      onChooseExercise?: (exercise: unknown) => void;
+    }) => (
+      <MockView>
+        <MockText>CATÁLOGO CANÓNICO</MockText>
+        {onChooseExercise ? (
+          <MockPressable
+            onPress={() =>
+              onChooseExercise({
+                id: '502c4c87-80a5-4567-9aaf-296e43bfc4d1',
+                name: 'Press de banca',
+                measurement_type: 'reps',
+              })
+            }
+          >
+            <MockText>Elegir Press de banca</MockText>
+          </MockPressable>
+        ) : null}
+      </MockView>
+    ),
+  };
+});
 
 const OWNER = 'a3dbf764-e0e3-41aa-9895-6e58eadfbb14';
 const SESSION = '1f2d27bc-4904-4f4f-9367-39565d78f211';
