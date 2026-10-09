@@ -75,7 +75,11 @@ function readStored(
   );
 }
 
-function matches(row: CachedRow, owner: string, candidate: RemoteRecoveryCandidate): boolean {
+function matches(
+  row: CachedRow,
+  owner: string,
+  candidate: RemoteRecoveryCandidate,
+): boolean {
   return (
     row.subject === owner &&
     row.session_id === candidate.preview.sessionId &&
@@ -101,7 +105,11 @@ export async function cacheRemoteOnlyWorkout(
   sessionId: string,
 ): Promise<RemoteHistoryCacheResult> {
   const owner = currentOwner(access);
-  const candidate = await fetchRemoteOnlyWorkoutCandidate(db, access, sessionId);
+  const candidate = await fetchRemoteOnlyWorkoutCandidate(
+    db,
+    access,
+    sessionId,
+  );
   fence(access, owner);
   if (candidate.status !== 'candidate') return candidate;
 

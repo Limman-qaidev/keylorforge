@@ -87,7 +87,18 @@ class FakeDb implements SqliteWorkoutPort {
     }
     if (this.failWrite) throw new Error('SQLite busy');
     this.writes += 1;
-    const [owner, id, snapshot, finish, finished, observed, occurrenceCount, totalSets, workingSets, detail] = params;
+    const [
+      owner,
+      id,
+      snapshot,
+      finish,
+      finished,
+      observed,
+      occurrenceCount,
+      totalSets,
+      workingSets,
+      detail,
+    ] = params;
     this.rows.set(String(owner) + '/' + String(id), {
       subject: String(owner),
       session_id: String(id),
@@ -161,13 +172,17 @@ describe('remote-only workout immutable local read model', () => {
   it('never caches over local active, completed or cancelled session IDs or pending mutations', async () => {
     const db = new FakeDb();
     db.localSession = true;
-    expect(await cacheRemoteOnlyWorkout(db, identity().access, SESSION)).toEqual({
+    expect(
+      await cacheRemoteOnlyWorkout(db, identity().access, SESSION),
+    ).toEqual({
       status: 'paused',
       reason: 'localCollision',
     });
     db.localSession = false;
     db.existingOutbox = true;
-    expect(await cacheRemoteOnlyWorkout(db, identity().access, SESSION)).toEqual({
+    expect(
+      await cacheRemoteOnlyWorkout(db, identity().access, SESSION),
+    ).toEqual({
       status: 'paused',
       reason: 'localCollision',
     });
@@ -182,7 +197,9 @@ describe('remote-only workout immutable local read model', () => {
       ...candidate(),
       detailJson: '{"different_source":true}',
     });
-    expect(await cacheRemoteOnlyWorkout(db, identity().access, SESSION)).toEqual({
+    expect(
+      await cacheRemoteOnlyWorkout(db, identity().access, SESSION),
+    ).toEqual({
       status: 'paused',
       reason: 'remoteConflict',
     });
@@ -195,7 +212,9 @@ describe('remote-only workout immutable local read model', () => {
       status: 'paused',
       reason: 'incompleteAudit',
     });
-    expect(await cacheRemoteOnlyWorkout(db, identity().access, SESSION)).toEqual({
+    expect(
+      await cacheRemoteOnlyWorkout(db, identity().access, SESSION),
+    ).toEqual({
       status: 'paused',
       reason: 'incompleteAudit',
     });
@@ -205,12 +224,16 @@ describe('remote-only workout immutable local read model', () => {
   it('rolls back after a failed SQLite write or account switch mid-transaction', async () => {
     const db = new FakeDb();
     db.failWrite = true;
-    await expect(cacheRemoteOnlyWorkout(db, identity().access, SESSION)).rejects.toThrow('SQLite busy');
+    await expect(
+      cacheRemoteOnlyWorkout(db, identity().access, SESSION),
+    ).rejects.toThrow('SQLite busy');
     expect(db.rows.size).toBe(0);
     db.failWrite = false;
     const owner = identity();
     db.onWrite = () => owner.switchTo(OTHER);
-    await expect(cacheRemoteOnlyWorkout(db, owner.access, SESSION)).rejects.toThrow('notAuthenticated');
+    await expect(
+      cacheRemoteOnlyWorkout(db, owner.access, SESSION),
+    ).rejects.toThrow('notAuthenticated');
     expect(db.rows.size).toBe(0);
     expect(db.writes).toBe(0);
   });
@@ -220,8 +243,12 @@ describe('remote-only workout immutable local read model', () => {
     const owner = identity();
     await cacheRemoteOnlyWorkout(db, owner.access, SESSION);
     owner.switchTo(OTHER);
-    expect(await readCachedRemoteOnlyWorkout(db, owner.access, SESSION)).toBeNull();
+    expect(
+      await readCachedRemoteOnlyWorkout(db, owner.access, SESSION),
+    ).toBeNull();
     owner.switchTo(null);
-    await expect(readCachedRemoteOnlyWorkout(db, owner.access, SESSION)).rejects.toThrow('notAuthenticated');
+    await expect(
+      readCachedRemoteOnlyWorkout(db, owner.access, SESSION),
+    ).rejects.toThrow('notAuthenticated');
   });
 });
