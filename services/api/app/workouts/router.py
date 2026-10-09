@@ -14,6 +14,11 @@ from app.auth.dependencies import (
     require_active_application_user,
 )
 from app.auth.jwt_verifier import AuthenticatedPrincipal
+from app.workouts.finish_schemas import (
+    FinishFreeWorkoutRequest,
+    FinishFreeWorkoutResponse,
+)
+from app.workouts.finish_service import finish_free_workout
 from app.workouts.schemas import StartFreeWorkoutRequest, WorkoutSessionResponse
 from app.workouts.service import get_active_free_workout, start_free_workout
 from app.workouts.set_schemas import (
@@ -81,3 +86,19 @@ def confirm_additional_performed_set(
     if request.session_id != session_id:
         raise HTTPException(status_code=422, detail="session ID mismatch")
     return confirm_performed_set(session=session, principal=principal, request=request)
+
+
+@router.post(
+    "/{session_id}/finish",
+    response_model=FinishFreeWorkoutResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def finish_session(
+    session_id: UUID,
+    request: FinishFreeWorkoutRequest,
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_authenticated_principal)],
+    session: Annotated[Session, Depends(get_database_session)],
+) -> FinishFreeWorkoutResponse:
+    if request.session_id != session_id:
+        raise HTTPException(status_code=422, detail="session ID mismatch")
+    return finish_free_workout(session=session, principal=principal, request=request)
