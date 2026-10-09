@@ -25,6 +25,10 @@ from app.workouts.finish_schemas import (
     FinishFreeWorkoutResponse,
 )
 from app.workouts.finish_service import finish_free_workout
+from app.workouts.history_detail_service import (
+    CompletedWorkoutDetail,
+    get_completed_workout_detail,
+)
 from app.workouts.history_service import (
     CompletedWorkoutHistoryPage,
     list_authoritative_completed_workouts,
@@ -145,3 +149,17 @@ def cancel_session(
     if request.session_id != session_id:
         raise HTTPException(status_code=422, detail="session ID mismatch")
     return cancel_free_workout(session=session, principal=principal, request=request)
+
+
+@router.get(
+    "/{session_id}/history-detail",
+    response_model=CompletedWorkoutDetail,
+)
+def completed_workout_detail(
+    session_id: UUID,
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_authenticated_principal)],
+    session: Annotated[Session, Depends(get_database_session)],
+) -> CompletedWorkoutDetail:
+    return get_completed_workout_detail(
+        session=session, principal=principal, session_id=session_id
+    )
