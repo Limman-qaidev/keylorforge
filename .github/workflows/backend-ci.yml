@@ -52,10 +52,6 @@ jobs:
       - name: Check formatting
         run: ruff format --check .
 
-      - name: Diagnose remote history detail format (temporary)
-        if: failure()
-        run: ruff format --diff app/workouts/history_detail_service.py app/workouts/router.py tests/test_workout_finish_postgres.py
-
       - name: Lint
         run: ruff check .
 
