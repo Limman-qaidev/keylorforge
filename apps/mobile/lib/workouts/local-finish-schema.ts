@@ -58,10 +58,12 @@ CREATE TABLE local_workout_final_snapshots (
   subject TEXT NOT NULL,
   session_id TEXT NOT NULL,
   finish_mutation_id TEXT NOT NULL,
+  completion_snapshot_id TEXT NOT NULL,
   finished_at_utc TEXT NOT NULL,
   final_agenda_json TEXT NOT NULL,
   PRIMARY KEY (subject, session_id),
   UNIQUE (subject, finish_mutation_id),
+  UNIQUE (subject, completion_snapshot_id),
   FOREIGN KEY (subject, session_id)
     REFERENCES local_workout_sessions (subject, session_id)
     ON DELETE RESTRICT,
