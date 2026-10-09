@@ -243,7 +243,9 @@ export async function fetchRemoteOnlyWorkoutCandidate(
   db: SqliteWorkoutPort,
   access: StartSyncAccess,
   sessionId: string,
-): Promise<RemoteRecoveryCandidate | Extract<RemoteRecoveryCheck, { status: 'paused' }>> {
+): Promise<
+  RemoteRecoveryCandidate | Extract<RemoteRecoveryCheck, { status: 'paused' }>
+> {
   if (!id(sessionId)) return { status: 'paused', reason: 'invalidResponse' };
   const subject = ownerOf(access);
   const canonicalId = sessionId.toLowerCase();
