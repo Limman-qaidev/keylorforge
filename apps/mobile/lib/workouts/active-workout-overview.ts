@@ -85,7 +85,9 @@ function requiredId(value: unknown): value is string {
 }
 
 function validSet(value: unknown): value is ActiveSetSummary {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
   const s = value as Record<string, unknown>;
   if (
     !requiredId(s.set_id) ||
@@ -93,32 +95,46 @@ function validSet(value: unknown): value is ActiveSetSummary {
     !['reps', 'time', 'distance'].includes(String(s.measurement_type)) ||
     typeof s.completed_at_utc !== 'string' ||
     !Number.isFinite(Date.parse(s.completed_at_utc))
-  ) return false;
+  ) {
+    return false;
+  }
 
   const reps = s.measurement_type === 'reps';
   const time = s.measurement_type === 'time';
   const distance = s.measurement_type === 'distance';
   if (
-    (reps && (typeof s.reps !== 'number' || !Number.isSafeInteger(s.reps) || s.reps <= 0)) ||
-    (time && (typeof s.duration_seconds !== 'number' ||
-      !Number.isSafeInteger(s.duration_seconds) || s.duration_seconds <= 0)) ||
-    (distance && (typeof s.distance_decimal !== 'string' ||
-      !['m', 'km', 'mi'].includes(String(s.distance_unit)))) ||
+    (reps &&
+      (typeof s.reps !== 'number' ||
+        !Number.isSafeInteger(s.reps) ||
+        s.reps <= 0)) ||
+    (time &&
+      (typeof s.duration_seconds !== 'number' ||
+        !Number.isSafeInteger(s.duration_seconds) ||
+        s.duration_seconds <= 0)) ||
+    (distance &&
+      (typeof s.distance_decimal !== 'string' ||
+        !['m', 'km', 'mi'].includes(String(s.distance_unit)))) ||
     (!reps && s.reps !== null) ||
     (!time && s.duration_seconds !== null) ||
     (!distance && (s.distance_decimal !== null || s.distance_unit !== null))
-  ) return false;
+  ) {
+    return false;
+  }
   if (
     (s.load_decimal === null) !== (s.load_unit === null) ||
     (s.load_decimal !== null &&
       (typeof s.load_decimal !== 'string' ||
         !['kg', 'lb'].includes(String(s.load_unit))))
-  ) return false;
+  ) {
+    return false;
+  }
   return true;
 }
 
 function decode(value: unknown): ActiveExerciseSummary[] {
-  if (!Array.isArray(value)) throw new LocalWorkoutError('corruptLocalData');
+  if (!Array.isArray(value)) {
+    throw new LocalWorkoutError('corruptLocalData');
+  }
   const occurrences = new Set<string>();
   const setIds = new Set<string>();
   const orders = new Set<number>();
@@ -140,7 +156,9 @@ function decode(value: unknown): ActiveExerciseSummary[] {
       occurrences.has(entry.occurrence_id) ||
       orders.has(entry.actual_order as number) ||
       (entry.actual_order as number) <= lastOrder
-    ) throw new LocalWorkoutError('corruptLocalData');
+    ) {
+      throw new LocalWorkoutError('corruptLocalData');
+    }
     lastOrder = entry.actual_order as number;
     occurrences.add(entry.occurrence_id);
     orders.add(lastOrder);
@@ -178,7 +196,9 @@ export async function readActiveFreeWorkoutOverview(
   }
   let raw: unknown;
   try {
-    if (typeof data?.items_json !== 'string') throw new Error('Missing SQLite JSON');
+    if (typeof data?.items_json !== 'string') {
+      throw new Error('Missing SQLite JSON');
+    }
     raw = JSON.parse(data.items_json);
   } catch {
     throw new LocalWorkoutError('corruptLocalData');
