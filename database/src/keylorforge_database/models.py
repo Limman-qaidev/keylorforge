@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID, uuid4
 
@@ -11,6 +12,7 @@ from sqlalchemy import (
     DateTime,
     Date,
     Integer,
+    Numeric,
     ForeignKeyConstraint,
     text,
     Enum,
@@ -450,3 +452,121 @@ class WorkoutMutationReceipt(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class WorkoutOccurrence(Base):
+    """Actual performed exercise, created only together with its first set."""
+
+    __tablename__ = "workout_occurrences"
+    __table_args__ = (
+        CheckConstraint("actual_order >= 0", name="actual_order"),
+        ForeignKeyConstraint(
+            ["session_id", "owner_user_id"],
+            ["workout_sessions.id", "workout_sessions.owner_user_id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["first_set_id", "id", "owner_user_id"],
+            ["workout_sets.id", "workout_sets.occurrence_id",
+             "workout_sets.owner_user_id"],
+            name="fk_workout_occurrences_first_set",
+            ondelete="NO ACTION",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
+        UniqueConstraint(
+            "id", "session_id", "owner_user_id",
+            name="uq_workout_occurrences_identity_session_owner",
+        ),
+        UniqueConstraint(
+            "owner_user_id", "first_set_id",
+            name="uq_workout_occurrences_owner_first_set",
+        ),
+        Index("ix_workout_occurrences_owner_session", "owner_user_id", "session_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    owner_user_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("application_users.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    session_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    canonical_exercise_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("catalog_exercises.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    agenda_item_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True))
+    actual_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    first_set_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+
+
+class WorkoutSet(Base):
+    """Confirmed native measurement and immutable machine/target context."""
+
+    __tablename__ = "workout_sets"
+    __table_args__ = (
+        CheckConstraint("set_role IN ('WARMUP', 'WORKING')", name="role"),
+        CheckConstraint(
+            "(measurement_type = 'reps' AND reps > 0 AND duration_seconds IS NULL "
+            "AND distance_value IS NULL AND distance_unit IS NULL) OR "
+            "(measurement_type = 'time' AND reps IS NULL AND duration_seconds > 0 "
+            "AND distance_value IS NULL AND distance_unit IS NULL) OR "
+            "(measurement_type = 'distance' AND reps IS NULL AND duration_seconds IS NULL "
+            "AND distance_value > 0 AND distance_unit IN ('m', 'km', 'mi'))",
+            name="measurement",
+        ),
+        CheckConstraint(
+            "(load_value IS NULL AND load_unit IS NULL AND load_entry_semantics IS NULL) "
+            "OR (load_value >= 0 AND load_unit IN ('kg', 'lb') AND "
+            "load_entry_semantics IN ('total', 'per_implement', 'machine_display', 'assistance'))",
+            name="load",
+        ),
+        CheckConstraint(
+            "(machine_profile_id IS NOT NULL OR machine_configuration_id IS NULL)",
+            name="configuration_needs_profile",
+        ),
+        ForeignKeyConstraint(
+            ["occurrence_id", "session_id", "owner_user_id"],
+            ["workout_occurrences.id", "workout_occurrences.session_id",
+             "workout_occurrences.owner_user_id"],
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint(
+            "owner_user_id", "mutation_id", name="uq_workout_sets_owner_mutation"
+        ),
+        UniqueConstraint(
+            "id", "occurrence_id", "owner_user_id",
+            name="uq_workout_sets_first_set_composite",
+        ),
+        Index(
+            "ix_workout_sets_owner_occurrence_completed",
+            "owner_user_id", "occurrence_id", "completed_at",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    owner_user_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("application_users.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    session_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    occurrence_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    mutation_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    set_role: Mapped[str] = mapped_column(String(16), nullable=False)
+    measurement_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    reps: Mapped[int | None] = mapped_column(Integer)
+    duration_seconds: Mapped[int | None] = mapped_column(Integer)
+    distance_value: Mapped[Decimal | None] = mapped_column(Numeric(12, 3))
+    distance_unit: Mapped[str | None] = mapped_column(String(4))
+    load_value: Mapped[Decimal | None] = mapped_column(Numeric(12, 3))
+    load_unit: Mapped[str | None] = mapped_column(String(2))
+    load_entry_semantics: Mapped[str | None] = mapped_column(String(24))
+    # User-owned machine profiles are a later causal sync dependency.
+    # Until the authoritative profile table/API exists, server requests
+    # with machine_profile_id must fail closed rather than imply its sync.
+    machine_profile_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True))
+    machine_configuration_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True))
+    machine_snapshot: Mapped[dict[str, object] | None] = mapped_column(JSONB)
+    target_at_confirmation: Mapped[dict[str, object] | None] = mapped_column(JSONB)
+    completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
