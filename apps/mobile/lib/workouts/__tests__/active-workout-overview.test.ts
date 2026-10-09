@@ -30,8 +30,9 @@ const exercise: ActiveExerciseSummary = {
   canonical_exercise_id: EXERCISE,
   actual_order: 0,
   agenda_item_id: null,
-  sets: [{
-    set_id: SET_ID,
+  sets: [
+    {
+      set_id: SET_ID,
     set_role: 'WORKING',
     measurement_type: 'reps',
     reps: 8,
@@ -40,8 +41,9 @@ const exercise: ActiveExerciseSummary = {
     distance_unit: null,
     load_decimal: '25',
     load_unit: 'kg',
-    completed_at_utc: '2026-10-09T14:30:00.000Z',
-  }],
+      completed_at_utc: '2026-10-09T14:30:00.000Z',
+    },
+  ],
 };
 
 class Reader implements SqliteWorkoutPort {
@@ -70,7 +72,9 @@ class Reader implements SqliteWorkoutPort {
   ): Promise<T | null> {
     this.calls.push(sql);
     if (sql.includes('FROM local_workout_sessions')) {
-      return (this.active?.subject === params[0] ? this.active : null) as T | null;
+      return (this.active?.subject === params[0]
+        ? this.active
+        : null) as T | null;
     }
     if (sql === ACTIVE_WORKOUT_OVERVIEW_SQL) {
       this.duringOverview?.();
