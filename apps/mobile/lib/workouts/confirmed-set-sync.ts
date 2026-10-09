@@ -168,7 +168,8 @@ function readCommand(
         performed.machine_snapshot_json !== null)) ||
     (value.target_at_confirmation === null &&
       performed.target_at_confirmation_json !== null)
-  ) return null;
+  )
+    return null;
   // No local machine-creation receipts or applied-agenda authority exist yet.
   // Keep them pending for later causal slices rather than generating remote 404
   // or, worse, a success whose provenance is unsourced.
