@@ -32,6 +32,11 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
+      # TEMPORARY capture of exact single-test formatter output.
+      - name: Inspect v3 native adapter test formatting
+        run: |
+          printf 'M3_V3_ADAPTER_TEST:%s\\n' "$(npx prettier lib/workouts/__tests__/expo-sqlite-adapter.test.ts | base64 -w0)"
+
       - name: Check formatting
         run: npm run format:check
 
