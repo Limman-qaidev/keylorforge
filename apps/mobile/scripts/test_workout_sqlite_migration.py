@@ -406,6 +406,28 @@ def test_finish_v4_upgrade():
         "SELECT profile_id,nickname FROM local_machine_profiles"
     ).fetchall() == before_machine
 
+    # Verify the exact production query used to restore an active workout.
+    overview_src = (root / "active-workout-overview.ts").read_text(encoding="utf-8")
+    overview_items = overview_src.split(
+        "export const ACTIVE_WORKOUT_OVERVIEW_SQL = [", 1
+    )[1].split("].join(' ');", 1)[0]
+    overview_sql = " ".join(ast.literal_eval("[" + overview_items + "]"))
+    active_items = json.loads(
+        db.execute(overview_sql, (subject, session)).fetchone()[0]
+    )
+    assert len(active_items) == 1
+    assert active_items[0]["canonical_exercise_id"] == "exercise-1"
+    assert active_items[0]["set" + "s"][0]["set_role"] == "WORKING"
+    assert active_items[0]["sets"][0]["reps"] == 8
+    assert active_items[0]["sets"][0]["load_unit"] == "lb"
+    assert active_items[0]["sets"][0]["load_decimal"] == "27.5"
+    assert json.loads(
+        db.execute(
+            overview_sql, ("e426dd13-344a-4b69-8920-cb014715c6c1", session)
+        ).fetchone()[0]
+    ) == []
+    print("PASS: native SQLite active-session query restores real sets and owner")
+
     # New FINISH intent links to the final performed mutation, but the
     # migration itself does not end the previously active workout.
     assert db.execute(
