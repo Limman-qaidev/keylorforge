@@ -105,7 +105,7 @@ export function buildSetRequest(
   if (!['reps', 'time', 'distance'].includes(measurementType)) {
     throw new Error('El ejercicio no tiene un tipo de medición compatible.');
   }
-  const amount = validQuantity(rawQuantity, measurementType);
+  const amount = validQuantity(rawQuantity, measurementType as Measurement);
   const measurement: RecordSetRequest['measurement'] =
     measurementType === 'reps'
       ? { measurementType: 'reps', reps: amount }
