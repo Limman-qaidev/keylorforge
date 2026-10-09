@@ -112,7 +112,9 @@ def confirm_performed_set(
                 profile.native_load_unit is not None
                 and request.load.unit != profile.native_load_unit
             ):
-                raise HTTPException(422, detail="load unit differs from machine native unit")
+                raise HTTPException(
+                    422, detail="load unit differs from machine native unit"
+                )
             if (
                 profile.load_entry_semantics is not None
                 and request.load.entrySemantics != profile.load_entry_semantics
