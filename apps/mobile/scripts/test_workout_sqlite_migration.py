@@ -1,4 +1,6 @@
 """SQLite migration smoke test using only Python standard library."""
+import ast
+import json
 import sqlite3
 from pathlib import Path
 
@@ -411,6 +413,27 @@ def test_finish_v4_upgrade():
         (subject,),
     ).fetchone() == ("active",)
     assert not db.execute("SELECT * FROM local_workout_final_snapshots").fetchall()
+    # Execute the EXACT production TypeScript JSON1 query against real SQLite,
+    # not a test-only approximation or the fake Jest database.
+    source = (root / "local-finish.ts").read_text(encoding="utf-8")
+    js_array = source.split("const PERFORMED_SQL = [", 1)[1].split(
+        "].join(' ');", 1
+    )[0]
+    performed_sql = " ".join(ast.literal_eval("[" + js_array + "]"))
+    result = db.execute(performed_sql, (subject, session)).fetchone()
+    performed = json.loads(result[0])
+    assert performed == [{
+        "occurrence_id": "occ-1",
+        "canonical_exercise_id": "exercise-1",
+        "actual_order": 0,
+        "agenda_item_id": None,
+        "set_ids": ["set-1"],
+    }]
+    assert json.loads(db.execute(
+        performed_sql, ("e426dd13-344a-4b69-8920-cb014715c6c1", session)
+    ).fetchone()[0]) == []
+    print("PASS: production FINISH performed SQL reads exact owner-scoped history")
+
     db.execute(
         "INSERT INTO local_workout_outbox "
         "(subject,mutation_id,session_id,mutation_kind,protocol_version,"
