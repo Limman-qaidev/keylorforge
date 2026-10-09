@@ -726,28 +726,25 @@ def test_finish_v4_upgrade():
     assert any(row["session_id"] == remote_id
                and row["origin"] == "remote_complete"
                and row["sync_state"] is None for row in remote_page)
-    existing_local = db.execute(
-        "SELECT session_id FROM local_workout_sessions "
-        "WHERE subject=? LIMIT 1", (other,)
-    ).fetchone()[0]
+    existing_local = cancelled
     db.execute(
         "INSERT INTO local_remote_workout_history "
         "(subject,session_id,completion_snapshot_id,finish_mutation_id,"
         "finished_at_utc,observed_at_utc,occurrence_count,total_sets,"
         "working_sets,detail_json) VALUES (?,?,?,?,?,?,?,?,?,?)",
-        (other, existing_local, "3f0f41e3-bfa4-4598-a680-389617f6a0ff",
+        (subject, existing_local, "3f0f41e3-bfa4-4598-a680-389617f6a0ff",
          "fa6ed1b5-1f03-4aa0-b810-68a4fb6de001",
          "2026-10-10T15:00:00Z", "2026-10-10T15:10:00Z",
          1, 1, 1, '{"confirmed":true}'),
     )
     db.commit()
     remote_page = json.loads(db.execute(
-        query, (other, other, 50, 0)
+        query, (subject, subject, 50, 0)
     ).fetchone()[0])
     assert all(row["session_id"] != existing_local for row in remote_page)
     assert db.execute(
         "SELECT COUNT(*) FROM local_remote_workout_history "
-        "WHERE subject=? AND session_id=?", (other, existing_local)
+        "WHERE subject=? AND session_id=?", (subject, existing_local)
     ).fetchone()[0] == 1
     assert db.execute(
         "SELECT * FROM local_workout_outbox ORDER BY subject, mutation_id"
