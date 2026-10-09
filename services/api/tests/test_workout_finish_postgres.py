@@ -263,22 +263,19 @@ def test_postgres_finish_is_atomic_idempotent_and_owner_scoped() -> None:
             assert first_history.status_code == 200, first_history.text
             first_entry = first_history.json()["entries"][0]
             assert first_entry["session_id"] == workout_id
-            assert first_entry["completion_snapshot_id"] == command[
-                "completion_snapshot"
-            ]["completion_snapshot_id"]
+            expected_snapshot_id = command["completion_snapshot"]["completion_snapshot_id"]
+            assert first_entry["completion_snapshot_id"] == expected_snapshot_id
             assert first_entry["finish_mutation_id"] == command["mutation_id"]
             assert first_entry["total_sets"] == 2
             assert first_entry["working_sets"] == 1
-            assert set(
-                first_entry["completion_snapshot"]["unplanned_performed_occurrences"][0][
-                    "set_ids"
-                ]
-            ) == {warmup_id, working_id}
+            performed = first_entry["completion_snapshot"]["unplanned_performed_occurrences"]
+            assert set(performed[0]["set_ids"]) == {warmup_id, working_id}
             assert "owner_user_id" not in first_entry
             other_history = client.get("/workout-sessions/history", headers=b)
             assert other_history.status_code == 200
             assert other_history.json()["entries"] == []
-            assert client.get("/workout-sessions/history?limit=0", headers=a).status_code == 422
+            invalid_limit = client.get("/workout-sessions/history?limit=0", headers=a)
+            assert invalid_limit.status_code == 422
             assert client.get(
                 "/workout-sessions/history?before_session_id=" + workout_id, headers=a
             ).status_code == 422
@@ -354,9 +351,8 @@ def test_postgres_finish_is_atomic_idempotent_and_owner_scoped() -> None:
                 page_data["entries"][0]["session_id"],
                 second_page.json()["entries"][0]["session_id"],
             } == {workout_id, second_workout_id}
-            assert client.get(
-                "/workout-sessions/history", headers=b
-            ).json()["entries"] == []
+            other_after_second = client.get("/workout-sessions/history", headers=b)
+            assert other_after_second.json()["entries"] == []
 
             # Deletion executor must delete final snapshots before their session.
             purge_account_workout_data(db, rows[0].owner_user_id)
