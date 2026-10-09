@@ -486,10 +486,7 @@ class WorkoutOccurrence(Base):
     )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
-    owner_user_id: Mapped[UUID] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("application_users.id", ondelete="RESTRICT"),
-        nullable=False,
-    )
+    owner_user_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     session_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     canonical_exercise_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),
@@ -546,10 +543,7 @@ class WorkoutSet(Base):
     )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
-    owner_user_id: Mapped[UUID] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("application_users.id", ondelete="RESTRICT"),
-        nullable=False,
-    )
+    owner_user_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     session_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     occurrence_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     mutation_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
