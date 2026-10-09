@@ -47,7 +47,9 @@ describe('M3 Expo SQLite native database binding', () => {
     expect(
       queries.some((sql) => sql.includes('CREATE TABLE local_machine_outbox')),
     ).toBe(true);
-    expect(queries[queries.length - 1]).toBe('PRAGMA user_version = 3; COMMIT;');
+    expect(queries[queries.length - 1]).toBe(
+      'PRAGMA user_version = 3; COMMIT;',
+    );
     expect(database.closeAsync).not.toHaveBeenCalled();
   });
 });
