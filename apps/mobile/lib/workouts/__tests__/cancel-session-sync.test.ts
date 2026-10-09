@@ -109,7 +109,10 @@ class Db implements SqliteWorkoutPort {
           r.mutation_kind === 'CANCEL_SESSION' &&
           r.delivery_state === 'pending',
       );
-    } else if (sql.includes('COUNT(*)') && sql.includes('local_workout_outbox')) {
+    } else if (
+      sql.includes('COUNT(*)') &&
+      sql.includes('local_workout_outbox')
+    ) {
       value = {
         count: this.rows.filter(
           (r) =>
@@ -120,9 +123,12 @@ class Db implements SqliteWorkoutPort {
         ).length,
       };
     } else if (sql.includes('FROM local_workout_outbox')) {
-      value = this.rows.find((r) => r.subject === subject && r.mutation_id === selected);
+      value = this.rows.find(
+        (r) => r.subject === subject && r.mutation_id === selected,
+      );
     } else if (sql.includes('FROM local_workout_cancellations')) {
-      value = subject === SUBJECT && selected === SESSION ? this.cancellation : null;
+      value =
+        subject === SUBJECT && selected === SESSION ? this.cancellation : null;
     } else if (sql.includes('FROM local_workout_sessions')) {
       value = subject === SUBJECT && selected === SESSION ? this.session : null;
     } else if (sql.includes('COUNT(*)') && sql.includes('local_workout_sets')) {
@@ -141,7 +147,9 @@ class Db implements SqliteWorkoutPort {
     }
     if (this.failWrite) throw new Error('SQLite busy');
     const [state, subject, mutation] = params;
-    const row = this.rows.find((r) => r.subject === subject && r.mutation_id === mutation);
+    const row = this.rows.find(
+      (r) => r.subject === subject && r.mutation_id === mutation,
+    );
     if (row && row.delivery_state === 'pending') {
       row.delivery_state = String(state);
     }
@@ -226,9 +234,9 @@ describe('owner-fenced causal CANCEL_SESSION sender', () => {
       state: 'retryable',
       reason: 'network',
     });
-    jest.mocked(requestApi).mockResolvedValueOnce(
-      receipt({ confirmed_set_count: 0 }),
-    );
+    jest
+      .mocked(requestApi)
+      .mockResolvedValueOnce(receipt({ confirmed_set_count: 0 }));
     expect(await syncNextPendingCancel(db, access().auth)).toEqual({
       state: 'retryable',
       reason: 'invalidResponse',
