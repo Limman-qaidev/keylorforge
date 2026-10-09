@@ -59,15 +59,22 @@ class FakeMachines implements SqliteWorkoutPort {
     if (sql.includes('FROM local_machine_outbox')) {
       result = this.outbox.get(String(params[0]) + ':' + String(params[1]));
     } else if (sql.includes('FROM local_machine_profiles')) {
-      result = params.length === 2
-        ? this.profiles.get(String(params[1]))
-        : this.profiles.get(String(params[0]));
-      if (params.length === 2 && (result as LocalMachineProfile | undefined)?.subject !== params[0]) {
+      result =
+        params.length === 2
+          ? this.profiles.get(String(params[1]))
+          : this.profiles.get(String(params[0]));
+      if (
+        params.length === 2 &&
+        (result as LocalMachineProfile | undefined)?.subject !== params[0]
+      ) {
         result = null;
       }
     } else if (sql.includes('FROM local_machine_configurations')) {
       result = this.configurations.get(String(params[params.length - 1]));
-      if (params.length === 2 && (result as LocalMachineConfiguration | undefined)?.subject !== params[0]) {
+      if (
+        params.length === 2 &&
+        (result as LocalMachineConfiguration | undefined)?.subject !== params[0]
+      ) {
         result = null;
       }
     } else {
@@ -80,12 +87,21 @@ class FakeMachines implements SqliteWorkoutPort {
     ...params: (string | number | null)[]
   ): Promise<unknown> {
     if (sql.includes('INSERT INTO local_machine_outbox')) {
-      const [subject, mutation, profileId, entityId, payload, createdAt, parent] = params;
+      const [
+        subject,
+        mutation,
+        profileId,
+        entityId,
+        payload,
+        createdAt,
+        parent,
+      ] = params;
       this.outbox.set(String(subject) + ':' + String(mutation), {
         subject: String(subject),
         mutation_id: String(mutation),
         mutation_kind: sql.includes('CREATE_MACHINE_CONFIGURATION')
-          ? 'CREATE_MACHINE_CONFIGURATION' : 'CREATE_MACHINE_PROFILE',
+          ? 'CREATE_MACHINE_CONFIGURATION'
+          : 'CREATE_MACHINE_PROFILE',
         profile_id: String(profileId),
         entity_id: String(entityId),
         payload_json: String(payload),
@@ -96,8 +112,19 @@ class FakeMachines implements SqliteWorkoutPort {
       void createdAt;
     } else if (sql.includes('INSERT INTO local_machine_profiles')) {
       if (this.failProfile) throw new Error('SQLite disk full');
-      const [subject, id, nickname, catalog, manufacturer, model, unit,
-        semantics, metadata, created, mutation] = params;
+      const [
+        subject,
+        id,
+        nickname,
+        catalog,
+        manufacturer,
+        model,
+        unit,
+        semantics,
+        metadata,
+        created,
+        mutation,
+      ] = params;
       this.profiles.set(String(id), {
         subject: String(subject),
         profile_id: String(id),
@@ -106,7 +133,8 @@ class FakeMachines implements SqliteWorkoutPort {
         manufacturer: manufacturer as string | null,
         model_name: model as string | null,
         native_load_unit: unit as 'kg' | 'lb' | null,
-        load_entry_semantics: semantics as LocalMachineProfile['load_entry_semantics'],
+        load_entry_semantics:
+          semantics as LocalMachineProfile['load_entry_semantics'],
         technical_metadata_json: String(metadata),
         metadata_source: 'user_entered',
         created_at_utc: String(created),
@@ -156,7 +184,9 @@ function auth() {
   };
   return {
     access,
-    switchTo: (value: string | null) => { subject = value; },
+    switchTo: (value: string | null) => {
+      subject = value;
+    },
   };
 }
 
@@ -167,7 +197,9 @@ describe('M3 offline Machine Profile and Configuration atomic CREATE', () => {
     expect(row.nickname).toBe('Polea A');
     expect(row.native_load_unit).toBe('kg');
     expect(row.load_entry_semantics).toBe('machine_display');
-    expect(db.outbox.get(A + ':' + MUTATION)?.mutation_kind).toBe('CREATE_MACHINE_PROFILE');
+    expect(db.outbox.get(A + ':' + MUTATION)?.mutation_kind).toBe(
+      'CREATE_MACHINE_PROFILE',
+    );
     expect(db.outbox.get(A + ':' + MUTATION)?.delivery_state).toBe('pending');
     const body = JSON.parse(db.outbox.get(A + ':' + MUTATION)!.payload_json);
     expect(body.technical_metadata.geometry.lever).toBeNull();
@@ -177,33 +209,51 @@ describe('M3 offline Machine Profile and Configuration atomic CREATE', () => {
   it('retries identical semantic payload with reordered nested keys without duplicates', async () => {
     const db = new FakeMachines();
     await createLocalMachineProfile(db, auth().access, profile);
-    expect(await createLocalMachineProfile(db, auth().access, {
-      ...profile,
-      technicalMetadata: { geometry: { lever: null }, source: 'user' },
-    })).toMatchObject({ profile_id: PROFILE, create_mutation_id: MUTATION });
+    expect(
+      await createLocalMachineProfile(db, auth().access, {
+        ...profile,
+        technicalMetadata: { geometry: { lever: null }, source: 'user' },
+      }),
+    ).toMatchObject({ profile_id: PROFILE, create_mutation_id: MUTATION });
     expect(db.outbox.size).toBe(1);
     expect(db.profiles.size).toBe(1);
-    await expect(createLocalMachineProfile(db, auth().access, {
-      ...profile, nickname: 'Polea B',
-    })).rejects.toMatchObject({ code: 'mutationConflict' });
+    await expect(
+      createLocalMachineProfile(db, auth().access, {
+        ...profile,
+        nickname: 'Polea B',
+      }),
+    ).rejects.toMatchObject({ code: 'mutationConflict' });
     expect(db.profiles.get(PROFILE)?.nickname).toBe('Polea A');
   });
 
   it('requires the same-subject parent create mutation for configuration', async () => {
     const db = new FakeMachines();
-    await expect(createLocalMachineConfiguration(db, auth().access, config))
-      .rejects.toMatchObject({ code: 'profileMissing' });
+    await expect(
+      createLocalMachineConfiguration(db, auth().access, config),
+    ).rejects.toMatchObject({ code: 'profileMissing' });
     await createLocalMachineProfile(db, auth().access, profile);
-    const result = await createLocalMachineConfiguration(db, auth().access, config);
+    const result = await createLocalMachineConfiguration(
+      db,
+      auth().access,
+      config,
+    );
     expect(result.profile_id).toBe(PROFILE);
-    expect(db.outbox.get(A + ':' + CONFIG_MUTATION)?.depends_on_mutation_id).toBe(MUTATION);
-    expect(db.outbox.get(A + ':' + CONFIG_MUTATION)?.delivery_state).toBe('pending');
-    expect(await createLocalMachineConfiguration(db, auth().access, config))
-      .toMatchObject({ configuration_id: CONFIG });
+    expect(
+      db.outbox.get(A + ':' + CONFIG_MUTATION)?.depends_on_mutation_id,
+    ).toBe(MUTATION);
+    expect(db.outbox.get(A + ':' + CONFIG_MUTATION)?.delivery_state).toBe(
+      'pending',
+    );
+    expect(
+      await createLocalMachineConfiguration(db, auth().access, config),
+    ).toMatchObject({ configuration_id: CONFIG });
     expect(db.configurations.size).toBe(1);
-    await expect(createLocalMachineConfiguration(db, auth().access, {
-      ...config, materialSetup: { seat: 5, cable: 'top' },
-    })).rejects.toMatchObject({ code: 'mutationConflict' });
+    await expect(
+      createLocalMachineConfiguration(db, auth().access, {
+        ...config,
+        materialSetup: { seat: 5, cable: 'top' },
+      }),
+    ).rejects.toMatchObject({ code: 'mutationConflict' });
   });
 
   it('does not allow another account to create a configuration for this profile', async () => {
@@ -211,16 +261,18 @@ describe('M3 offline Machine Profile and Configuration atomic CREATE', () => {
     await createLocalMachineProfile(db, auth().access, profile);
     const ownerB = auth();
     ownerB.switchTo(B);
-    await expect(createLocalMachineConfiguration(db, ownerB.access, config))
-      .rejects.toMatchObject({ code: 'profileMissing' });
+    await expect(
+      createLocalMachineConfiguration(db, ownerB.access, config),
+    ).rejects.toMatchObject({ code: 'profileMissing' });
     expect(db.outbox.size).toBe(1);
   });
 
   it('rolls back outbox and profile as one transaction on disk failure', async () => {
     const db = new FakeMachines();
     db.failProfile = true;
-    await expect(createLocalMachineProfile(db, auth().access, profile))
-      .rejects.toThrow('SQLite disk full');
+    await expect(
+      createLocalMachineProfile(db, auth().access, profile),
+    ).rejects.toThrow('SQLite disk full');
     expect(db.outbox.size).toBe(0);
     expect(db.profiles.size).toBe(0);
   });
@@ -229,8 +281,9 @@ describe('M3 offline Machine Profile and Configuration atomic CREATE', () => {
     const db = new FakeMachines();
     const identity = auth();
     db.onWrite = () => identity.switchTo(null);
-    await expect(createLocalMachineProfile(db, identity.access, profile))
-      .rejects.toMatchObject({ code: 'notAuthenticated' });
+    await expect(
+      createLocalMachineProfile(db, identity.access, profile),
+    ).rejects.toMatchObject({ code: 'notAuthenticated' });
     expect(db.outbox.size).toBe(0);
     expect(db.profiles.size).toBe(0);
   });
@@ -244,8 +297,9 @@ describe('M3 offline Machine Profile and Configuration atomic CREATE', () => {
       { ...profile, nickname: '   ' },
     ];
     for (const input of tests) {
-      await expect(createLocalMachineProfile(db, auth().access, input))
-        .rejects.toMatchObject({ code: 'invalidInput' });
+      await expect(
+        createLocalMachineProfile(db, auth().access, input),
+      ).rejects.toMatchObject({ code: 'invalidInput' });
     }
     expect(db.outbox.size).toBe(0);
   });
