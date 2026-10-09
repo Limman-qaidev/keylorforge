@@ -56,6 +56,7 @@ type ExistingOutbox = {
 };
 type PriorOutbox = { mutation_id: string };
 type CountRow = { count: number };
+type LastSetRow = { last_completed_at_utc: string | null };
 type JsonItemsRow = { items_json: string };
 
 export class LocalFinishError extends Error {
@@ -307,6 +308,19 @@ export async function finishLocalFreeWorkout(
     );
     if (!work || work.count < 1) {
       throw new LocalFinishError('noQualifyingWork');
+    }
+    const lastSet = await tx.getFirstAsync<LastSetRow>(
+      'SELECT MAX(completed_at_utc) AS last_completed_at_utc FROM local_workout_sets WHERE subject = ? AND session_id = ?',
+      subject,
+      input.sessionId,
+    );
+    if (
+      !lastSet?.last_completed_at_utc ||
+      !Number.isFinite(Date.parse(lastSet.last_completed_at_utc)) ||
+      Date.parse(input.finishedAtUtc) <
+        Date.parse(lastSet.last_completed_at_utc)
+    ) {
+      throw new LocalFinishError('invalidHistory');
     }
     const allSets = await tx.getFirstAsync<CountRow>(
       'SELECT COUNT(*) AS count FROM local_workout_sets WHERE subject = ? AND session_id = ?',
