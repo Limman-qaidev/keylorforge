@@ -119,7 +119,11 @@ function immutableCommand(
   return true;
 }
 
-function receiptMatches(body: unknown, row: PendingFinish, snapshot: LocalFinishRow): boolean {
+function receiptMatches(
+  body: unknown,
+  row: PendingFinish,
+  snapshot: LocalFinishRow,
+): boolean {
   const result = object(body);
   if (
     !result ||
@@ -191,7 +195,9 @@ async function loadFinish(
   );
   if (!snapshot || !session) return null;
   try {
-    return immutableCommand(row, snapshot, session) ? { snapshot, session } : null;
+    return immutableCommand(row, snapshot, session)
+      ? { snapshot, session }
+      : null;
   } catch {
     // A corrupt local JSON snapshot must not reach the API.
     return null;
