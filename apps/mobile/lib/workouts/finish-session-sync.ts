@@ -172,10 +172,10 @@ async function predecessorAcknowledged(
   );
   return Boolean(
     parent &&
-      parent.subject === row.subject &&
-      parent.session_id === row.session_id &&
-      parent.mutation_id === row.depends_on_mutation_id &&
-      parent.delivery_state === 'acknowledged',
+    parent.subject === row.subject &&
+    parent.session_id === row.session_id &&
+    parent.mutation_id === row.depends_on_mutation_id &&
+    parent.delivery_state === 'acknowledged',
   );
 }
 
