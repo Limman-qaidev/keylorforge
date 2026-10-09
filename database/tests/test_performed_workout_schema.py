@@ -46,7 +46,7 @@ def test_performed_history_migration_is_private_and_first_set_is_mandatory(
             ).scalars().all()
     finally:
         engine.dispose()
-    assert version == "20261009_0002"
+    assert version == "20261009_0003"
     assert rls == [
         ("workout_occurrences", True),
         ("workout_sets", True),
