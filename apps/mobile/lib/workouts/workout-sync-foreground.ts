@@ -28,7 +28,8 @@ export function useForegroundWorkoutSync(subject: string | null): () => void {
         if (!mounted) return null;
         try {
           const { data, error } = await getSupabaseClient().auth.getSession();
-          if (error || !mounted || data.session?.user.id !== subject) return null;
+          if (error || !mounted || data.session?.user.id !== subject)
+            return null;
           return {
             subject,
             accessToken: data.session.access_token,
