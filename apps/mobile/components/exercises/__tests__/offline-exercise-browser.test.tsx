@@ -200,10 +200,12 @@ describe('OfflineExerciseBrowser production integration', () => {
       ).toBe('101 de 101 ejercicios');
     });
     expect(searchOfflineExercises).toHaveBeenCalledTimes(2);
-    expect(jest.mocked(searchOfflineExercises).mock.calls[1]![1]).toMatchObject({
-      offset: 100,
-      limit: 100,
-    });
+    expect(jest.mocked(searchOfflineExercises).mock.calls[1]![1]).toMatchObject(
+      {
+        offset: 100,
+        limit: 100,
+      },
+    );
   });
 
   it('reopens a previously cached snapshot with no automatic download', async () => {
