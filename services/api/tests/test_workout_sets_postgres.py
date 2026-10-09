@@ -17,6 +17,7 @@ from keylorforge_database.models import (
     AuthProvider,
     Base,
     CatalogExercise,
+    ExerciseMeasurementType,
     WorkoutMutationReceipt,
     WorkoutOccurrence,
     WorkoutSession,
@@ -70,7 +71,7 @@ def _set_payload(
             "entrySemantics": "total",
         },
         "machine": None,
-        "target_at_confirmation": {"target": {"reps": 12, "effort": "RPE8"}},
+        "target_at_confirmation": None,
         "completed_at": "2026-10-08T14:45:00+00:00",
     }
 
@@ -108,6 +109,7 @@ def test_real_postgres_confirmations_are_owner_scoped_atomic_and_idempotent() ->
                 .where(
                     CatalogExercise.is_active.is_(True),
                     CatalogExercise.canonical_exercise_id.is_(None),
+                    CatalogExercise.measurement_type == ExerciseMeasurementType.REPS,
                 )
                 .limit(1)
             )
@@ -134,11 +136,22 @@ def test_real_postgres_confirmations_are_owner_scoped_atomic_and_idempotent() ->
         assert replay.status_code == 201
         assert replay.json() == confirmed.json()
 
+        # Identical semantic retry with a reordered measurement object is safe.
         reordered = deepcopy(first)
-        reordered["target_at_confirmation"] = {"target": {"effort": "RPE8", "reps": 12}}
+        reordered["measurement"] = {"reps": 12, "measurementType": "reps"}
         assert (
             client.post(f"{path}/first", headers=a, json=reordered).json()
             == confirmed.json()
+        )
+
+        # Unverified target snapshots must not bypass the agenda fence.
+        unbound_target = deepcopy(first)
+        unbound_target["mutation_id"] = str(uuid4())
+        unbound_target["set_id"] = str(uuid4())
+        unbound_target["target_at_confirmation"] = {"target": {"reps": 12}}
+        assert (
+            client.post(f"{path}/first", headers=a, json=unbound_target).status_code
+            == 409
         )
 
         tampered = deepcopy(first)
@@ -202,6 +215,35 @@ def test_real_postgres_confirmations_are_owner_scoped_atomic_and_idempotent() ->
                 f"{path}/additional", headers=a, json=unknown_agenda
             ).status_code
             == 409
+        )
+
+        # The canonical catalogue exercise is measured in repetitions.
+        # Internal measurement shape validity alone is insufficient.
+        incompatible_time = deepcopy(additional)
+        incompatible_time["mutation_id"] = str(uuid4())
+        incompatible_time["set_id"] = str(uuid4())
+        incompatible_time["measurement"] = {
+            "measurementType": "time", "durationSeconds": 30
+        }
+        assert (
+            client.post(
+                f"{path}/additional", headers=a, json=incompatible_time
+            ).status_code
+            == 422
+        )
+        incompatible_distance = deepcopy(additional)
+        incompatible_distance["mutation_id"] = str(uuid4())
+        incompatible_distance["set_id"] = str(uuid4())
+        incompatible_distance["measurement"] = {
+            "measurementType": "distance",
+            "distanceDecimal": "35.5",
+            "distanceUnit": "m",
+        }
+        assert (
+            client.post(
+                f"{path}/additional", headers=a, json=incompatible_distance
+            ).status_code
+            == 422
         )
 
         invalid = deepcopy(additional)
