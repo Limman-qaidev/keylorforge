@@ -35,12 +35,6 @@ jobs:
       - name: Check formatting
         run: npm run format:check
 
-      - name: Diagnose workout sync coordinator format (temporary)
-        if: failure()
-        run: |
-          npx prettier --write lib/workouts/workout-sync-coordinator.ts lib/workouts/__tests__/workout-sync-coordinator.test.ts
-          git diff -- lib/workouts/workout-sync-coordinator.ts lib/workouts/__tests__/workout-sync-coordinator.test.ts
-
       - name: Run lint
         run: npm run lint
 
