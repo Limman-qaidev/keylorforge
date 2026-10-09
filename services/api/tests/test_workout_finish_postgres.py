@@ -274,6 +274,41 @@ def test_postgres_finish_is_atomic_idempotent_and_owner_scoped() -> None:
                 "unplanned_performed_occurrences"
             ]
             assert set(performed[0]["set_ids"]) == {warmup_id, working_id}
+            # Recovery preparation: full authoritative native set details.
+            # This is READ ONLY and cannot fabricate a local ACK/import.
+            detail_url = f"/workout-sessions/{workout_id}/history-detail"
+            detail = client.get(detail_url, headers=a)
+            assert detail.status_code == 200, detail.text
+            actual = detail.json()
+            assert actual["session_id"] == workout_id
+            assert actual["completion_snapshot_id"] == expected_snapshot_id
+            assert actual["finish_mutation_id"] == command["mutation_id"]
+            assert actual["lifecycle_state"] == "completed"
+            assert len(actual["occurrences"]) == 1
+            imported_occurrence = actual["occurrences"][0]
+            assert imported_occurrence["occurrence_id"] == occurrence
+            assert imported_occurrence["canonical_exercise_id"] == str(exercise_id)
+            assert imported_occurrence["first_set_id"] == warmup_id
+            imported_sets = imported_occurrence["sets"]
+            assert {entry["set_id"] for entry in imported_sets} == {
+                warmup_id, working_id
+            }
+            assert {entry["set_role"] for entry in imported_sets} == {
+                "WARMUP", "WORKING"
+            }
+            assert all(entry["measurement_type"] == "reps" for entry in imported_sets)
+            assert all(entry["reps"] in (8, 12) for entry in imported_sets)
+            assert all(entry["mutation_id"] for entry in imported_sets)
+            assert all(entry["load_decimal"] is None for entry in imported_sets)
+            assert "owner_user_id" not in actual
+            assert "owner_user_id" not in imported_occurrence
+            assert "owner_user_id" not in imported_sets[0]
+            assert client.get(detail_url, headers=b).status_code == 404
+            assert (
+                client.get(
+                    f"/workout-sessions/{uuid4()}/history-detail", headers=a
+                ).status_code == 404
+            )
             assert "owner_user_id" not in first_entry
             other_history = client.get("/workout-sessions/history", headers=b)
             assert other_history.status_code == 200
