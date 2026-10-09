@@ -94,9 +94,13 @@ describe('staged automatic foreground workout sync', () => {
   });
 
   it('does not drain or acquire another account credentials after signout', async () => {
-    const hook = await renderHook(() => useForegroundWorkoutSync(null));
+    const hook = await renderHook(
+      ({ subject }: { subject: string | null }) =>
+        useForegroundWorkoutSync(subject),
+      { initialProps: { subject: null as string | null } },
+    );
     expect(drainWorkoutSync).not.toHaveBeenCalled();
-    await act(async () => hook.rerender(OWNER));
+    await act(async () => hook.rerender({ subject: OWNER }));
     await waitFor(() => {
       expect(drainWorkoutSync).toHaveBeenCalledTimes(1);
     });
@@ -112,7 +116,7 @@ describe('staged automatic foreground workout sync', () => {
       error: null,
     } as Awaited<ReturnType<typeof session>>);
     expect(await access.acquireCurrentCredentials()).toBeNull();
-    await act(async () => hook.rerender(null));
+    await act(async () => hook.rerender({ subject: null }));
     expect(access.currentAuthenticatedSubject()).toBeNull();
     expect(await access.acquireCurrentCredentials()).toBeNull();
     expect(unsubscribe).toHaveBeenCalled();
