@@ -136,8 +136,7 @@ def get_completed_workout_detail(
         sets_by_occurrence.setdefault(row.occurrence_id, []).append(row)
 
     snapshot_items = {
-        item.occurrence_id: item
-        for item in final.unplanned_performed_occurrences
+        item.occurrence_id: item for item in final.unplanned_performed_occurrences
     }
     details: list[PerformedOccurrenceDetail] = []
     all_set_ids: set[UUID] = set()
@@ -152,7 +151,9 @@ def get_completed_workout_detail(
         ):
             raise HTTPException(409, detail="inconsistent authoritative history")
         own_sets = sets_by_occurrence.pop(occurrence.id, [])
-        if not own_sets or not any(row.id == occurrence.first_set_id for row in own_sets):
+        if not own_sets or not any(
+            row.id == occurrence.first_set_id for row in own_sets
+        ):
             raise HTTPException(409, detail="inconsistent authoritative history")
         if set(declared.set_ids) != {row.id for row in own_sets}:
             raise HTTPException(409, detail="inconsistent authoritative history")
