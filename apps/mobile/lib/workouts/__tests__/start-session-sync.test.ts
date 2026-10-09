@@ -310,6 +310,28 @@ describe('M3 START_SESSION real HTTP / offline outbox reconciliation', () => {
     expect(db.state()).toBe('pending');
   });
 
+  it('never ACKs a previous account after logout while HTTP is in flight', async () => {
+    const db = new FakeDB();
+    const account = auth();
+    let finish: ((value: Response) => void) | undefined;
+    jest.mocked(requestApi).mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const attempt = syncNextPendingStart(db, account.access);
+    for (let i = 0; i < 8 && !finish; i += 1) await Promise.resolve();
+    expect(finish).toBeDefined();
+    account.change(null);
+    finish!(response());
+    await expect(attempt).rejects.toMatchObject({
+      code: 'notAuthenticated',
+    });
+    expect(db.state()).toBe('pending');
+    expect(db.state('set-child')).toBe('pending');
+  });
+
   it('rolls back an ACK if sign-out occurs during the SQLite UPDATE', async () => {
     const db = new FakeDB();
     const account = auth();
