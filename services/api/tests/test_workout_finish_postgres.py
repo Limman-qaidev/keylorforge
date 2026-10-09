@@ -1,4 +1,4 @@
-"""Real PostgreSQL FINISH: qualification, exact history, idempotency and owner isolation."""
+"""Real PostgreSQL FINISH: qualification, idempotency and owner isolation."""
 
 from __future__ import annotations
 
