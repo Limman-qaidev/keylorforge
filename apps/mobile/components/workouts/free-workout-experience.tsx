@@ -38,6 +38,7 @@ import {
   type FinishedWorkoutHistoryEntry,
 } from '@/lib/workouts/local-finish-history';
 import { openLocalWorkoutDatabase } from '@/lib/workouts/expo-sqlite-adapter';
+import { useForegroundWorkoutSync } from '@/lib/workouts/workout-sync-foreground';
 import type { LocalSubjectAccess } from '@/lib/workouts/local-store';
 import {
   deviceWorkoutClock,
@@ -149,6 +150,7 @@ function FreeWorkoutSessionExperience({
   session: ReturnType<typeof useAuth>['session'];
 }) {
   const subject = session?.user.id ?? null;
+  const triggerSync = useForegroundWorkoutSync(subject);
   const subjectRef = useRef<string | null>(null);
   const access = useMemo<LocalSubjectAccess>(
     () => ({ currentAuthenticatedSubject: () => subjectRef.current }),
@@ -214,6 +216,7 @@ function FreeWorkoutSessionExperience({
     setError(null);
     try {
       await task();
+      triggerSync();
       await reload();
     } catch (reason) {
       setError(
