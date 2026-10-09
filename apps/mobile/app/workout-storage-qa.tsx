@@ -25,6 +25,10 @@ import {
   type LocalPerformedSet,
 } from '@/lib/workouts/local-confirmed-sets';
 import {
+  resetDiagnosticSubjectData,
+  verifyPersistedDiagnosticMachine,
+} from '@/lib/workouts/workout-storage-qa-utils';
+import {
   getActiveLocalWorkout,
   startLocalFreeWorkout,
   type LocalStartWorkoutInput,
@@ -144,6 +148,20 @@ function StorageDiagnosticScreen() {
   const [secondSet, setSecondSet] = useState<LocalPerformedSet | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const firstMachine = firstSet
+    ? verifyPersistedDiagnosticMachine(
+        firstSet,
+        QA_MACHINE_A_UUID,
+        'Polea A (QA)',
+      )
+    : null;
+  const secondMachine = secondSet
+    ? verifyPersistedDiagnosticMachine(
+        secondSet,
+        QA_MACHINE_B_UUID,
+        'Polea B (QA)',
+      )
+    : null;
 
   const refresh = useCallback(async () => {
     if (!subject) {
@@ -258,30 +276,7 @@ function StorageDiagnosticScreen() {
     setMessage(null);
     try {
       const db = await openDiagnosticWorkoutDatabase(subject);
-      await db.withExclusiveTransactionAsync(async (tx) => {
-        if (subjectRef.current !== subject) {
-          throw new Error('La cuenta ha cambiado.');
-        }
-        await tx.runAsync(
-          'DELETE FROM local_workout_sets WHERE subject = ?',
-          subject.toLowerCase(),
-        );
-        await tx.runAsync(
-          'DELETE FROM local_workout_occurrences WHERE subject = ?',
-          subject.toLowerCase(),
-        );
-        await tx.runAsync(
-          'DELETE FROM local_workout_outbox WHERE subject = ?',
-          subject.toLowerCase(),
-        );
-        await tx.runAsync(
-          'DELETE FROM local_workout_sessions WHERE subject = ?',
-          subject.toLowerCase(),
-        );
-        if (subjectRef.current !== subject) {
-          throw new Error('La cuenta ha cambiado.');
-        }
-      });
+      await resetDiagnosticSubjectData(db, access, subject);
       await refresh();
       setMessage('Borrados solo los datos de la base de diagnóstico.');
     } catch (error) {
@@ -353,15 +348,25 @@ function StorageDiagnosticScreen() {
           {(firstSet ? 1 : 0) + (secondSet ? 1 : 0)} serie(s)
         </Text>
         {firstSet ? (
-          <Text style={styles.detail}>
+          <Text testID="qa-first-set-persisted" style={styles.detail}>
             WARMUP: {firstSet.reps} reps · {firstSet.load_decimal}{' '}
-            {firstSet.load_unit} · Polea A
+            {firstSet.load_unit}
+            {'\n'}Máquina (SQLite): {firstMachine?.label}
+            {'\n'}Perfil (SQLite): {firstMachine?.profileId}
+            {'\n'}{firstMachine?.matchesExpected
+              ? 'CONTEXTO MÁQUINA A VERIFICADO'
+              : 'ERROR: CONTEXTO MÁQUINA A NO COINCIDE'}
           </Text>
         ) : null}
         {secondSet ? (
-          <Text style={styles.detail}>
+          <Text testID="qa-second-set-persisted" style={styles.detail}>
             WORKING: {secondSet.reps} reps · {secondSet.load_decimal}{' '}
-            {secondSet.load_unit} · Polea B
+            {secondSet.load_unit}
+            {'\n'}Máquina (SQLite): {secondMachine?.label}
+            {'\n'}Perfil (SQLite): {secondMachine?.profileId}
+            {'\n'}{secondMachine?.matchesExpected
+              ? 'CONTEXTO MÁQUINA B VERIFICADO'
+              : 'ERROR: CONTEXTO MÁQUINA B NO COINCIDE'}
           </Text>
         ) : null}
       </View>
