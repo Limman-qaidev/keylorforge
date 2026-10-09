@@ -30,6 +30,9 @@ jest.mock('@/lib/workouts/free-workout-flow', () => ({
 jest.mock('@/lib/workouts/local-finish-history', () => ({
   listLocalFinishedWorkouts: jest.fn(),
 }));
+jest.mock('@/lib/workouts/workout-sync-foreground', () => ({
+  useForegroundWorkoutSync: jest.fn(() => jest.fn()),
+}));
 jest.mock('@/lib/workouts/native-workout-platform', () => ({
   secureWorkoutIds: { newUuid: () => 'c226a777-d460-4d5f-bad6-f75667a9d022' },
   deviceWorkoutClock: {
