@@ -468,38 +468,29 @@ export function ExerciseCatalogScreen() {
       );
     }
 
-    if (detailQuery.isError || !detailQuery.data) {
-      return (
-        <View style={styles.centered}>
-          <Text accessibilityRole="header" style={styles.errorTitle}>
-            No se pudo abrir el ejercicio
-          </Text>
-          <Text accessibilityLiveRegion="polite" style={styles.errorText}>
-            {errorMessage(detailQuery.error)}
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => void detailQuery.refetch()}
-            style={styles.primaryButton}
-          >
-            <Text style={styles.primaryButtonText}>Reintentar</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setSelectedExerciseId(null)}
-            style={styles.secondaryButton}
-          >
-            <Text style={styles.secondaryButtonText}>Volver al catálogo</Text>
-          </Pressable>
-        </View>
-      );
-    }
-
     return (
-      <DetailView
-        detail={detailQuery.data}
-        onBack={() => setSelectedExerciseId(null)}
-      />
+      <View style={styles.centered}>
+        <Text accessibilityRole="header" style={styles.errorTitle}>
+          No se pudo abrir el ejercicio
+        </Text>
+        <Text accessibilityLiveRegion="polite" style={styles.errorText}>
+          {errorMessage(detailQuery.error)}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => void detailQuery.refetch()}
+          style={styles.primaryButton}
+        >
+          <Text style={styles.primaryButtonText}>Reintentar</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setSelectedExerciseId(null)}
+          style={styles.secondaryButton}
+        >
+          <Text style={styles.secondaryButtonText}>Volver al catálogo</Text>
+        </Pressable>
+      </View>
     );
   }
 
