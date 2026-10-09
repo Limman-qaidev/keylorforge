@@ -149,5 +149,5 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     raise NotImplementedError(
-        "20261009_0001 contains account-owned performed workout data; roll forward"
+        "20261009_0001 contains account-owned workout performed history; roll forward"
     )
