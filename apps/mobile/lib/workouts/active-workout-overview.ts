@@ -99,9 +99,9 @@ function validSet(value: unknown): value is ActiveSetSummary {
   const time = s.measurement_type === 'time';
   const distance = s.measurement_type === 'distance';
   if (
-    (reps && (!Number.isSafeInteger(s.reps) || (s.reps as number) <= 0)) ||
-    (time && (!Number.isSafeInteger(s.duration_seconds) ||
-      (s.duration_seconds as number) <= 0)) ||
+    (reps && (typeof s.reps !== 'number' || !Number.isSafeInteger(s.reps) || s.reps <= 0)) ||
+    (time && (typeof s.duration_seconds !== 'number' ||
+      !Number.isSafeInteger(s.duration_seconds) || s.duration_seconds <= 0)) ||
     (distance && (typeof s.distance_decimal !== 'string' ||
       !['m', 'km', 'mi'].includes(String(s.distance_unit)))) ||
     (!reps && s.reps !== null) ||
@@ -131,8 +131,9 @@ function decode(value: unknown): ActiveExerciseSummary[] {
     if (
       !requiredId(entry.occurrence_id) ||
       !requiredId(entry.canonical_exercise_id) ||
+      typeof entry.actual_order !== 'number' ||
       !Number.isSafeInteger(entry.actual_order) ||
-      (entry.actual_order as number) < 0 ||
+      entry.actual_order < 0 ||
       entry.agenda_item_id !== null ||
       !Array.isArray(entry.sets) ||
       entry.sets.length === 0 ||
