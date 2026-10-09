@@ -42,7 +42,9 @@ describe('M3 Expo SQLite native database binding', () => {
     ).toBe(true);
     expect(queries).toContain('PRAGMA user_version = 2; COMMIT;');
     expect(
-      queries.some((sql) => sql.includes('CREATE TABLE local_machine_profiles')),
+      queries.some((sql) =>
+        sql.includes('CREATE TABLE local_machine_profiles'),
+      ),
     ).toBe(true);
     expect(
       queries.some((sql) => sql.includes('CREATE TABLE local_machine_outbox')),
