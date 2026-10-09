@@ -142,12 +142,13 @@ class FakeDB implements SqliteWorkoutPort {
       const kind = sql.includes("mutation_kind = 'CREATE_MACHINE_PROFILE'")
         ? 'CREATE_MACHINE_PROFILE'
         : 'CREATE_MACHINE_CONFIGURATION';
-      return ([...this.rows.values()].find(
-        (row) =>
-          row.subject === args[0] &&
-          row.mutation_kind === kind &&
-          row.delivery_state === 'pending',
-      ) ?? null) as T | null;
+      const row = [...this.rows.values()].find(
+        (item) =>
+          item.subject === args[0] &&
+          item.mutation_kind === kind &&
+          item.delivery_state === 'pending',
+      );
+      return (row ? { ...row } : null) as T | null;
     }
     if (sql.includes('FROM local_machine_outbox')) {
       const row = this.rows.get(String(args[1]));
