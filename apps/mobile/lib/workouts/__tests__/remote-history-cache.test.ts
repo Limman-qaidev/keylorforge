@@ -113,6 +113,7 @@ class FakeDb implements SqliteWorkoutPort {
       detail_json: String(detail),
     });
     this.onWrite?.();
+    return undefined;
   }
 
   async withExclusiveTransactionAsync(
