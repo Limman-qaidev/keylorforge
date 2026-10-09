@@ -89,6 +89,7 @@ export function useCachedExerciseCatalogue(session: Session | null): {
   );
   const [initialized, setInitialized] = useState(Platform.OS === 'web');
   const currentSession = useRef<Session | null>(session);
+  const mounted = useRef(true);
   const snapshotRef = useRef<ExerciseCatalogueSnapshot | null>(null);
   const inFlight = useRef(false);
   const lastAttempt = useRef(0);
@@ -97,8 +98,13 @@ export function useCachedExerciseCatalogue(session: Session | null): {
     currentSession.current = session;
   }, [session]);
 
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
+
   const backgroundUpdate = useCallback(async () => {
-    if (Platform.OS === 'web' || inFlight.current) return;
+    if (Platform.OS === 'web' || !mounted.current || inFlight.current) return;
     const current = currentSession.current;
     if (
       !current ||
@@ -113,9 +119,9 @@ export function useCachedExerciseCatalogue(session: Session | null): {
     inFlight.current = true;
     const access: StartSyncAccess = {
       currentAuthenticatedSubject: () =>
-        currentSession.current?.user.id ?? null,
+        mounted.current ? currentSession.current?.user.id ?? null : null,
       acquireCurrentCredentials: async () => {
-        const active = currentSession.current;
+        const active = mounted.current ? currentSession.current : null;
         return active?.access_token && active.user.id
           ? { subject: active.user.id, accessToken: active.access_token }
           : null;
@@ -125,7 +131,7 @@ export function useCachedExerciseCatalogue(session: Session | null): {
       const db = await openOfflineExerciseCatalogue();
       await seedOfflineCatalogueFromApi(db, access);
       const next = await readSnapshot();
-      if (currentSession.current?.user.id === current.user.id && next) {
+      if (mounted.current && currentSession.current?.user.id === current.user.id && next) {
         snapshotRef.current = next;
         setSnapshot(next);
       }
