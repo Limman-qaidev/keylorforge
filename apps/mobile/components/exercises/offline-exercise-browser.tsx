@@ -122,7 +122,7 @@ export function OfflineExerciseBrowser() {
   const [status, setStatus] = useState<CachedCatalogueStatus>({ state: 'unseeded' });
   const [items, setItems] = useState<ExerciseListItem[]>([]);
   const [busy, setBusy] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Platform.OS !== 'web');
   const [feedback, setFeedback] = useState<string | null>(null);
   const [readError, setReadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -141,7 +141,6 @@ export function OfflineExerciseBrowser() {
   useEffect(() => {
     mounted.current = true;
     if (Platform.OS === 'web') {
-      setLoading(false);
       return () => { mounted.current = false; };
     }
     void refreshLocal()
@@ -172,7 +171,7 @@ export function OfflineExerciseBrowser() {
       await seedOfflineCatalogueFromApi(db, access);
       await refreshLocal();
       if (mounted.current) setFeedback('Catálogo guardado. Puedes consultarlo sin Internet.');
-    } catch (error) {
+    } catch {
       if (mounted.current) {
         // Never hide an existing cached catalogue after a failed refresh.
         setFeedback('No se pudo actualizar el catálogo. Si ya estaba descargado, sigue disponible sin conexión.');
