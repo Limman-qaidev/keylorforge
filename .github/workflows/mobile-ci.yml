@@ -39,7 +39,7 @@ jobs:
         if: failure()
         run: |
           npm run format -- --log-level error
-          git diff -- apps/mobile
+          git diff -- .
 
       - name: Run lint
         run: npm run lint
