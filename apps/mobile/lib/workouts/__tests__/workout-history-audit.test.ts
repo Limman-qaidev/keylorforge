@@ -59,7 +59,7 @@ function auth() {
 
 function dbWith(items: unknown[], final = JSON.stringify(snapshot)) {
   const getFirstAsync = jest.fn(async (sql: string) =>
-    sql.includes('FROM local_workout_final_snapshots')
+    sql.startsWith('SELECT * FROM local_workout_final_snapshots WHERE')
       ? {
           subject: OWNER,
           session_id: SESSION,
@@ -116,7 +116,10 @@ it('preserves pending local workouts when server has no completion', async () =>
 
 it('reports snapshot disagreement without repairing it automatically', async () => {
   jest.mocked(requestApi).mockResolvedValue(http([remote]));
-  const { db, runAsync } = dbWith([local], JSON.stringify({ ...snapshot, changed: true }));
+  const { db, runAsync } = dbWith(
+    [local],
+    JSON.stringify({ ...snapshot, changed: true }),
+  );
   expect(await auditCompletedWorkoutHistory(db, auth().access)).toMatchObject({
     status: 'complete',
     diverged: [SESSION],
@@ -141,10 +144,11 @@ it('does not infer remote absence from malformed pages', async () => {
     status: 200,
     json: async () => ({ entries: [], next_before_session_id: SESSION }),
   } as Response);
-  expect(await auditCompletedWorkoutHistory(dbWith([local]).db, auth().access))
-    .toMatchObject({
-      status: 'paused',
-      reason: 'invalidResponse',
-      acknowledgedLocalOnly: [],
-    });
+  expect(
+    await auditCompletedWorkoutHistory(dbWith([local]).db, auth().access),
+  ).toMatchObject({
+    status: 'paused',
+    reason: 'invalidResponse',
+    acknowledgedLocalOnly: [],
+  });
 });
