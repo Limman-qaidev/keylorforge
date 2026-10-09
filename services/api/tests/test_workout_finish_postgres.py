@@ -291,10 +291,12 @@ def test_postgres_finish_is_atomic_idempotent_and_owner_scoped() -> None:
             assert imported_occurrence["first_set_id"] == warmup_id
             imported_sets = imported_occurrence["sets"]
             assert {entry["set_id"] for entry in imported_sets} == {
-                warmup_id, working_id
+                warmup_id,
+                working_id,
             }
             assert {entry["set_role"] for entry in imported_sets} == {
-                "WARMUP", "WORKING"
+                "WARMUP",
+                "WORKING",
             }
             assert all(entry["measurement_type"] == "reps" for entry in imported_sets)
             assert all(entry["reps"] in (8, 12) for entry in imported_sets)
@@ -307,7 +309,8 @@ def test_postgres_finish_is_atomic_idempotent_and_owner_scoped() -> None:
             assert (
                 client.get(
                     f"/workout-sessions/{uuid4()}/history-detail", headers=a
-                ).status_code == 404
+                ).status_code
+                == 404
             )
             assert "owner_user_id" not in first_entry
             other_history = client.get("/workout-sessions/history", headers=b)
