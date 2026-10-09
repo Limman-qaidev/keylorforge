@@ -57,5 +57,5 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     raise NotImplementedError(
-        "20261009_0003 holds account-owned immutable workout history; roll forward"
+        "20261009_0003 contains account-owned workout completion history; roll forward"
     )
