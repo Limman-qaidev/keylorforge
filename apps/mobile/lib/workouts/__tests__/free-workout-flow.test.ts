@@ -2,7 +2,10 @@ import { readActiveFreeWorkoutOverview } from '../active-workout-overview';
 import { confirmLocalWorkoutSet } from '../local-confirmed-sets';
 import { finishLocalFreeWorkout } from '../local-finish';
 import type { SqliteWorkoutPort } from '../local-schema';
-import { startLocalFreeWorkout, type LocalSubjectAccess } from '../local-store';
+import {
+  startLocalFreeWorkout,
+  type LocalSubjectAccess,
+} from '../local-store';
 import {
   beginFreeWorkout,
   endFreeWorkout,
@@ -65,7 +68,8 @@ function overview(workingSets = 1, existing = false) {
   return {
     session,
     exercises: existing
-      ? [{
+      ? [
+          {
           occurrence_id: OCCURRENCE,
           canonical_exercise_id: EXERCISE,
           actual_order: 0,
@@ -82,7 +86,8 @@ function overview(workingSets = 1, existing = false) {
             load_unit: null,
             completed_at_utc: '2026-10-09T14:30:00.000Z',
           }],
-        }]
+          },
+        ]
       : [],
     totalSets: existing ? 1 : 0,
     workingSets,
@@ -103,7 +108,9 @@ beforeEach(() => {
 
 describe('local Free Workout journey coordinator', () => {
   it('starts an account-owned session with secure IDs and correct date/offset', async () => {
-    expect(await beginFreeWorkout(db, access, provider(), clock)).toEqual(session);
+    expect(await beginFreeWorkout(db, access, provider(), clock)).toEqual(
+      session,
+    );
     expect(startLocalFreeWorkout).toHaveBeenCalledWith(db, access, {
       sessionId: FRESH_IDS[0],
       mutationId: FRESH_IDS[1],
@@ -145,7 +152,9 @@ describe('local Free Workout journey coordinator', () => {
   });
 
   it('adds a subsequent set to the previous occurrence instead of duplicating history', async () => {
-    jest.mocked(readActiveFreeWorkoutOverview).mockResolvedValue(overview(1, true));
+    jest
+      .mocked(readActiveFreeWorkoutOverview)
+      .mockResolvedValue(overview(1, true));
     await recordFreeWorkoutSet(db, access, provider(), clock, {
       canonicalExerciseId: EXERCISE,
       role: 'WARMUP',
@@ -183,7 +192,10 @@ describe('local Free Workout journey coordinator', () => {
   it('prevents two simultaneous writes and rejects insecure or repeated IDs', async () => {
     let resolveStart: ((value: typeof session) => void) | undefined;
     jest.mocked(startLocalFreeWorkout).mockImplementation(
-      () => new Promise((resolve) => { resolveStart = resolve; }),
+      () =>
+        new Promise((resolve) => {
+          resolveStart = resolve;
+        }),
     );
     const first = beginFreeWorkout(db, access, provider(), clock);
     await expect(
@@ -192,7 +204,12 @@ describe('local Free Workout journey coordinator', () => {
     resolveStart?.(session);
     await expect(first).resolves.toEqual(session);
     await expect(
-      beginFreeWorkout(db, access, provider([FRESH_IDS[0]!, FRESH_IDS[0]!]), clock),
+      beginFreeWorkout(
+        db,
+        access,
+        provider([FRESH_IDS[0]!, FRESH_IDS[0]!]),
+        clock,
+      ),
     ).rejects.toMatchObject({ code: 'invalidInput' });
   });
 
