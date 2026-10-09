@@ -263,12 +263,16 @@ def test_postgres_finish_is_atomic_idempotent_and_owner_scoped() -> None:
             assert first_history.status_code == 200, first_history.text
             first_entry = first_history.json()["entries"][0]
             assert first_entry["session_id"] == workout_id
-            expected_snapshot_id = command["completion_snapshot"]["completion_snapshot_id"]
+            expected_snapshot_id = command["completion_snapshot"][
+                "completion_snapshot_id"
+            ]
             assert first_entry["completion_snapshot_id"] == expected_snapshot_id
             assert first_entry["finish_mutation_id"] == command["mutation_id"]
             assert first_entry["total_sets"] == 2
             assert first_entry["working_sets"] == 1
-            performed = first_entry["completion_snapshot"]["unplanned_performed_occurrences"]
+            performed = first_entry["completion_snapshot"][
+                "unplanned_performed_occurrences"
+            ]
             assert set(performed[0]["set_ids"]) == {warmup_id, working_id}
             assert "owner_user_id" not in first_entry
             other_history = client.get("/workout-sessions/history", headers=b)
@@ -276,13 +280,16 @@ def test_postgres_finish_is_atomic_idempotent_and_owner_scoped() -> None:
             assert other_history.json()["entries"] == []
             invalid_limit = client.get("/workout-sessions/history?limit=0", headers=a)
             assert invalid_limit.status_code == 422
-            assert client.get(
-                "/workout-sessions/history?before_session_id=" + workout_id, headers=a
-            ).status_code == 422
-            assert client.get(
+            bad_id_cursor = client.get(
+                "/workout-sessions/history?before_session_id=" + workout_id,
+                headers=a,
+            )
+            assert bad_id_cursor.status_code == 422
+            bad_date_cursor = client.get(
                 "/workout-sessions/history?before_finished_at=2026-10-08T15:00:00",
                 headers=a,
-            ).status_code == 422
+            )
+            assert bad_date_cursor.status_code == 422
 
             # Two distinct completed sessions have an identical finish timestamp.
             # The stable keyset cursor must include the UUID tie-breaker.
@@ -309,22 +316,24 @@ def test_postgres_finish_is_atomic_idempotent_and_owner_scoped() -> None:
                 warmup=True,
             )
             second_first["set_role"] = "WORKING"
-            assert client.post(
+            second_first_response = client.post(
                 f"/workout-sessions/{second_workout_id}/sets/first",
                 headers=a,
                 json=second_first,
-            ).status_code == 201
+            )
+            assert second_first_response.status_code == 201
             second_finish = _finish(
                 second_workout_id,
                 second_occurrence_id,
                 str(exercise_id),
                 [second_set_id],
             )
-            assert client.post(
+            second_finish_response = client.post(
                 f"/workout-sessions/{second_workout_id}/finish",
                 headers=a,
                 json=second_finish,
-            ).status_code == 201
+            )
+            assert second_finish_response.status_code == 201
 
             first_page = client.get(
                 "/workout-sessions/history", headers=a, params={"limit": 1}
