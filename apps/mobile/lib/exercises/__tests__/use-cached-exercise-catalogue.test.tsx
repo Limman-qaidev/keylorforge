@@ -1,6 +1,6 @@
-import { render, waitFor } from '@testing-library/react-native';
+import { act, render, waitFor } from '@testing-library/react-native';
 import type { Session } from '@supabase/supabase-js';
-import { Text } from 'react-native';
+import { AppState, type AppStateStatus, Text } from 'react-native';
 
 import {
   offlineCatalogueStatus,
@@ -51,6 +51,10 @@ function TestScreen() {
 }
 
 describe('transparent native exercise catalogue persistence', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     jest
@@ -146,4 +150,55 @@ describe('transparent native exercise catalogue persistence', () => {
       expect(seedOfflineCatalogueFromApi).toHaveBeenCalledTimes(1),
     );
   });
+  it('retries a failed stale refresh automatically on foreground and retains the visible catalogue', async () => {
+    let nowMs = Date.parse('2026-10-09T12:00:00.000Z');
+    jest.spyOn(Date, 'now').mockImplementation(() => nowMs);
+
+    let onAppStateChange: ((state: AppStateStatus) => void) | null = null;
+    const removeListener = jest.fn();
+    jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, listener) => {
+      onAppStateChange = listener as (state: AppStateStatus) => void;
+      return { remove: removeListener };
+    });
+
+    let seededAtUtc = '2024-01-01T00:00:00.000Z';
+    jest.mocked(offlineCatalogueStatus).mockImplementation(async () => ({
+      state: 'ready',
+      total: 1,
+      seededAtUtc,
+    }));
+    jest.mocked(seedOfflineCatalogueFromApi)
+      .mockRejectedValueOnce(new Error('temporarily offline'))
+      .mockImplementationOnce(async () => {
+        seededAtUtc = new Date(nowMs).toISOString();
+        return { state: 'ready', total: 1, seededAtUtc };
+      });
+
+    const screen = await render(<TestScreen />);
+    expect(await screen.findByText('Abdominal Otis')).toBeTruthy();
+    await waitFor(() =>
+      expect(seedOfflineCatalogueFromApi).toHaveBeenCalledTimes(1),
+    );
+    expect(screen.getByText('Abdominal Otis')).toBeTruthy();
+
+    // A connection can return while the screen stays mounted: AppState
+    // foreground notification retries after the bounded failure cooldown.
+    nowMs += 61_000;
+    await act(async () => {
+      onAppStateChange?.('active');
+    });
+    await waitFor(() =>
+      expect(seedOfflineCatalogueFromApi).toHaveBeenCalledTimes(2),
+    );
+    expect(screen.getByText('Abdominal Otis')).toBeTruthy();
+
+    // A fresh snapshot prevents repeated downloads on subsequent resumes.
+    await act(async () => {
+      onAppStateChange?.('active');
+    });
+    expect(seedOfflineCatalogueFromApi).toHaveBeenCalledTimes(2);
+    await screen.unmount();
+    expect(removeListener).toHaveBeenCalled();
+  });
+
 });
