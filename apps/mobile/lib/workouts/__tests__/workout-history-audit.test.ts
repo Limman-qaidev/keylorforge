@@ -257,3 +257,32 @@ it('rejects server pages ordered oldest-first or overlapping a previous cursor',
     remoteOnly: [],
   });
 });
+
+it('respects PostgreSQL microsecond ordering within a single millisecond', async () => {
+  const later = {
+    ...remote,
+    finished_at: '2026-10-09T15:00:00.123789+00:00',
+  };
+  const earlier = {
+    ...remote,
+    session_id: 'a46d8ad9-386d-4a6e-9ad2-9cbd721abf92',
+    finished_at: '2026-10-09T15:00:00.123456+00:00',
+    completion_snapshot: {
+      ...snapshot,
+      session_id: 'a46d8ad9-386d-4a6e-9ad2-9cbd721abf92',
+    },
+  };
+  jest.mocked(requestApi).mockResolvedValueOnce(http([earlier, later]));
+  expect(
+    await auditCompletedWorkoutHistory(dbWith([]).db, auth().access),
+  ).toMatchObject({
+    status: 'paused',
+    reason: 'invalidResponse',
+    remoteOnly: [],
+  });
+  jest.mocked(requestApi).mockReset();
+  jest.mocked(requestApi).mockResolvedValueOnce(http([later, earlier]));
+  const correct = await auditCompletedWorkoutHistory(dbWith([]).db, auth().access);
+  expect(correct.status).toBe('complete');
+  expect(correct.remoteOnly).toHaveLength(2);
+});
