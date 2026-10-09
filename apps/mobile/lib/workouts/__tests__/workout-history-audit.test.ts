@@ -282,7 +282,10 @@ it('respects PostgreSQL microsecond ordering within a single millisecond', async
   });
   jest.mocked(requestApi).mockReset();
   jest.mocked(requestApi).mockResolvedValueOnce(http([later, earlier]));
-  const correct = await auditCompletedWorkoutHistory(dbWith([]).db, auth().access);
+  const correct = await auditCompletedWorkoutHistory(
+    dbWith([]).db,
+    auth().access,
+  );
   expect(correct.status).toBe('complete');
   expect(correct.remoteOnly).toHaveLength(2);
 });
