@@ -94,7 +94,7 @@ describe('OfflineExerciseBrowser production integration', () => {
   });
 
   it('loads a complete local cache without accessing the M2 API', async () => {
-    const screen = render(<OfflineExerciseBrowser />);
+    const screen = await render(<OfflineExerciseBrowser />);
     expect(await screen.findByText('Press inclinado')).toBeTruthy();
     expect(screen.getByText('Remo con polea')).toBeTruthy();
     expect(screen.getByText('Prensa de piernas')).toBeTruthy();
@@ -108,7 +108,7 @@ describe('OfflineExerciseBrowser production integration', () => {
   });
 
   it('searches accents/case and filters exercise metadata offline', async () => {
-    const screen = render(<OfflineExerciseBrowser />);
+    const screen = await render(<OfflineExerciseBrowser />);
     await screen.findByText('Prensa de piernas');
     await act(async () =>
       fireEvent.changeText(
@@ -144,7 +144,7 @@ describe('OfflineExerciseBrowser production integration', () => {
       .mocked(offlineCatalogueStatus)
       .mockResolvedValueOnce({ state: 'unseeded' })
       .mockResolvedValue(ready);
-    const screen = render(<OfflineExerciseBrowser />);
+    const screen = await render(<OfflineExerciseBrowser />);
     await screen.findByText(
       'Todavía no hay ejercicios guardados en este dispositivo.',
     );
@@ -156,7 +156,7 @@ describe('OfflineExerciseBrowser production integration', () => {
     );
     expect(await screen.findByText('Prensa de piernas')).toBeTruthy();
     expect(seedOfflineCatalogueFromApi).toHaveBeenCalledTimes(1);
-    const [, auth] = jest.mocked(seedOfflineCatalogueFromApi).mock.calls[0];
+    const [, auth] = jest.mocked(seedOfflineCatalogueFromApi).mock.calls[0]!;
     expect(auth.currentAuthenticatedSubject()).toBe(
       'b35c00d6-243c-4dea-a095-000000000100',
     );
@@ -170,7 +170,7 @@ describe('OfflineExerciseBrowser production integration', () => {
     jest
       .mocked(seedOfflineCatalogueFromApi)
       .mockRejectedValue(new Error('network offline'));
-    const screen = render(<OfflineExerciseBrowser />);
+    const screen = await render(<OfflineExerciseBrowser />);
     await screen.findByText('Press inclinado');
     await act(async () =>
       fireEvent.press(
@@ -188,29 +188,29 @@ describe('OfflineExerciseBrowser production integration', () => {
 
   it('reads multiple local batches and renders count for >100 canonical exercises', async () => {
     const large = Array.from({ length: 101 }, (_, i) => ({
-      ...EXERCISES[0],
+      ...EXERCISES[0]!,
       id: 'exercise-' + i,
       name: 'Press #' + i,
     }));
     seedData(large);
-    const screen = render(<OfflineExerciseBrowser />);
+    const screen = await render(<OfflineExerciseBrowser />);
     await waitFor(() => {
       expect(
         screen.getByTestId('offline-catalogue-results').props.children.join(''),
       ).toBe('101 de 101 ejercicios');
     });
     expect(searchOfflineExercises).toHaveBeenCalledTimes(2);
-    expect(jest.mocked(searchOfflineExercises).mock.calls[1][1]).toMatchObject({
+    expect(jest.mocked(searchOfflineExercises).mock.calls[1]![1]).toMatchObject({
       offset: 100,
       limit: 100,
     });
   });
 
   it('reopens a previously cached snapshot with no automatic download', async () => {
-    const first = render(<OfflineExerciseBrowser />);
+    const first = await render(<OfflineExerciseBrowser />);
     await first.findByText('Press inclinado');
-    first.unmount();
-    const second = render(<OfflineExerciseBrowser />);
+    await first.unmount();
+    const second = await render(<OfflineExerciseBrowser />);
     expect(await second.findByText('Remo con polea')).toBeTruthy();
     expect(seedOfflineCatalogueFromApi).not.toHaveBeenCalled();
   });
