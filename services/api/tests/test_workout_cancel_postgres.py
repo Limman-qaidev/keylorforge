@@ -110,7 +110,12 @@ def test_cancel_is_atomic_owner_scoped_and_preserves_sets() -> None:
         endpoint = f"/workout-sessions/{empty}/cancel"
         intent = _cancel(empty)
         assert client.post(endpoint, headers=b, json=intent).status_code == 404
-        assert client.post(endpoint, headers=a, json={**intent, "session_id": str(uuid4())}).status_code == 422
+        assert (
+            client.post(
+                endpoint, headers=a, json={**intent, "session_id": str(uuid4())}
+            ).status_code
+            == 422
+        )
         first = client.post(endpoint, headers=a, json=intent)
         assert first.status_code == 201, first.text
         assert first.json()["lifecycle_state"] == "cancelled"
@@ -150,20 +155,32 @@ def test_cancel_is_atomic_owner_scoped_and_preserves_sets() -> None:
         assert sets_response.status_code == 201, sets_response.text
         endpoint = f"/workout-sessions/{worked}/cancel"
         assert client.post(endpoint, headers=a, json=_cancel(worked)).status_code == 409
-        assert client.post(endpoint, headers=a, json=_cancel(worked, 1)).status_code == 422
-        assert client.post(endpoint, headers=a, json={
-            **_cancel(worked, 1, discard=True),
-            "cancelled_at_utc": "2026-10-08T14:35:00+00:00",
-        }).status_code == 422
+        assert (
+            client.post(endpoint, headers=a, json=_cancel(worked, 1)).status_code == 422
+        )
+        assert (
+            client.post(
+                endpoint,
+                headers=a,
+                json={
+                    **_cancel(worked, 1, discard=True),
+                    "cancelled_at_utc": "2026-10-08T14:35:00+00:00",
+                },
+            ).status_code
+            == 422
+        )
 
         cancelled = client.post(
             endpoint, headers=a, json=_cancel(worked, 1, discard=True)
         )
         assert cancelled.status_code == 201, cancelled.text
         assert cancelled.json()["confirmed_set_count"] == 1
-        assert client.post(
-            endpoint, headers=b, json=_cancel(worked, 1, discard=True)
-        ).status_code == 404
+        assert (
+            client.post(
+                endpoint, headers=b, json=_cancel(worked, 1, discard=True)
+            ).status_code
+            == 404
+        )
         with Session(engine) as db:
             assert db.get(WorkoutSession, UUID(worked)).lifecycle_state == "cancelled"
             assert db.get(WorkoutSession, UUID(empty)).lifecycle_state == "cancelled"
