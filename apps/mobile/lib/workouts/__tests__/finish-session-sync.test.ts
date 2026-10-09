@@ -104,11 +104,7 @@ class FakeFinishDb implements SqliteWorkoutPort {
     this.rows.set(FINISH, this.makeRow(FINISH, 'FINISH_SESSION', SET_MUTATION));
   }
 
-  private makeRow(
-    id: string,
-    kind: string,
-    parent: string | null,
-  ): OutboxRow {
+  private makeRow(id: string, kind: string, parent: string | null): OutboxRow {
     return {
       subject: SUBJECT,
       mutation_id: id,
@@ -185,7 +181,7 @@ class FakeFinishDb implements SqliteWorkoutPort {
     if (this.errorOnWrite) throw new Error('SQLite busy');
     const [state, subject, mutation] = params;
     const row = this.rows.get(String(mutation));
-    if (row?.subject === subject && row.delivery_state === 'pending') {
+    if (row && row.subject === subject && row.delivery_state === 'pending') {
       this.rows.set(String(mutation), {
         ...row,
         delivery_state: String(state),
@@ -304,9 +300,9 @@ describe('account-fenced manual FINISH_SESSION HTTP transport', () => {
 
   it('does not ACK an invalid receipt or lost HTTP response', async () => {
     const db = new FakeFinishDb();
-    jest.mocked(requestApi).mockResolvedValueOnce(
-      receipt({ completion_snapshot_id: OTHER }),
-    );
+    jest
+      .mocked(requestApi)
+      .mockResolvedValueOnce(receipt({ completion_snapshot_id: OTHER }));
     expect(await syncNextPendingFinish(db, access().credentials)).toEqual({
       state: 'retryable',
       reason: 'invalidResponse',
