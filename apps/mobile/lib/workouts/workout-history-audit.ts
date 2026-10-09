@@ -76,11 +76,15 @@ function verifiedPage(value: unknown): RemotePage | null {
     !page ||
     !Array.isArray(page.entries) ||
     page.entries.length > PAGE_SIZE ||
-    !(page.next_before_finished_at === null ||
-      validTime(page.next_before_finished_at)) ||
-    !(page.next_before_session_id === null ||
+    !(
+      page.next_before_finished_at === null ||
+      validTime(page.next_before_finished_at)
+    ) ||
+    !(
+      page.next_before_session_id === null ||
       (typeof page.next_before_session_id === 'string' &&
-        UUID.test(page.next_before_session_id))) ||
+        UUID.test(page.next_before_session_id))
+    ) ||
     (page.next_before_finished_at === null) !==
       (page.next_before_session_id === null) ||
     (page.next_before_session_id !== null && page.entries.length !== PAGE_SIZE)
