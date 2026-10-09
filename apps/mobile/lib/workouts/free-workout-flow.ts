@@ -27,6 +27,8 @@ import {
   type LocalStartWorkoutInput,
 } from './local-store';
 
+const CANONICAL_UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const UUID_V4 =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const busyDatabases = new WeakSet<SqliteWorkoutPort>();
@@ -79,12 +81,18 @@ function generatedId(factory: WorkoutIdProvider): string {
   return value.toLowerCase();
 }
 
-function uniqueIds(factory: WorkoutIdProvider, count: number): string[] {
+function uniqueIds(factory: WorkoutIdProvider, count: 2): [string, string];
+function uniqueIds(factory: WorkoutIdProvider, count: 3): [string, string, string];
+function uniqueIds(
+  factory: WorkoutIdProvider,
+  count: 2 | 3,
+): [string, string] | [string, string, string] {
   const values = Array.from({ length: count }, () => generatedId(factory));
   if (new Set(values).size !== count) {
     throw new WorkoutFlowError('invalidInput');
   }
-  return values;
+  if (count === 2) return [values[0]!, values[1]!];
+  return [values[0]!, values[1]!, values[2]!];
 }
 
 function nowUtc(clock: WorkoutClock): string {
@@ -202,7 +210,8 @@ export async function recordFreeWorkoutSet(
   return exclusiveFlow(db, async () => {
     if (
       !request ||
-      !UUID_V4.test(request.canonicalExerciseId) ||
+      typeof request.canonicalExerciseId !== 'string' ||
+      !CANONICAL_UUID.test(request.canonicalExerciseId) ||
       !['WORKING', 'WARMUP'].includes(request.role)
     ) {
       throw new WorkoutFlowError('invalidInput');
@@ -211,7 +220,7 @@ export async function recordFreeWorkoutSet(
       await readActiveFreeWorkoutOverview(db, access),
     );
     const matching = overview.exercises.find(
-      (entry) => entry.canonical_exercise_id === request.canonicalExerciseId,
+      (entry) => entry.canonical_exercise_id === request.canonicalExerciseId.toLowerCase(),
     );
     const [setId, mutationId, newOccurrenceId] = uniqueIds(ids, 3);
     const occurrenceId = matching?.occurrence_id ?? newOccurrenceId;
