@@ -150,11 +150,14 @@ describe('ExerciseCatalogScreen', () => {
       },
       initialized: true,
     });
-    jest.mocked(getExercise).mockRejectedValueOnce(
-      new CatalogApiError('network', 'Sin Internet'),
+    jest
+      .mocked(getExercise)
+      .mockRejectedValueOnce(new CatalogApiError('network', 'Sin Internet'));
+    const { getByText, getAllByText, getByLabelText, findByText } =
+      await renderScreen();
+    await act(async () =>
+      fireEvent.press(getByLabelText('Abrir Press de banca')),
     );
-    const { getByText, getAllByText, getByLabelText, findByText } = await renderScreen();
-    await act(async () => fireEvent.press(getByLabelText('Abrir Press de banca')));
     expect(await findByText('DETALLE DEL EJERCICIO')).toBeTruthy();
     expect(getByText('Medición')).toBeTruthy();
     expect(getAllByText('No especificado').length).toBeGreaterThan(0);

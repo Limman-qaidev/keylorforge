@@ -100,7 +100,9 @@ export function useCachedExerciseCatalogue(session: Session | null): {
 
   useEffect(() => {
     mounted.current = true;
-    return () => { mounted.current = false; };
+    return () => {
+      mounted.current = false;
+    };
   }, []);
 
   const backgroundUpdate = useCallback(async () => {
@@ -119,7 +121,7 @@ export function useCachedExerciseCatalogue(session: Session | null): {
     inFlight.current = true;
     const access: StartSyncAccess = {
       currentAuthenticatedSubject: () =>
-        mounted.current ? currentSession.current?.user.id ?? null : null,
+        mounted.current ? (currentSession.current?.user.id ?? null) : null,
       acquireCurrentCredentials: async () => {
         const active = mounted.current ? currentSession.current : null;
         return active?.access_token && active.user.id
@@ -131,7 +133,11 @@ export function useCachedExerciseCatalogue(session: Session | null): {
       const db = await openOfflineExerciseCatalogue();
       await seedOfflineCatalogueFromApi(db, access);
       const next = await readSnapshot();
-      if (mounted.current && currentSession.current?.user.id === current.user.id && next) {
+      if (
+        mounted.current &&
+        currentSession.current?.user.id === current.user.id &&
+        next
+      ) {
         snapshotRef.current = next;
         setSnapshot(next);
       }

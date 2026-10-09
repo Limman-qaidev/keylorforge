@@ -44,7 +44,7 @@ function TestScreen() {
       {!initialized
         ? 'Buscando catálogo'
         : snapshot
-          ? snapshot.items.map(item => item.name).join(',')
+          ? snapshot.items.map((item) => item.name).join(',')
           : 'Catálogo online disponible'}
     </Text>
   );
@@ -53,9 +53,11 @@ function TestScreen() {
 describe('transparent native exercise catalogue persistence', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.mocked(openOfflineExerciseCatalogue).mockResolvedValue(
-      {} as Awaited<ReturnType<typeof openOfflineExerciseCatalogue>>,
-    );
+    jest
+      .mocked(openOfflineExerciseCatalogue)
+      .mockResolvedValue(
+        {} as Awaited<ReturnType<typeof openOfflineExerciseCatalogue>>,
+      );
     jest.mocked(offlineCatalogueStatus).mockResolvedValue({
       state: 'ready',
       total: 1,
@@ -76,10 +78,10 @@ describe('transparent native exercise catalogue persistence', () => {
     const screen = await render(<TestScreen />);
     expect(await screen.findByText('Abdominal Otis')).toBeTruthy();
     expect(seedOfflineCatalogueFromApi).not.toHaveBeenCalled();
-    expect(searchOfflineExercises).toHaveBeenCalledWith(
-      expect.anything(),
-      { offset: 0, limit: 100 },
-    );
+    expect(searchOfflineExercises).toHaveBeenCalledWith(expect.anything(), {
+      offset: 0,
+      limit: 100,
+    });
   });
 
   it('opens the same SQLite cache after a normal component relaunch', async () => {
@@ -92,7 +94,8 @@ describe('transparent native exercise catalogue persistence', () => {
   });
 
   it('automatically boots a missing cache without a special download button', async () => {
-    jest.mocked(offlineCatalogueStatus)
+    jest
+      .mocked(offlineCatalogueStatus)
       .mockResolvedValueOnce({ state: 'unseeded' })
       .mockResolvedValue({
         state: 'ready',
@@ -119,9 +122,9 @@ describe('transparent native exercise catalogue persistence', () => {
       total: 1,
       seededAtUtc: '2024-01-01T00:00:00.000Z',
     });
-    jest.mocked(seedOfflineCatalogueFromApi).mockRejectedValue(
-      new Error('airplane mode'),
-    );
+    jest
+      .mocked(seedOfflineCatalogueFromApi)
+      .mockRejectedValue(new Error('airplane mode'));
     const screen = await render(<TestScreen />);
     expect(await screen.findByText('Abdominal Otis')).toBeTruthy();
     await waitFor(() =>
@@ -134,9 +137,9 @@ describe('transparent native exercise catalogue persistence', () => {
     jest.mocked(offlineCatalogueStatus).mockResolvedValue({
       state: 'unseeded',
     });
-    jest.mocked(seedOfflineCatalogueFromApi).mockRejectedValue(
-      new Error('not connected'),
-    );
+    jest
+      .mocked(seedOfflineCatalogueFromApi)
+      .mockRejectedValue(new Error('not connected'));
     const screen = await render(<TestScreen />);
     expect(await screen.findByText('Catálogo online disponible')).toBeTruthy();
     await waitFor(() =>

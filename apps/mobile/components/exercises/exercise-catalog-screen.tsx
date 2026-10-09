@@ -355,8 +355,7 @@ export function ExerciseCatalogScreen() {
         (!query || fold(item.name).includes(query)) &&
         (!primaryMuscleId ||
           item.primary_muscles.some((ref) => ref.id === primaryMuscleId)) &&
-        (!equipmentId ||
-          item.equipment.some((ref) => ref.id === equipmentId)),
+        (!equipmentId || item.equipment.some((ref) => ref.id === equipmentId)),
     );
   }, [snapshot, search, primaryMuscleId, equipmentId]);
 
@@ -438,13 +437,18 @@ export function ExerciseCatalogScreen() {
   if (selectedExerciseId) {
     // A list snapshot has only these fields; never invent server-only detail.
     // Show the same DetailView immediately while a richer online detail loads.
-    const cached = snapshot?.items.find((item) => item.id === selectedExerciseId);
+    const cached = snapshot?.items.find(
+      (item) => item.id === selectedExerciseId,
+    );
     const cachedDetail: ExerciseDetail | null = cached
       ? {
           ...cached,
           mechanics: null,
           force_type: null,
-          muscles: cached.primary_muscles.map((ref) => ({ ...ref, role: 'primary' })),
+          muscles: cached.primary_muscles.map((ref) => ({
+            ...ref,
+            role: 'primary',
+          })),
         }
       : null;
     if (detailQuery.data || cachedDetail) {
@@ -499,13 +503,17 @@ export function ExerciseCatalogScreen() {
     );
   }
 
-  const filtersPending = !snapshot && (musclesQuery.isPending || equipmentQuery.isPending);
-  const initialPending = !initialized || (!snapshot && (exercisesQuery.isPending || filtersPending));
+  const filtersPending =
+    !snapshot && (musclesQuery.isPending || equipmentQuery.isPending);
+  const initialPending =
+    !initialized || (!snapshot && (exercisesQuery.isPending || filtersPending));
   const baseError =
     exercisesQuery.error ?? musclesQuery.error ?? equipmentQuery.error;
-  const filterError = snapshot ? null : musclesQuery.error ?? equipmentQuery.error;
-  const isRefreshingResults = !snapshot &&
-    exercisesQuery.isPlaceholderData && exercisesQuery.isFetching;
+  const filterError = snapshot
+    ? null
+    : (musclesQuery.error ?? equipmentQuery.error);
+  const isRefreshingResults =
+    !snapshot && exercisesQuery.isPlaceholderData && exercisesQuery.isFetching;
   const items = snapshot
     ? locallyMatched.slice(0, localLimit)
     : exercisesQuery.isPlaceholderData
@@ -554,7 +562,10 @@ export function ExerciseCatalogScreen() {
           accessibilityLabel="Buscar ejercicios"
           autoCapitalize="none"
           onChangeText={setSearchDraft}
-          onSubmitEditing={() => { setSearch(searchDraft.trim()); setLocalLimit(30); }}
+          onSubmitEditing={() => {
+            setSearch(searchDraft.trim());
+            setLocalLimit(30);
+          }}
           placeholder="Buscar por nombre"
           returnKeyType="search"
           style={styles.searchInput}
@@ -562,7 +573,10 @@ export function ExerciseCatalogScreen() {
         />
         <Pressable
           accessibilityRole="button"
-          onPress={() => { setSearch(searchDraft.trim()); setLocalLimit(30); }}
+          onPress={() => {
+            setSearch(searchDraft.trim());
+            setLocalLimit(30);
+          }}
           style={styles.searchButton}
         >
           <Text style={styles.searchButtonText}>Buscar</Text>
@@ -571,13 +585,19 @@ export function ExerciseCatalogScreen() {
 
       <FilterRow
         label="Músculo"
-        onSelect={(id) => { setPrimaryMuscleId(id); setLocalLimit(30); }}
+        onSelect={(id) => {
+          setPrimaryMuscleId(id);
+          setLocalLimit(30);
+        }}
         options={snapshot?.muscles ?? musclesQuery.data ?? []}
         selectedId={primaryMuscleId}
       />
       <FilterRow
         label="Equipamiento"
-        onSelect={(id) => { setEquipmentId(id); setLocalLimit(30); }}
+        onSelect={(id) => {
+          setEquipmentId(id);
+          setLocalLimit(30);
+        }}
         options={snapshot?.equipment ?? equipmentQuery.data ?? []}
         selectedId={equipmentId}
       />
