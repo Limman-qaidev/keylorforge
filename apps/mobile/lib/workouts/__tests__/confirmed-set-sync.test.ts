@@ -21,11 +21,16 @@ const MACHINE_PROFILE_CREATE = '0d72c629-6248-4221-8ab2-d9b9f1b63901';
 const MACHINE_CONFIG = 'e6abfa2f-a26e-4202-a53f-56595568f189';
 const MACHINE_CONFIG_CREATE = 'fb3ee135-4e5f-4c9e-bd5d-2b162ad6c95d';
 type MachineCreatedRow = {
-  subject: string; mutation_id: string; mutation_kind: string;
-  profile_id: string; entity_id: string; protocol_version: number;
-  payload_json: string; delivery_state: string; depends_on_mutation_id: string | null;
+  subject: string;
+  mutation_id: string;
+  mutation_kind: string;
+  profile_id: string;
+  entity_id: string;
+  protocol_version: number;
+  payload_json: string;
+  delivery_state: string;
+  depends_on_mutation_id: string | null;
 };
-
 
 type OutboxRow = {
   subject: string;
@@ -194,7 +199,9 @@ class FakeDB implements SqliteWorkoutPort {
         snapshot: { label: 'Polea A', seat: 4 },
       };
       cmd.load = {
-        decimal: '20.5', unit: 'kg', entrySemantics: 'machine_display',
+        decimal: '20.5',
+        unit: 'kg',
+        entrySemantics: 'machine_display',
       };
     });
     const set = this.sets.get(FIRST)!;
@@ -203,36 +210,52 @@ class FakeDB implements SqliteWorkoutPort {
     set.machine_snapshot_json = '{"label":"Polea A","seat":4}';
     set.load_entry_semantics = 'machine_display';
     this.machineProfiles.set(MACHINE_PROFILE, {
-      subject: SUBJECT, profile_id: MACHINE_PROFILE,
-      create_mutation_id: MACHINE_PROFILE_CREATE, native_load_unit: 'kg',
+      subject: SUBJECT,
+      profile_id: MACHINE_PROFILE,
+      create_mutation_id: MACHINE_PROFILE_CREATE,
+      native_load_unit: 'kg',
       load_entry_semantics: 'machine_display',
     });
     this.machineOutbox.set(MACHINE_PROFILE_CREATE, {
-      subject: SUBJECT, mutation_id: MACHINE_PROFILE_CREATE,
-      mutation_kind: 'CREATE_MACHINE_PROFILE', profile_id: MACHINE_PROFILE,
-      entity_id: MACHINE_PROFILE, protocol_version: 1,
-      delivery_state: 'acknowledged', depends_on_mutation_id: null,
+      subject: SUBJECT,
+      mutation_id: MACHINE_PROFILE_CREATE,
+      mutation_kind: 'CREATE_MACHINE_PROFILE',
+      profile_id: MACHINE_PROFILE,
+      entity_id: MACHINE_PROFILE,
+      protocol_version: 1,
+      delivery_state: 'acknowledged',
+      depends_on_mutation_id: null,
       payload_json: JSON.stringify({
-        kind: 'CREATE_MACHINE_PROFILE', mutation_id: MACHINE_PROFILE_CREATE,
-        profile_id: MACHINE_PROFILE, native_load_unit: 'kg',
-        load_entry_semantics: 'machine_display', metadata_source: 'user_entered',
+        kind: 'CREATE_MACHINE_PROFILE',
+        mutation_id: MACHINE_PROFILE_CREATE,
+        profile_id: MACHINE_PROFILE,
+        native_load_unit: 'kg',
+        load_entry_semantics: 'machine_display',
+        metadata_source: 'user_entered',
       }),
     });
     if (configuration) {
       this.machineConfigurations.set(MACHINE_CONFIG, {
-        subject: SUBJECT, configuration_id: MACHINE_CONFIG,
-        profile_id: MACHINE_PROFILE, create_mutation_id: MACHINE_CONFIG_CREATE,
+        subject: SUBJECT,
+        configuration_id: MACHINE_CONFIG,
+        profile_id: MACHINE_PROFILE,
+        create_mutation_id: MACHINE_CONFIG_CREATE,
       });
       this.machineOutbox.set(MACHINE_CONFIG_CREATE, {
-        subject: SUBJECT, mutation_id: MACHINE_CONFIG_CREATE,
+        subject: SUBJECT,
+        mutation_id: MACHINE_CONFIG_CREATE,
         mutation_kind: 'CREATE_MACHINE_CONFIGURATION',
-        profile_id: MACHINE_PROFILE, entity_id: MACHINE_CONFIG,
-        protocol_version: 1, delivery_state: 'acknowledged',
+        profile_id: MACHINE_PROFILE,
+        entity_id: MACHINE_CONFIG,
+        protocol_version: 1,
+        delivery_state: 'acknowledged',
         depends_on_mutation_id: MACHINE_PROFILE_CREATE,
         payload_json: JSON.stringify({
           kind: 'CREATE_MACHINE_CONFIGURATION',
-          mutation_id: MACHINE_CONFIG_CREATE, profile_id: MACHINE_PROFILE,
-          configuration_id: MACHINE_CONFIG, metadata_source: 'user_entered',
+          mutation_id: MACHINE_CONFIG_CREATE,
+          profile_id: MACHINE_PROFILE,
+          configuration_id: MACHINE_CONFIG,
+          metadata_source: 'user_entered',
         }),
       });
     }
@@ -255,10 +278,15 @@ class FakeDB implements SqliteWorkoutPort {
       if (!row || row.subject !== args[0]) return null;
       // Model an actual SQLite projection; a missing selected session_id
       // must not be silently supplied by an over-permissive test mock.
-      return (sql.startsWith('SELECT mutation_id, session_id, delivery_state')
-        ? { mutation_id: row.mutation_id, session_id: row.session_id,
-            delivery_state: row.delivery_state }
-        : { ...row }) as T;
+      return (
+        sql.startsWith('SELECT mutation_id, session_id, delivery_state')
+          ? {
+              mutation_id: row.mutation_id,
+              session_id: row.session_id,
+              delivery_state: row.delivery_state,
+            }
+          : { ...row }
+      ) as T;
     }
     if (sql.includes('FROM local_machine_outbox')) {
       const row = this.machineOutbox.get(String(args[1]));
@@ -425,15 +453,17 @@ describe('M3 causally sequenced confirmed-set transport', () => {
     expect(requestApi).not.toHaveBeenCalled();
   });
 
-
   it('sends original machine-bound set only after profile CREATE ACK', async () => {
     const db = new FakeDB();
     db.bindMachine();
-    jest.mocked(requestApi).mockResolvedValue(
-      serverResponse(true, { machine_profile_id: MACHINE_PROFILE }),
-    );
+    jest
+      .mocked(requestApi)
+      .mockResolvedValue(
+        serverResponse(true, { machine_profile_id: MACHINE_PROFILE }),
+      );
     expect(await syncNextPendingConfirmedSet(db, account().access)).toEqual({
-      state: 'acknowledged', mutationId: FIRST,
+      state: 'acknowledged',
+      mutationId: FIRST,
     });
     const [path, options] = jest.mocked(requestApi).mock.calls[0]!;
     expect(path).toBe(`/workout-sessions/${SESSION}/sets/first`);
@@ -443,38 +473,61 @@ describe('M3 causally sequenced confirmed-set transport', () => {
   it('delivers configuration-bound set only when profile AND its config are ACKed', async () => {
     const db = new FakeDB();
     db.bindMachine(true);
-    jest.mocked(requestApi).mockResolvedValue(serverResponse(true, {
-      machine_profile_id: MACHINE_PROFILE,
-      machine_configuration_id: MACHINE_CONFIG,
-    }));
+    jest.mocked(requestApi).mockResolvedValue(
+      serverResponse(true, {
+        machine_profile_id: MACHINE_PROFILE,
+        machine_configuration_id: MACHINE_CONFIG,
+      }),
+    );
     expect(await syncNextPendingConfirmedSet(db, account().access)).toEqual({
-      state: 'acknowledged', mutationId: FIRST,
+      state: 'acknowledged',
+      mutationId: FIRST,
     });
   });
   it('never sends when profile or configuration CREATE is missing, unacknowledged or foreign-owned', async () => {
     for (const config of [false, true]) {
-      for (const state of ['pending', 'conflict', 'missing', 'foreign'] as const) {
+      for (const state of [
+        'pending',
+        'conflict',
+        'missing',
+        'foreign',
+      ] as const) {
         const db = new FakeDB();
         db.bindMachine(config);
-        const mutation = config ? MACHINE_CONFIG_CREATE : MACHINE_PROFILE_CREATE;
+        const mutation = config
+          ? MACHINE_CONFIG_CREATE
+          : MACHINE_PROFILE_CREATE;
         if (state === 'missing') db.machineOutbox.delete(mutation);
         else if (state === 'foreign')
           db.machineOutbox.get(mutation)!.subject = OTHER;
         else db.machineOutbox.get(mutation)!.delivery_state = state;
-        expect(await syncNextPendingConfirmedSet(db, account().access)).toEqual({
-          state: 'blocked', reason: 'dependency',
-        });
+        expect(await syncNextPendingConfirmedSet(db, account().access)).toEqual(
+          {
+            state: 'blocked',
+            reason: 'dependency',
+          },
+        );
       }
     }
     expect(requestApi).not.toHaveBeenCalled();
   });
   it('rejects wrong machine parent, native units or untrusted machine creation payload', async () => {
     for (const corrupt of [
-      (db: FakeDB) => { db.machineProfiles.get(MACHINE_PROFILE)!.subject = OTHER; },
-      (db: FakeDB) => { db.machineProfiles.get(MACHINE_PROFILE)!.native_load_unit = 'lb'; },
-      (db: FakeDB) => { db.machineOutbox.get(MACHINE_PROFILE_CREATE)!.entity_id = OTHER; },
-      (db: FakeDB) => { db.machineOutbox.get(MACHINE_PROFILE_CREATE)!.payload_json = '{}'; },
-      (db: FakeDB) => { db.machineOutbox.get(MACHINE_PROFILE_CREATE)!.protocol_version = 2; },
+      (db: FakeDB) => {
+        db.machineProfiles.get(MACHINE_PROFILE)!.subject = OTHER;
+      },
+      (db: FakeDB) => {
+        db.machineProfiles.get(MACHINE_PROFILE)!.native_load_unit = 'lb';
+      },
+      (db: FakeDB) => {
+        db.machineOutbox.get(MACHINE_PROFILE_CREATE)!.entity_id = OTHER;
+      },
+      (db: FakeDB) => {
+        db.machineOutbox.get(MACHINE_PROFILE_CREATE)!.payload_json = '{}';
+      },
+      (db: FakeDB) => {
+        db.machineOutbox.get(MACHINE_PROFILE_CREATE)!.protocol_version = 2;
+      },
     ]) {
       const db = new FakeDB();
       db.bindMachine();
@@ -491,7 +544,8 @@ describe('M3 causally sequenced confirmed-set transport', () => {
     db.machineOutbox.clear();
     db.machineProfiles.clear();
     expect(await syncNextPendingConfirmedSet(db, account().access)).toEqual({
-      state: 'blocked', reason: 'dependency',
+      state: 'blocked',
+      reason: 'dependency',
     });
     expect(db.state(FIRST)).toBe('pending');
     expect(requestApi).not.toHaveBeenCalled();
@@ -500,14 +554,15 @@ describe('M3 causally sequenced confirmed-set transport', () => {
     for (const type of ['snapshot', 'profile', 'config'] as const) {
       const db = new FakeDB();
       db.bindMachine(true);
-      db.modify(FIRST, cmd => {
+      db.modify(FIRST, (cmd) => {
         const machine = cmd.machine as Record<string, unknown>;
         if (type === 'snapshot') machine.snapshot = { label: 'Polea B' };
         if (type === 'profile') machine.profileId = OTHER;
         if (type === 'config') machine.configurationId = OTHER;
       });
       expect(await syncNextPendingConfirmedSet(db, account().access)).toEqual({
-        state: 'blocked', reason: 'localData',
+        state: 'blocked',
+        reason: 'localData',
       });
     }
     expect(requestApi).not.toHaveBeenCalled();
@@ -516,28 +571,39 @@ describe('M3 causally sequenced confirmed-set transport', () => {
     { machine_profile_id: OTHER, machine_configuration_id: MACHINE_CONFIG },
     { machine_profile_id: MACHINE_PROFILE, machine_configuration_id: OTHER },
     { machine_profile_id: MACHINE_PROFILE, machine_configuration_id: null },
-  ])('never ACKs wrong or absent configuration in HTTP 201 receipt %j', async invalid => {
-    const db = new FakeDB();
-    db.bindMachine(true);
-    jest.mocked(requestApi).mockResolvedValue(serverResponse(true, invalid));
-    expect(await syncNextPendingConfirmedSet(db, account().access)).toEqual({
-      state: 'retryable', reason: 'invalidResponse',
-    });
-    expect(db.state(FIRST)).toBe('pending');
-  });
+  ])(
+    'never ACKs wrong or absent configuration in HTTP 201 receipt %j',
+    async (invalid) => {
+      const db = new FakeDB();
+      db.bindMachine(true);
+      jest.mocked(requestApi).mockResolvedValue(serverResponse(true, invalid));
+      expect(await syncNextPendingConfirmedSet(db, account().access)).toEqual({
+        state: 'retryable',
+        reason: 'invalidResponse',
+      });
+      expect(db.state(FIRST)).toBe('pending');
+    },
+  );
   it('does not ACK if machine parent becomes unacknowledged during HTTP in-flight', async () => {
     const db = new FakeDB();
     db.bindMachine(true);
     let finish: ((value: Response) => void) | undefined;
-    jest.mocked(requestApi).mockImplementation(() =>
-      new Promise<Response>(resolve => { finish = resolve; }));
+    jest.mocked(requestApi).mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          finish = resolve;
+        }),
+    );
     const pending = syncNextPendingConfirmedSet(db, account().access);
     for (let i = 0; i < 25 && !finish; i++) await Promise.resolve();
     expect(finish).toBeDefined();
     db.machineOutbox.get(MACHINE_CONFIG_CREATE)!.delivery_state = 'pending';
-    finish!(serverResponse(true, {
-      machine_profile_id: MACHINE_PROFILE, machine_configuration_id: MACHINE_CONFIG,
-    }));
+    finish!(
+      serverResponse(true, {
+        machine_profile_id: MACHINE_PROFILE,
+        machine_configuration_id: MACHINE_CONFIG,
+      }),
+    );
     await expect(pending).rejects.toMatchObject({ code: 'corruptLocalData' });
     expect(db.state(FIRST)).toBe('pending');
   });
@@ -545,10 +611,13 @@ describe('M3 causally sequenced confirmed-set transport', () => {
     const db = new FakeDB();
     db.bindMachine();
     const target = { requestedReps: 8 };
-    db.modify(FIRST, cmd => { cmd.target_at_confirmation = target; });
+    db.modify(FIRST, (cmd) => {
+      cmd.target_at_confirmation = target;
+    });
     db.sets.get(FIRST)!.target_at_confirmation_json = JSON.stringify(target);
     expect(await syncNextPendingConfirmedSet(db, account().access)).toEqual({
-      state: 'blocked', reason: 'unsupported',
+      state: 'blocked',
+      reason: 'unsupported',
     });
     expect(requestApi).not.toHaveBeenCalled();
   });

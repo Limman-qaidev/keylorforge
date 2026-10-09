@@ -223,7 +223,8 @@ function readCommand(
   if (value.machine !== null) {
     const machine = object(value.machine);
     const snapshot = machine && object(machine.snapshot);
-    const storedSnapshot = performed.machine_snapshot_json &&
+    const storedSnapshot =
+      performed.machine_snapshot_json &&
       parsedRecord(performed.machine_snapshot_json);
     if (
       !machine ||
@@ -232,18 +233,21 @@ function readCommand(
       typeof machine.profileId !== 'string' ||
       !UUID.test(machine.profileId) ||
       machine.profileId.toLowerCase() !== performed.machine_profile_id ||
-      (machine.configurationId !== null && machine.configurationId !== undefined &&
+      (machine.configurationId !== null &&
+        machine.configurationId !== undefined &&
         (typeof machine.configurationId !== 'string' ||
-         !UUID.test(machine.configurationId))) ||
+          !UUID.test(machine.configurationId))) ||
       (typeof machine.configurationId === 'string'
-        ? machine.configurationId.toLowerCase() : null) !==
-          performed.machine_configuration_id ||
+        ? machine.configurationId.toLowerCase()
+        : null) !== performed.machine_configuration_id ||
       !sameJson(snapshot, storedSnapshot)
-    ) return null;
+    )
+      return null;
   }
   if (value.target_at_confirmation !== null) {
     const target = object(value.target_at_confirmation);
-    const stored = performed.target_at_confirmation_json &&
+    const stored =
+      performed.target_at_confirmation_json &&
       parsedRecord(performed.target_at_confirmation_json);
     if (!target || !stored || !sameJson(target, stored)) return null;
   }
@@ -276,7 +280,6 @@ function matchingReceipt(body: unknown, cmd: Command): boolean {
   return Number.isFinite(serverTime) && serverTime === localTime;
 }
 
-
 /**
  * A machine-bound set is deliverable only after the exact owner-owned CREATE
  * operations have been acknowledged locally. Legacy diagnostic snapshots from
@@ -297,61 +300,90 @@ async function machineReady(
   );
   sameSubject(access, subject);
   if (!profile) return 'dependency';
-  if (profile.subject !== subject || profile.profile_id !== profileId ||
-      !UUID.test(profile.create_mutation_id)) return 'localData';
+  if (
+    profile.subject !== subject ||
+    profile.profile_id !== profileId ||
+    !UUID.test(profile.create_mutation_id)
+  )
+    return 'localData';
   const profileCreate = await db.getFirstAsync<MachineCreateRow>(
     'SELECT * FROM local_machine_outbox WHERE subject = ? AND mutation_id = ?',
-    subject, profile.create_mutation_id,
+    subject,
+    profile.create_mutation_id,
   );
   sameSubject(access, subject);
   if (!profileCreate) return 'dependency';
   const payload = parsedRecord(profileCreate.payload_json);
-  if (profileCreate.subject !== subject || profileCreate.protocol_version !== 1 ||
-      profileCreate.mutation_kind !== 'CREATE_MACHINE_PROFILE' ||
-      profileCreate.mutation_id !== profile.create_mutation_id ||
-      profileCreate.profile_id !== profileId || profileCreate.entity_id !== profileId ||
-      profileCreate.depends_on_mutation_id !== null ||
-      !payload || payload.kind !== 'CREATE_MACHINE_PROFILE' ||
-      payload.mutation_id !== profileCreate.mutation_id ||
-      payload.profile_id !== profileId ||
-      payload.native_load_unit !== profile.native_load_unit ||
-      payload.load_entry_semantics !== profile.load_entry_semantics ||
-      payload.metadata_source !== 'user_entered') return 'localData';
+  if (
+    profileCreate.subject !== subject ||
+    profileCreate.protocol_version !== 1 ||
+    profileCreate.mutation_kind !== 'CREATE_MACHINE_PROFILE' ||
+    profileCreate.mutation_id !== profile.create_mutation_id ||
+    profileCreate.profile_id !== profileId ||
+    profileCreate.entity_id !== profileId ||
+    profileCreate.depends_on_mutation_id !== null ||
+    !payload ||
+    payload.kind !== 'CREATE_MACHINE_PROFILE' ||
+    payload.mutation_id !== profileCreate.mutation_id ||
+    payload.profile_id !== profileId ||
+    payload.native_load_unit !== profile.native_load_unit ||
+    payload.load_entry_semantics !== profile.load_entry_semantics ||
+    payload.metadata_source !== 'user_entered'
+  )
+    return 'localData';
   if (profileCreate.delivery_state !== 'acknowledged') return 'dependency';
-  if (cmd.load !== null &&
-      ((profile.native_load_unit !== null && cmd.load.unit !== profile.native_load_unit) ||
-       (profile.load_entry_semantics !== null &&
-        cmd.load.entrySemantics !== profile.load_entry_semantics))) return 'localData';
+  if (
+    cmd.load !== null &&
+    ((profile.native_load_unit !== null &&
+      cmd.load.unit !== profile.native_load_unit) ||
+      (profile.load_entry_semantics !== null &&
+        cmd.load.entrySemantics !== profile.load_entry_semantics))
+  )
+    return 'localData';
 
   const configId = cmd.machine.configurationId;
   if (configId === null || configId === undefined) return 'ready';
   const config = await db.getFirstAsync<MachineConfigurationRow>(
     'SELECT * FROM local_machine_configurations WHERE subject = ? AND configuration_id = ?',
-    subject, String(configId),
+    subject,
+    String(configId),
   );
   sameSubject(access, subject);
   if (!config) return 'dependency';
-  if (config.subject !== subject || config.profile_id !== profileId ||
-      config.configuration_id !== configId ||
-      !UUID.test(config.create_mutation_id)) return 'localData';
+  if (
+    config.subject !== subject ||
+    config.profile_id !== profileId ||
+    config.configuration_id !== configId ||
+    !UUID.test(config.create_mutation_id)
+  )
+    return 'localData';
   const configCreate = await db.getFirstAsync<MachineCreateRow>(
     'SELECT * FROM local_machine_outbox WHERE subject = ? AND mutation_id = ?',
-    subject, config.create_mutation_id,
+    subject,
+    config.create_mutation_id,
   );
   sameSubject(access, subject);
   if (!configCreate) return 'dependency';
   const configPayload = parsedRecord(configCreate.payload_json);
-  if (configCreate.subject !== subject || configCreate.protocol_version !== 1 ||
-      configCreate.mutation_kind !== 'CREATE_MACHINE_CONFIGURATION' ||
-      configCreate.mutation_id !== config.create_mutation_id ||
-      configCreate.profile_id !== profileId || configCreate.entity_id !== configId ||
-      configCreate.depends_on_mutation_id !== profile.create_mutation_id ||
-      !configPayload || configPayload.kind !== 'CREATE_MACHINE_CONFIGURATION' ||
-      configPayload.mutation_id !== configCreate.mutation_id ||
-      configPayload.profile_id !== profileId ||
-      configPayload.configuration_id !== configId ||
-      configPayload.metadata_source !== 'user_entered') return 'localData';
-  return configCreate.delivery_state === 'acknowledged' ? 'ready' : 'dependency';
+  if (
+    configCreate.subject !== subject ||
+    configCreate.protocol_version !== 1 ||
+    configCreate.mutation_kind !== 'CREATE_MACHINE_CONFIGURATION' ||
+    configCreate.mutation_id !== config.create_mutation_id ||
+    configCreate.profile_id !== profileId ||
+    configCreate.entity_id !== configId ||
+    configCreate.depends_on_mutation_id !== profile.create_mutation_id ||
+    !configPayload ||
+    configPayload.kind !== 'CREATE_MACHINE_CONFIGURATION' ||
+    configPayload.mutation_id !== configCreate.mutation_id ||
+    configPayload.profile_id !== profileId ||
+    configPayload.configuration_id !== configId ||
+    configPayload.metadata_source !== 'user_entered'
+  )
+    return 'localData';
+  return configCreate.delivery_state === 'acknowledged'
+    ? 'ready'
+    : 'dependency';
 }
 
 async function send(
@@ -438,9 +470,16 @@ async function transition(
       currentSet.occurrence_id,
     );
     sameSubject(access, row.subject);
-    if (!currentOccurrence ||
-        !sameJson(readCommand(row, currentSet, currentOccurrence), command) ||
-        (await machineReady(tx as SqliteWorkoutPort, access, row.subject, command)) !== 'ready') {
+    if (
+      !currentOccurrence ||
+      !sameJson(readCommand(row, currentSet, currentOccurrence), command) ||
+      (await machineReady(
+        tx as SqliteWorkoutPort,
+        access,
+        row.subject,
+        command,
+      )) !== 'ready'
+    ) {
       throw new LocalWorkoutError('corruptLocalData');
     }
     sameSubject(access, row.subject);
