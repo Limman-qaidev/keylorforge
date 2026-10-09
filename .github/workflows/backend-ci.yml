@@ -49,6 +49,14 @@ jobs:
           python -m pip install -c constraints.txt -e ".[dev]"
           python -m pip check
 
+      # TEMPORARY diagnostic; remove before concluding review.
+      - name: Inspect Python formatting lint and integration
+        run: |
+          ruff format --diff . || true
+          ruff check . || true
+          mypy app || true
+          pytest -q tests/test_workout_sets_postgres.py || true
+
       - name: Check formatting
         run: ruff format --check .
 
