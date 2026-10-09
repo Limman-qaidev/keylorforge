@@ -79,7 +79,10 @@ function asRecord(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function validStartCommand(row: StartRow, local: LocalWorkoutSession): StartCommand | null {
+function validStartCommand(
+  row: StartRow,
+  local: LocalWorkoutSession,
+): StartCommand | null {
   let decoded: unknown;
   try {
     decoded = JSON.parse(row.payload_json);
