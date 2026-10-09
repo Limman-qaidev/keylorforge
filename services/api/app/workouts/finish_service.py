@@ -46,10 +46,7 @@ def finish_free_workout(
     """One owner lock and one SQL transaction; caller commits after response."""
     owner = _active_owner(session, principal, lock=True)
     digest = _hash_finish(request)
-    if (
-        session.get(MachineMutationReceipt, (request.mutation_id, owner.id))
-        is not None
-    ):
+    if session.get(MachineMutationReceipt, (request.mutation_id, owner.id)) is not None:
         raise HTTPException(409, detail="mutation ID already used for machine")
     receipt = session.get(WorkoutMutationReceipt, (request.mutation_id, owner.id))
     if receipt is not None:
