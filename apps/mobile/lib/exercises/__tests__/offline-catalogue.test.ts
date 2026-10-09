@@ -1,7 +1,6 @@
 import {
   listExercises,
   type ExerciseListItem,
-  type ExercisePage,
 } from '../catalog-api';
 import {
   type CatalogueSqlitePort,
