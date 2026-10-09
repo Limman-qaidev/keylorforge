@@ -248,7 +248,7 @@ describe('remote-only workout immutable local read model', () => {
     await cacheRemoteOnlyWorkout(db, identity().access, SESSION);
     jest.mocked(fetchRemoteOnlyWorkoutCandidate).mockResolvedValueOnce({
       ...candidate(),
-      detailJson: '{"different_source":true}',
+      detailJson: JSON.stringify({ ...detail, time_zone: 'Europe/Madrid' }),
     });
     expect(
       await cacheRemoteOnlyWorkout(db, identity().access, SESSION),
