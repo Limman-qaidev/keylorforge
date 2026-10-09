@@ -32,11 +32,6 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
-      - name: Diagnose formatting (temporary)
-        run: |
-          npx prettier --write lib/workouts/workout-history-audit.ts lib/workouts/__tests__/workout-history-audit.test.ts
-          git diff -- lib/workouts/workout-history-audit.ts lib/workouts/__tests__/workout-history-audit.test.ts
-
       - name: Check formatting
         run: npm run format:check
 
