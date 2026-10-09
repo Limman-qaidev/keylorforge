@@ -10,6 +10,9 @@ from decimal import Decimal
 from fastapi import HTTPException
 from keylorforge_database.models import (
     CatalogExercise,
+    MachineConfiguration,
+    MachineMutationReceipt,
+    MachineProfile,
     WorkoutMutationReceipt,
     WorkoutOccurrence,
     WorkoutSession,
@@ -59,6 +62,8 @@ def confirm_performed_set(
     """Prepare one authoritative transaction; request session owns the commit."""
     owner = _active_owner(session, principal, lock=True)
     digest = _hash_command(request)
+    if session.get(MachineMutationReceipt, (request.mutation_id, owner.id)) is not None:
+        raise HTTPException(409, detail="mutation ID already used for machine")
     receipt = session.get(WorkoutMutationReceipt, (request.mutation_id, owner.id))
     if receipt is not None:
         if receipt.session_id != request.session_id or receipt.intent_hash != digest:
@@ -73,20 +78,50 @@ def confirm_performed_set(
     if request.completed_at.astimezone(UTC) < parent.started_at.astimezone(UTC):
         raise HTTPException(422, detail="set completed before session start")
 
-    # An applied agenda change and a created Machine Profile each require
-    # their own authenticated server-side causal mutation. They are not yet
-    # implemented: reject references instead of inventing an authoritative
-    # agenda/profile or falsely acknowledging a dependent offline mutation.
+    # Applied agenda revisions are not yet synchronized. Do not fabricate
+    # authoritative target snapshots from unacknowledged client draft state.
     if request.agenda_item_id is not None:
         raise HTTPException(409, detail="agenda item dependency not yet synchronized")
     if request.target_at_confirmation is not None:
         # Unverified targets cannot be authoritative performed-history
         # provenance until an applied agenda revision has been acknowledged.
         raise HTTPException(409, detail="target dependency not yet synchronized")
+    profile_id = None
+    configuration_id = None
+    machine_snapshot = None
     if request.machine is not None:
-        raise HTTPException(
-            409, detail="machine profile dependency not yet synchronized"
-        )
+        # A machine created offline must be acknowledged separately first.
+        # Never accept references to another owner's equipment.
+        profile = session.get(MachineProfile, request.machine.profileId)
+        if profile is None or profile.owner_user_id != owner.id:
+            raise HTTPException(404, detail="machine profile not found")
+        if request.machine.configurationId is not None:
+            configuration = session.get(
+                MachineConfiguration, request.machine.configurationId
+            )
+            if (
+                configuration is None
+                or configuration.owner_user_id != owner.id
+                or configuration.machine_profile_id != profile.id
+            ):
+                raise HTTPException(404, detail="machine configuration not found")
+            configuration_id = configuration.id
+
+        if request.load is not None:
+            if (
+                profile.native_load_unit is not None
+                and request.load.unit != profile.native_load_unit
+            ):
+                raise HTTPException(422, detail="load unit differs from machine native unit")
+            if (
+                profile.load_entry_semantics is not None
+                and request.load.entrySemantics != profile.load_entry_semantics
+            ):
+                raise HTTPException(422, detail="machine load entry semantics mismatch")
+        profile_id = profile.id
+        # This is an immutable user-reported set-context snapshot, not an
+        # inferred effective load nor manufacturer-verified resistance.
+        machine_snapshot = request.machine.snapshot
 
     exercise = session.get(CatalogExercise, request.canonical_exercise_id)
     if (
@@ -162,9 +197,9 @@ def confirm_performed_set(
         load_value=Decimal(request.load.decimal) if request.load else None,
         load_unit=request.load.unit if request.load else None,
         load_entry_semantics=request.load.entrySemantics if request.load else None,
-        machine_profile_id=None,
-        machine_configuration_id=None,
-        machine_snapshot=None,
+        machine_profile_id=profile_id,
+        machine_configuration_id=configuration_id,
+        machine_snapshot=machine_snapshot,
         target_at_confirmation=request.target_at_confirmation,
         completed_at=request.completed_at.astimezone(UTC),
     )
