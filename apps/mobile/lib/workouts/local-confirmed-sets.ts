@@ -101,6 +101,7 @@ type LocalOccurrence = {
   session_id: string;
   occurrence_id: string;
   canonical_exercise_id: string;
+  agenda_item_id: string | null;
   actual_order: number;
   first_set_id: string;
 };
@@ -121,6 +122,7 @@ export class LocalConfirmedSetError extends Error {
       | 'occurrenceAlreadyExists'
       | 'occurrenceMissing'
       | 'exerciseMismatch'
+      | 'agendaMismatch'
       | 'setIdConflict'
       | 'mutationConflict'
       | 'corruptLocalData',
@@ -337,6 +339,12 @@ export async function confirmLocalWorkoutSet(
         occurrence.actual_order !== input.actualOrder)
     ) {
       throw new LocalConfirmedSetError('exerciseMismatch');
+    }
+    // The agenda-item association is immutable provenance of the occurrence.
+    // A subsequent set may not silently replace it (including null <-> UUID):
+    // its durable retry payload must agree with the already stored occurrence.
+    if (occurrence && occurrence.agenda_item_id !== input.agendaItemId) {
+      throw new LocalConfirmedSetError('agendaMismatch');
     }
     const previous = await tx.getFirstAsync<PriorMutation>(
       'SELECT mutation_id FROM local_workout_outbox WHERE subject = ? AND session_id = ? ORDER BY rowid DESC LIMIT 1',
