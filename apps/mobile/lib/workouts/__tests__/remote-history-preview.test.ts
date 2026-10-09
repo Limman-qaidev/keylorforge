@@ -27,7 +27,9 @@ function credentials() {
         accessToken: 'in-memory-auth-only',
       }),
     } satisfies StartSyncAccess,
-    change: (next: string | null) => { subject = next; },
+    change: (next: string | null) => {
+      subject = next;
+    },
   };
 }
 function database() {
@@ -49,36 +51,42 @@ const detail = {
   completion_snapshot: {
     session_id: SESSION,
     completion_snapshot_id: SNAPSHOT,
-    unplanned_performed_occurrences: [{
+    unplanned_performed_occurrences: [
+      {
+        occurrence_id: OCCURRENCE,
+        canonical_exercise_id: EXERCISE,
+        actual_order: 0,
+        set_ids: [SET],
+      },
+    ],
+  },
+  occurrences: [
+    {
       occurrence_id: OCCURRENCE,
       canonical_exercise_id: EXERCISE,
       actual_order: 0,
-      set_ids: [SET],
-    }],
-  },
-  occurrences: [{
-    occurrence_id: OCCURRENCE,
-    canonical_exercise_id: EXERCISE,
-    actual_order: 0,
-    first_set_id: SET,
-    sets: [{
-      set_id: SET,
-      mutation_id: 'c4b03454-a640-4b84-a525-6bf05f068b9e',
-      occurrence_id: OCCURRENCE,
-      set_role: 'WORKING',
-      measurement_type: 'reps',
-      reps: 8,
-      duration_seconds: null,
-      distance_decimal: null,
-      distance_unit: null,
-      load_decimal: '27.500',
-      load_unit: 'lb',
-      load_entry_semantics: 'machine_display',
-      machine_profile_id: null,
-      machine_configuration_id: null,
-      completed_at: '2026-10-09T14:30:00+00:00',
-    }],
-  }],
+      first_set_id: SET,
+      sets: [
+        {
+          set_id: SET,
+          mutation_id: 'c4b03454-a640-4b84-a525-6bf05f068b9e',
+          occurrence_id: OCCURRENCE,
+          set_role: 'WORKING',
+          measurement_type: 'reps',
+          reps: 8,
+          duration_seconds: null,
+          distance_decimal: null,
+          distance_unit: null,
+          load_decimal: '27.500',
+          load_unit: 'lb',
+          load_entry_semantics: 'machine_display',
+          machine_profile_id: null,
+          machine_configuration_id: null,
+          completed_at: '2026-10-09T14:30:00+00:00',
+        },
+      ],
+    },
+  ],
 };
 function response(value: unknown): Response {
   return {
@@ -101,7 +109,9 @@ beforeEach(() => {
 
 it('previews only authenticated owner-scoped, complete native workouts without writes', async () => {
   const { db, runAsync, getFirstAsync } = database();
-  expect(await previewRemoteOnlyWorkout(db, credentials().access, SESSION)).toEqual({
+  expect(
+    await previewRemoteOnlyWorkout(db, credentials().access, SESSION),
+  ).toEqual({
     status: 'candidate',
     preview: {
       sessionId: SESSION,
@@ -125,7 +135,9 @@ it('previews only authenticated owner-scoped, complete native workouts without w
 it('blocks local active/completed/cancelled collision before fetching remote detail', async () => {
   const { db, getFirstAsync, runAsync } = database();
   getFirstAsync.mockResolvedValueOnce({ session_id: SESSION });
-  expect(await previewRemoteOnlyWorkout(db, credentials().access, SESSION)).toEqual({
+  expect(
+    await previewRemoteOnlyWorkout(db, credentials().access, SESSION),
+  ).toEqual({
     status: 'paused',
     reason: 'localCollision',
   });
@@ -140,7 +152,9 @@ it('checks collisions again after remote HTTP response to avoid a race', async (
     .mockResolvedValueOnce(null)
     .mockResolvedValueOnce({ session_id: SESSION })
     .mockResolvedValueOnce(null);
-  expect(await previewRemoteOnlyWorkout(db, credentials().access, SESSION)).toEqual({
+  expect(
+    await previewRemoteOnlyWorkout(db, credentials().access, SESSION),
+  ).toEqual({
     status: 'paused',
     reason: 'localCollision',
   });
@@ -158,7 +172,9 @@ it('does not claim remote absence without a complete authoritative audit', async
     acknowledgedLocalOnly: [],
     diverged: [],
   });
-  expect(await previewRemoteOnlyWorkout(db, credentials().access, SESSION)).toEqual({
+  expect(
+    await previewRemoteOnlyWorkout(db, credentials().access, SESSION),
+  ).toEqual({
     status: 'paused',
     reason: 'incompleteAudit',
   });
@@ -173,24 +189,30 @@ it('rejects incomplete history detail and missing real native-set measurements',
       occurrences: [{ ...detail.occurrences[0], sets: [] }],
     }),
   );
-  expect(await previewRemoteOnlyWorkout(db, credentials().access, SESSION)).toEqual({
+  expect(
+    await previewRemoteOnlyWorkout(db, credentials().access, SESSION),
+  ).toEqual({
     status: 'paused',
     reason: 'invalidResponse',
   });
   jest.mocked(requestApi).mockResolvedValueOnce(
     response({
       ...detail,
-      occurrences: [{
-        ...detail.occurrences[0],
-        sets: [{ ...detail.occurrences[0].sets[0], load_unit: 'kg' }],
-      }],
+      occurrences: [
+        {
+          ...detail.occurrences[0],
+          sets: [{ ...detail.occurrences[0].sets[0], load_unit: 'kg' }],
+        },
+      ],
       completion_snapshot: {
         ...detail.completion_snapshot,
         unplanned_performed_occurrences: [],
       },
     }),
   );
-  expect(await previewRemoteOnlyWorkout(db, credentials().access, SESSION)).toEqual({
+  expect(
+    await previewRemoteOnlyWorkout(db, credentials().access, SESSION),
+  ).toEqual({
     status: 'paused',
     reason: 'invalidResponse',
   });
@@ -200,7 +222,9 @@ it('rejects incomplete history detail and missing real native-set measurements',
 it('preserves local state on offline failure, foreign auth and mid-request logout', async () => {
   const { db, runAsync } = database();
   jest.mocked(requestApi).mockRejectedValueOnce(new Error('offline'));
-  expect(await previewRemoteOnlyWorkout(db, credentials().access, SESSION)).toEqual({
+  expect(
+    await previewRemoteOnlyWorkout(db, credentials().access, SESSION),
+  ).toEqual({
     status: 'paused',
     reason: 'network',
   });
