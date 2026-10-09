@@ -9,6 +9,7 @@ import {
 
 import { ExerciseCatalogScreen } from '@/components/exercises/exercise-catalog-screen';
 import { useAuth } from '@/lib/auth/auth-provider';
+import { useCachedExerciseCatalogue } from '@/lib/exercises/use-cached-exercise-catalogue';
 import {
   CatalogApiError,
   getExercise,
@@ -19,6 +20,10 @@ import {
 
 jest.mock('@/lib/auth/auth-provider', () => ({
   useAuth: jest.fn(),
+}));
+
+jest.mock('@/lib/exercises/use-cached-exercise-catalogue', () => ({
+  useCachedExerciseCatalogue: jest.fn(),
 }));
 
 jest.mock('@/lib/exercises/catalog-api', () => ({
@@ -77,6 +82,10 @@ describe('ExerciseCatalogScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.mocked(useAuth).mockReturnValue(authValue());
+    jest.mocked(useCachedExerciseCatalogue).mockReturnValue({
+      snapshot: null,
+      initialized: true,
+    });
     jest
       .mocked(listMuscles)
       .mockResolvedValue([{ id: 'muscle-1', name: 'Pectorales' }]);
@@ -96,6 +105,73 @@ describe('ExerciseCatalogScreen', () => {
       mechanics: 'compound',
       muscles: [{ id: 'muscle-1', name: 'Pectorales', role: 'primary' }],
     });
+  });
+
+  it('uses the exact same normal catalogue UI and filters from native cache with no API list calls', async () => {
+    jest.mocked(useCachedExerciseCatalogue).mockReturnValue({
+      snapshot: {
+        items: [exercise, secondExercise],
+        muscles: [{ id: 'muscle-1', name: 'Pectorales' }],
+        equipment: [{ id: 'equipment-1', name: 'Barra' }],
+        seededAtUtc: '2026-10-09T10:00:00.000Z',
+      },
+      initialized: true,
+    });
+    const { getByText, queryByText, getByLabelText } = await renderScreen();
+
+    expect(getByText('Catálogo de ejercicios')).toBeTruthy();
+    expect(getByText('Press de banca')).toBeTruthy();
+    expect(getByText('Sentadilla')).toBeTruthy();
+    expect(queryByText('Ejercicios sin conexión')).toBeNull();
+    expect(queryByText('Descargar / actualizar catálogo')).toBeNull();
+    expect(listExercises).not.toHaveBeenCalled();
+    expect(listMuscles).not.toHaveBeenCalled();
+    expect(listEquipment).not.toHaveBeenCalled();
+
+    await act(async () =>
+      fireEvent.press(getByLabelText('Filtrar por músculo Pectorales')),
+    );
+    expect(getByText('Press de banca')).toBeTruthy();
+    await act(async () =>
+      fireEvent.changeText(getByLabelText('Buscar ejercicios'), 'SENTADILLA'),
+    );
+    await act(async () => fireEvent.press(getByText('Buscar')));
+    expect(getByText('Sentadilla')).toBeTruthy();
+    expect(listExercises).not.toHaveBeenCalled();
+  });
+
+  it('opens an immediate offline summary detail in the same DetailView without inventing fields', async () => {
+    jest.mocked(useCachedExerciseCatalogue).mockReturnValue({
+      snapshot: {
+        items: [exercise],
+        muscles: [{ id: 'muscle-1', name: 'Pectorales' }],
+        equipment: [{ id: 'equipment-1', name: 'Barra' }],
+        seededAtUtc: '2026-10-09T10:00:00.000Z',
+      },
+      initialized: true,
+    });
+    jest
+      .mocked(getExercise)
+      .mockRejectedValueOnce(new CatalogApiError('network', 'Sin Internet'));
+    const { getByText, getAllByText, getByLabelText, findByText } =
+      await renderScreen();
+    await act(async () =>
+      fireEvent.press(getByLabelText('Abrir Press de banca')),
+    );
+    expect(await findByText('DETALLE DEL EJERCICIO')).toBeTruthy();
+    expect(getByText('Medición')).toBeTruthy();
+    expect(getAllByText('No especificado').length).toBeGreaterThan(0);
+    expect(getByText('Pectorales')).toBeTruthy();
+  });
+
+  it('waits for native SQLite status rather than flashing a network error', async () => {
+    jest.mocked(useCachedExerciseCatalogue).mockReturnValue({
+      snapshot: null,
+      initialized: false,
+    });
+    const { getByLabelText } = await renderScreen();
+    expect(getByLabelText('Cargando catálogo')).toBeTruthy();
+    expect(listExercises).not.toHaveBeenCalled();
   });
 
   it('loads the Spanish catalogue and applies combined search and filters', async () => {
