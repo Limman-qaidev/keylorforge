@@ -250,7 +250,8 @@ export async function finishLocalFreeWorkout(
       if (
         prior.mutation_id !== input.mutationId ||
         prior.session_id !== input.sessionId ||
-        prior.completion_snapshot.completion_snapshot_id !== input.completionSnapshotId ||
+        prior.completion_snapshot.completion_snapshot_id !==
+          input.completionSnapshotId ||
         prior.completion_snapshot.finished_at_utc !== input.finishedAtUtc
       ) {
         throw new LocalFinishError('mutationConflict');
@@ -354,17 +355,26 @@ export async function finishLocalFreeWorkout(
     });
     await tx.runAsync(
       "INSERT INTO local_workout_outbox (subject, mutation_id, session_id, mutation_kind, protocol_version, payload_json, delivery_state, created_at_utc, depends_on_mutation_id) VALUES (?, ?, ?, 'FINISH_SESSION', 1, ?, 'pending', ?, ?)",
-      subject, input.mutationId, input.sessionId, payload,
-      input.finishedAtUtc, parent.mutation_id,
+      subject,
+      input.mutationId,
+      input.sessionId,
+      payload,
+      input.finishedAtUtc,
+      parent.mutation_id,
     );
     await tx.runAsync(
       'INSERT INTO local_workout_final_snapshots (subject, session_id, finish_mutation_id, completion_snapshot_id, finished_at_utc, final_agenda_json) VALUES (?, ?, ?, ?, ?, ?)',
-      subject, input.sessionId, input.mutationId, input.completionSnapshotId,
-      input.finishedAtUtc, snapshotJson,
+      subject,
+      input.sessionId,
+      input.mutationId,
+      input.completionSnapshotId,
+      input.finishedAtUtc,
+      snapshotJson,
     );
     await tx.runAsync(
       "UPDATE local_workout_sessions SET lifecycle_state = 'completed' WHERE subject = ? AND session_id = ? AND lifecycle_state = 'active'",
-      subject, input.sessionId,
+      subject,
+      input.sessionId,
     );
     saved = await tx.getFirstAsync<LocalFinishRow>(
       'SELECT * FROM local_workout_final_snapshots WHERE subject = ? AND session_id = ?',
