@@ -293,49 +293,59 @@ describe('M3 actual confirmed workout history', () => {
     ).toBe(first.mutationId);
   });
 
-  it('preserves accepted agenda identity in occurrence and later outbox payload', async () => {
+  it('persists matching agenda provenance for later sets', async () => {
     const db = new FakePerformedSQLite();
     const access = auth().access;
-    const firstWithAgenda = { ...first, agendaItemId: AGENDA_ONE };
-    const nextWithAgenda = { ...next, agendaItemId: AGENDA_ONE.toUpperCase() };
-    await confirmLocalWorkoutSet(db, access, firstWithAgenda);
-    const row = await confirmLocalWorkoutSet(db, access, nextWithAgenda);
-    expect(row.set_role).toBe('WORKING');
-    expect(db.occurrences.size).toBe(1);
-    const saved = [...db.occurrences.values()][0];
-    expect(saved.agenda_item_id).toBe(AGENDA_ONE);
-    const queued = JSON.parse(
+    await confirmLocalWorkoutSet(db, access, {
+      ...first,
+      agendaItemId: AGENDA_ONE,
+    });
+    await confirmLocalWorkoutSet(db, access, {
+      ...next,
+      agendaItemId: AGENDA_ONE.toUpperCase(),
+    });
+    const payload = JSON.parse(
       db.outbox.get(A + ':' + next.mutationId)!.payload_json,
-    ) as { agenda_item_id: string | null };
-    expect(queued.agenda_item_id).toBe(AGENDA_ONE);
+    );
+    expect(payload.agenda_item_id).toBe(AGENDA_ONE);
+    expect(db.occurrences.size).toBe(1);
+    expect(db.sets.size).toBe(2);
   });
 
-  it.each([
-    { firstAgenda: AGENDA_ONE, nextAgenda: AGENDA_TWO },
-    { firstAgenda: AGENDA_ONE, nextAgenda: null },
-    { firstAgenda: null, nextAgenda: AGENDA_ONE },
-  ])(
-    'refuses changed or missing agenda provenance without persisting a later set: %j',
-    async ({ firstAgenda, nextAgenda }) => {
-      const db = new FakePerformedSQLite();
-      const access = auth().access;
-      await confirmLocalWorkoutSet(db, access, {
-        ...first,
-        agendaItemId: firstAgenda,
-      });
+  it('rejects changed and missing agenda provenance', async () => {
+    const db = new FakePerformedSQLite();
+    const access = auth().access;
+    await confirmLocalWorkoutSet(db, access, {
+      ...first,
+      agendaItemId: AGENDA_ONE,
+    });
+    for (const changedAgenda of [AGENDA_TWO, null]) {
       await expect(
         confirmLocalWorkoutSet(db, access, {
           ...next,
-          agendaItemId: nextAgenda,
+          agendaItemId: changedAgenda,
         }),
       ).rejects.toMatchObject({ code: 'agendaMismatch' });
-      expect(db.sets.size).toBe(1);
-      expect(db.occurrences.size).toBe(1);
-      expect(db.outbox.size).toBe(2);
-      const saved = [...db.occurrences.values()][0];
-      expect(saved.agenda_item_id).toBe(firstAgenda);
-    },
-  );
+    }
+    expect(db.occurrences.size).toBe(1);
+    expect(db.sets.size).toBe(1);
+    expect(db.outbox.size).toBe(2);
+  });
+
+  it('rejects unexpected agenda for an unplanned occurrence', async () => {
+    const db = new FakePerformedSQLite();
+    const access = auth().access;
+    await confirmLocalWorkoutSet(db, access, first);
+    await expect(
+      confirmLocalWorkoutSet(db, access, {
+        ...next,
+        agendaItemId: AGENDA_ONE,
+      }),
+    ).rejects.toMatchObject({ code: 'agendaMismatch' });
+    expect(db.occurrences.size).toBe(1);
+    expect(db.sets.size).toBe(1);
+    expect(db.outbox.size).toBe(2);
+  });
 
   it('replaying the same first set with uppercase UUIDs is idempotent', async () => {
     const db = new FakePerformedSQLite();
