@@ -216,7 +216,7 @@ class FakeDB implements SqliteWorkoutPort {
     }
     const [next, subject, mutation] = args;
     const found = this.rows.get(String(mutation));
-    if (found?.subject === subject && found.delivery_state === 'pending') {
+    if (found && found.subject === subject && found.delivery_state === 'pending') {
       found.delivery_state = String(next);
     }
     this.onWrite?.();
