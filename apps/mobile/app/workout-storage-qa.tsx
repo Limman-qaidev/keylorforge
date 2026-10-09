@@ -1,5 +1,5 @@
 /**
- * Development-only physical Android acceptance surface for M3-MOB-001.
+ * Development-only physical Android acceptance surface for M3-MOB-001/002.
  * It exclusively uses an isolated SQLite database, never the product store.
  * These diagnostic mutations are intentionally NOT synced to FastAPI.
  */
@@ -19,10 +19,18 @@ import { AuthenticatedShell } from '@/components/navigation/authenticated-shell'
 import { useAuth } from '@/lib/auth/auth-provider';
 import { openDiagnosticWorkoutDatabase } from '@/lib/workouts/expo-sqlite-adapter';
 import {
+  confirmLocalWorkoutSet,
+  readLocalConfirmedSet,
+  type ConfirmLocalSetInput,
+  type LocalPerformedSet,
+} from '@/lib/workouts/local-confirmed-sets';
+import {
+  resetDiagnosticSubjectData,
+  verifyPersistedDiagnosticMachine,
+} from '@/lib/workouts/workout-storage-qa-utils';
+import {
   getActiveLocalWorkout,
-  getPendingLocalWorkoutMutations,
   startLocalFreeWorkout,
-  type LocalOutboxItem,
   type LocalStartWorkoutInput,
   type LocalWorkoutSession,
   type LocalSubjectAccess,
@@ -30,6 +38,50 @@ import {
 
 const QA_SESSION_UUID = 'b35c00d6-243c-4dea-a095-000000000132';
 const QA_MUTATION_UUID = 'b35c00d6-243c-4dea-a095-000000000133';
+const QA_EXERCISE_UUID = 'b35c00d6-243c-4dea-a095-000000000140';
+const QA_OCCURRENCE_UUID = 'b35c00d6-243c-4dea-a095-000000000141';
+const QA_FIRST_SET_UUID = 'b35c00d6-243c-4dea-a095-000000000142';
+const QA_FIRST_MUTATION_UUID = 'b35c00d6-243c-4dea-a095-000000000143';
+const QA_SECOND_SET_UUID = 'b35c00d6-243c-4dea-a095-000000000144';
+const QA_SECOND_MUTATION_UUID = 'b35c00d6-243c-4dea-a095-000000000145';
+const QA_MACHINE_A_UUID = 'b35c00d6-243c-4dea-a095-000000000146';
+const QA_MACHINE_B_UUID = 'b35c00d6-243c-4dea-a095-000000000147';
+
+function diagnosticPerformedInput(
+  second: boolean,
+  startedAtUtc: string,
+): ConfirmLocalSetInput {
+  return {
+    sessionId: QA_SESSION_UUID,
+    mutationId: second ? QA_SECOND_MUTATION_UUID : QA_FIRST_MUTATION_UUID,
+    setId: second ? QA_SECOND_SET_UUID : QA_FIRST_SET_UUID,
+    occurrenceId: QA_OCCURRENCE_UUID,
+    // A disposable diagnostic identity, deliberately NEVER synced or sent
+    // to an authoritative exercise-catalogue endpoint.
+    canonicalExerciseId: QA_EXERCISE_UUID,
+    actualOrder: 0,
+    firstSet: !second,
+    setRole: second ? 'WORKING' : 'WARMUP',
+    measurement: {
+      measurementType: 'reps',
+      reps: second ? 8 : 12,
+    },
+    load: {
+      decimal: second ? '27.5' : '20.5',
+      unit: second ? 'lb' : 'kg',
+      entrySemantics: 'machine_display',
+    },
+    machine: {
+      profileId: second ? QA_MACHINE_B_UUID : QA_MACHINE_A_UUID,
+      snapshot: { label: second ? 'Polea B (QA)' : 'Polea A (QA)' },
+    },
+    targetAtConfirmation: null,
+    // Stable diagnostic timestamp across retries of the same mutation ID.
+    completedAtUtc: new Date(
+      new Date(startedAtUtc).getTime() + (second ? 2 : 1) * 60_000,
+    ).toISOString(),
+  };
+}
 
 function currentStartInput(): LocalStartWorkoutInput {
   const instant = new Date();
@@ -91,9 +143,25 @@ function StorageDiagnosticScreen() {
     [],
   );
   const [active, setActive] = useState<LocalWorkoutSession | null>(null);
-  const [pending, setPending] = useState<LocalOutboxItem[]>([]);
+  const [totalPending, setTotalPending] = useState(0);
+  const [firstSet, setFirstSet] = useState<LocalPerformedSet | null>(null);
+  const [secondSet, setSecondSet] = useState<LocalPerformedSet | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const firstMachine = firstSet
+    ? verifyPersistedDiagnosticMachine(
+        firstSet,
+        QA_MACHINE_A_UUID,
+        'Polea A (QA)',
+      )
+    : null;
+  const secondMachine = secondSet
+    ? verifyPersistedDiagnosticMachine(
+        secondSet,
+        QA_MACHINE_B_UUID,
+        'Polea B (QA)',
+      )
+    : null;
 
   const refresh = useCallback(async () => {
     if (!subject) {
@@ -101,10 +169,25 @@ function StorageDiagnosticScreen() {
     }
     const db = await openDiagnosticWorkoutDatabase(subject);
     const current = await getActiveLocalWorkout(db, access);
-    const outbox = await getPendingLocalWorkoutMutations(db, access);
+    const count = await db.getFirstAsync<{ total: number }>(
+      "SELECT COUNT(*) AS total FROM local_workout_outbox WHERE subject = ? AND delivery_state = 'pending'",
+      subject.toLowerCase(),
+    );
+    const initialSet = await readLocalConfirmedSet(
+      db,
+      access,
+      QA_FIRST_SET_UUID,
+    );
+    const subsequentSet = await readLocalConfirmedSet(
+      db,
+      access,
+      QA_SECOND_SET_UUID,
+    );
     if (subjectRef.current === subject) {
       setActive(current);
-      setPending(outbox);
+      setTotalPending(count?.total ?? 0);
+      setFirstSet(initialSet);
+      setSecondSet(subsequentSet);
     }
   }, [access, subject]);
 
@@ -143,6 +226,35 @@ function StorageDiagnosticScreen() {
     }
   };
 
+  const onConfirmSet = async (second: boolean) => {
+    if (!subject || !active) {
+      setMessage('Primero hay que crear una sesión local.');
+      return;
+    }
+    setBusy(true);
+    setMessage(null);
+    try {
+      const db = await openDiagnosticWorkoutDatabase(subject);
+      await confirmLocalWorkoutSet(
+        db,
+        access,
+        diagnosticPerformedInput(second, active.started_at_utc),
+      );
+      await refresh();
+      setMessage(
+        second
+          ? 'Serie WORKING y máquina B guardadas en SQLite.'
+          : 'Primera serie WARMUP + ocurrencia guardadas juntas en SQLite.',
+      );
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : 'No se pudo confirmar.',
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const onRefresh = async () => {
     setBusy(true);
     setMessage(null);
@@ -164,22 +276,7 @@ function StorageDiagnosticScreen() {
     setMessage(null);
     try {
       const db = await openDiagnosticWorkoutDatabase(subject);
-      await db.withExclusiveTransactionAsync(async (tx) => {
-        if (subjectRef.current !== subject) {
-          throw new Error('La cuenta ha cambiado.');
-        }
-        await tx.runAsync(
-          'DELETE FROM local_workout_outbox WHERE subject = ?',
-          subject.toLowerCase(),
-        );
-        await tx.runAsync(
-          'DELETE FROM local_workout_sessions WHERE subject = ?',
-          subject.toLowerCase(),
-        );
-        if (subjectRef.current !== subject) {
-          throw new Error('La cuenta ha cambiado.');
-        }
-      });
+      await resetDiagnosticSubjectData(db, access, subject);
       await refresh();
       setMessage('Borrados solo los datos de la base de diagnóstico.');
     } catch (error) {
@@ -227,7 +324,7 @@ function StorageDiagnosticScreen() {
           {active ? 'SESIÓN ACTIVA' : 'SIN SESIÓN'}
         </Text>
         <Text testID="qa-pending-state" style={styles.detail}>
-          Pendiente de sincronización: {pending.length} operación
+          Operaciones pendientes (cola local): {totalPending}
         </Text>
         {active ? (
           <Text selectable style={styles.detail}>
@@ -244,6 +341,76 @@ function StorageDiagnosticScreen() {
         style={[styles.button, (busy || active) && styles.disabled]}
       >
         <Text style={styles.buttonText}>Crear sesión LOCAL de prueba</Text>
+      </Pressable>
+      <View style={styles.panel}>
+        <Text style={styles.label}>SERIES CONFIRMADAS · QA</Text>
+        <Text testID="qa-confirmed-set-count" style={styles.value}>
+          {(firstSet ? 1 : 0) + (secondSet ? 1 : 0)} serie(s)
+        </Text>
+        {firstSet ? (
+          <View testID="qa-first-set-persisted">
+            <Text style={styles.detail}>
+              WARMUP: {firstSet.reps} reps · {firstSet.load_decimal}{' '}
+              {firstSet.load_unit}
+            </Text>
+            <Text style={styles.detail}>
+              Máquina (SQLite): {firstMachine?.label}
+            </Text>
+            <Text style={styles.detail}>
+              Perfil (SQLite): {firstMachine?.profileId}
+            </Text>
+            <Text style={styles.detail}>
+              {firstMachine?.matchesExpected
+                ? 'CONTEXTO MÁQUINA A VERIFICADO'
+                : 'ERROR: CONTEXTO MÁQUINA A NO COINCIDE'}
+            </Text>
+          </View>
+        ) : null}
+        {secondSet ? (
+          <View testID="qa-second-set-persisted">
+            <Text style={styles.detail}>
+              WORKING: {secondSet.reps} reps · {secondSet.load_decimal}{' '}
+              {secondSet.load_unit}
+            </Text>
+            <Text style={styles.detail}>
+              Máquina (SQLite): {secondMachine?.label}
+            </Text>
+            <Text style={styles.detail}>
+              Perfil (SQLite): {secondMachine?.profileId}
+            </Text>
+            <Text style={styles.detail}>
+              {secondMachine?.matchesExpected
+                ? 'CONTEXTO MÁQUINA B VERIFICADO'
+                : 'ERROR: CONTEXTO MÁQUINA B NO COINCIDE'}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+      <Pressable
+        accessibilityRole="button"
+        disabled={busy || !active || Boolean(firstSet)}
+        onPress={() => void onConfirmSet(false)}
+        style={[
+          styles.button,
+          (busy || !active || firstSet) && styles.disabled,
+        ]}
+      >
+        <Text style={styles.buttonText}>
+          Confirmar 1.ª serie WARMUP (20,5 kg · Polea A)
+        </Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        disabled={busy || !active || !firstSet || Boolean(secondSet)}
+        onPress={() => void onConfirmSet(true)}
+        style={[
+          styles.button,
+          (busy || !active || !firstSet || secondSet) && styles.disabled,
+        ]}
+      >
+        <Text style={styles.buttonText}>
+          Confirmar 2.ª serie WORKING (27,5 lb · Polea B)
+        </Text>
       </Pressable>
       <Pressable
         accessibilityRole="button"

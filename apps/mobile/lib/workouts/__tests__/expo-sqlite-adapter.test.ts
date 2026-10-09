@@ -5,13 +5,15 @@ import { openLocalWorkoutDatabase } from '../expo-sqlite-adapter';
 jest.mock('expo-sqlite', () => ({ openDatabaseAsync: jest.fn() }));
 
 describe('M3 Expo SQLite native database binding', () => {
-  it('initializes the persisted v1 schema exactly once and retains its connection', async () => {
+  it('initializes and migrates the persisted v2 schema exactly once and retains its connection', async () => {
     const queries: string[] = [];
     const database = {
       execAsync: jest.fn(async (sql: string) => {
         queries.push(sql);
       }),
-      getFirstAsync: jest.fn(async () => ({ user_version: 0 })),
+      getFirstAsync: jest.fn(async (sql: string) =>
+        sql === 'PRAGMA user_version' ? { user_version: 0 } : null,
+      ),
       runAsync: jest.fn(),
       withExclusiveTransactionAsync: jest.fn(),
       closeAsync: jest.fn(),
@@ -34,7 +36,12 @@ describe('M3 Expo SQLite native database binding', () => {
         sql.includes('CREATE TABLE IF NOT EXISTS local_workout_sessions'),
       ),
     ).toBe(true);
-    expect(queries[queries.length - 1]).toBe('PRAGMA user_version = 1;');
+    expect(queries).toContain('PRAGMA user_version = 1;');
+    expect(
+      queries.some((sql) => sql.includes('CREATE TABLE local_workout_sets')),
+    ).toBe(true);
+    expect(queries).toContain('PRAGMA user_version = 2; COMMIT;');
+    expect(queries[queries.length - 1]).toBe('PRAGMA foreign_keys = ON;');
     expect(database.closeAsync).not.toHaveBeenCalled();
   });
 });

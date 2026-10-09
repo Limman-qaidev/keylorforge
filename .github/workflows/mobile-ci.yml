@@ -41,5 +41,8 @@ jobs:
       - name: Check TypeScript
         run: npm run typecheck
 
+      - name: Verify SQLite v1-to-v2 migration against real SQLite
+        run: python3 scripts/test_workout_sqlite_migration.py
+
       - name: Run tests
         run: npm test
