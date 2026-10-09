@@ -44,7 +44,9 @@ function auth() {
 }
 function noWork() {
   jest.mocked(syncNextPendingStart).mockResolvedValue({ state: 'idle' });
-  jest.mocked(syncNextPendingMachineCreate).mockResolvedValue({ state: 'idle' });
+  jest
+    .mocked(syncNextPendingMachineCreate)
+    .mockResolvedValue({ state: 'idle' });
   jest.mocked(syncNextPendingConfirmedSet).mockResolvedValue({
     state: 'idle',
   });
@@ -81,23 +83,40 @@ describe('bounded causal Workout M3 sync coordinator', () => {
     });
     expect(order).toEqual([
       'start',
-      'start', 'machine',
-      'start', 'machine', 'set',
-      'start', 'machine', 'set', 'finish',
-      'start', 'machine', 'set', 'finish', 'cancel',
-      'start', 'machine', 'set', 'finish', 'cancel',
+      'start',
+      'machine',
+      'start',
+      'machine',
+      'set',
+      'start',
+      'machine',
+      'set',
+      'finish',
+      'start',
+      'machine',
+      'set',
+      'finish',
+      'cancel',
+      'start',
+      'machine',
+      'set',
+      'finish',
+      'cancel',
     ]);
   });
 
   it('allows independent machine progress when a workout set awaits a dependency', async () => {
     jest.mocked(syncNextPendingStart).mockResolvedValue({ state: 'idle' });
-    jest.mocked(syncNextPendingMachineCreate).mockResolvedValueOnce({
-      state: 'blocked',
-      reason: 'dependency',
-    }).mockResolvedValueOnce({
-      state: 'acknowledged',
-      mutationId: OWNER,
-    });
+    jest
+      .mocked(syncNextPendingMachineCreate)
+      .mockResolvedValueOnce({
+        state: 'blocked',
+        reason: 'dependency',
+      })
+      .mockResolvedValueOnce({
+        state: 'acknowledged',
+        mutationId: OWNER,
+      });
     jest.mocked(syncNextPendingConfirmedSet).mockResolvedValueOnce({
       state: 'acknowledged',
       mutationId: OTHER,
