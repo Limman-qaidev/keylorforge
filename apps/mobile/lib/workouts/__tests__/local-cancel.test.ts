@@ -1,7 +1,4 @@
-import {
-  cancelLocalFreeWorkout,
-  type LocalCancelRow,
-} from '../local-cancel';
+import { cancelLocalFreeWorkout, type LocalCancelRow } from '../local-cancel';
 import type { SqliteQueryPort, SqliteWorkoutPort } from '../local-schema';
 import type { LocalSubjectAccess, LocalWorkoutSession } from '../local-store';
 
@@ -61,9 +58,7 @@ class FakeCancelDb implements SqliteWorkoutPort {
   async withExclusiveTransactionAsync(
     task: (tx: SqliteQueryPort) => Promise<void>,
   ): Promise<void> {
-    const sessions = new Map(
-      [...this.sessions].map(([k, v]) => [k, { ...v }]),
-    );
+    const sessions = new Map([...this.sessions].map(([k, v]) => [k, { ...v }]));
     const mutations = this.mutations.map((row) => ({ ...row }));
     const cancellations = new Map(
       [...this.cancellations].map(([k, v]) => [k, { ...v }]),
@@ -92,18 +87,21 @@ class FakeCancelDb implements SqliteWorkoutPort {
       const relevant = this.mutations.filter(
         (entry) => entry.subject === subject && entry.session_id === id,
       );
-      if (sql.includes("mutation_kind IN ('FINISH_SESSION', 'CANCEL_SESSION')")) {
+      if (
+        sql.includes("mutation_kind IN ('FINISH_SESSION', 'CANCEL_SESSION')")
+      ) {
         row = {
-          count: relevant.filter(
-            (entry) => ['FINISH_SESSION', 'CANCEL_SESSION'].includes(entry.mutation_kind),
+          count: relevant.filter((entry) =>
+            ['FINISH_SESSION', 'CANCEL_SESSION'].includes(entry.mutation_kind),
           ).length,
         };
       } else if (sql.includes('ORDER BY rowid DESC')) {
         row = relevant[relevant.length - 1] ?? null;
       } else {
-        row = this.mutations.find(
-          (entry) => entry.subject === subject && entry.mutation_id === id,
-        ) ?? null;
+        row =
+          this.mutations.find(
+            (entry) => entry.subject === subject && entry.mutation_id === id,
+          ) ?? null;
       }
     } else if (sql.includes('FROM local_workout_sessions')) {
       const session = this.sessions.get(subject);
@@ -115,9 +113,7 @@ class FakeCancelDb implements SqliteWorkoutPort {
       row = { count: this.setCount };
     } else if (sql.includes('MAX(completed_at_utc)')) {
       row = {
-        completed_at_utc: this.setCount
-          ? '2026-10-09T14:30:00.000Z'
-          : null,
+        completed_at_utc: this.setCount ? '2026-10-09T14:30:00.000Z' : null,
       };
     } else {
       throw new Error('Unrecognised query ' + sql);
@@ -154,7 +150,10 @@ class FakeCancelDb implements SqliteWorkoutPort {
     } else if (sql.includes('UPDATE local_workout_sessions')) {
       const session = this.sessions.get(subject);
       if (session) {
-        this.sessions.set(subject, { ...session, lifecycle_state: 'cancelled' });
+        this.sessions.set(subject, {
+          ...session,
+          lifecycle_state: 'cancelled',
+        });
       }
     } else {
       throw new Error('Unexpected write ' + sql);
