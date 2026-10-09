@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { render, userEvent, waitFor } from '@testing-library/react-native';
 
 import { FreeWorkoutExperience } from '../free-workout-experience';
 import { useAuth } from '@/lib/auth/auth-provider';
@@ -126,6 +126,7 @@ describe('staged real Free Workout UI', () => {
       totalSets: 0,
       workingSets: 0,
     });
+    const user = userEvent.setup();
     const screen = await render(<FreeWorkoutExperience />);
     expect(await screen.findByText('Entrenamiento activo')).toBeTruthy();
     expect(
@@ -138,13 +139,13 @@ describe('staged real Free Workout UI', () => {
     });
     expect(finishButton.props.accessibilityState?.disabled).toBe(true);
 
-    fireEvent.press(screen.getByText('Añadir ejercicio o serie'));
+    await user.press(screen.getByText('Añadir ejercicio o serie'));
     expect(await screen.findByText('CATÁLOGO CANÓNICO')).toBeTruthy();
-    fireEvent.press(screen.getByText('Elegir Press de banca'));
+    await user.press(screen.getByText('Elegir Press de banca'));
     expect(await screen.findByText('REGISTRAR SERIE')).toBeTruthy();
     expect(recordFreeWorkoutSet).not.toHaveBeenCalled();
-    fireEvent.changeText(screen.getByLabelText('Cantidad realizada'), '8');
-    fireEvent.press(screen.getByText('Confirmar serie'));
+    await user.type(screen.getByLabelText('Cantidad realizada'), '8');
+    await user.press(screen.getByText('Confirmar serie'));
     await waitFor(() =>
       expect(recordFreeWorkoutSet).toHaveBeenCalledWith(
         expect.anything(),
