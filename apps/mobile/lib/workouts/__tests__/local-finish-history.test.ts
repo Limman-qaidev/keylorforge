@@ -95,11 +95,11 @@ describe('read-only SQLite finished workout history', () => {
   it('treats a locally completed but unacknowledged Finish as pending, not synchronized', async () => {
     const db = new ReadOnlyDb();
     expect(
-      (await listLocalFinishedWorkouts(db, identity().access))[0].sync_state,
+      (await listLocalFinishedWorkouts(db, identity().access))[0]?.sync_state,
     ).toBe('pending');
     db.items = [{ ...completed, sync_state: 'acknowledged' }];
     expect(
-      (await listLocalFinishedWorkouts(db, identity().access))[0].sync_state,
+      (await listLocalFinishedWorkouts(db, identity().access))[0]?.sync_state,
     ).toBe('acknowledged');
     db.items = [];
     expect(await listLocalFinishedWorkouts(db, identity().access)).toEqual([]);
