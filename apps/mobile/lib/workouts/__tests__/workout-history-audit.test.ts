@@ -177,7 +177,8 @@ function fullOrderedPage() {
 it('accepts a complete, stable two-page server scan without local writes', async () => {
   const entries = fullOrderedPage();
   const last = entries[49]!;
-  jest.mocked(requestApi)
+  jest
+    .mocked(requestApi)
     .mockResolvedValueOnce({
       status: 200,
       json: async () => ({
@@ -225,10 +226,9 @@ it('refuses a dishonest cursor that skips some acknowledged history', async () =
 
 it('rejects server pages ordered oldest-first or overlapping a previous cursor', async () => {
   const entries = fullOrderedPage();
-  jest.mocked(requestApi).mockResolvedValueOnce(http([
-    entries[1]!,
-    entries[0]!,
-  ]));
+  jest
+    .mocked(requestApi)
+    .mockResolvedValueOnce(http([entries[1]!, entries[0]!]));
   const db = dbWith([local]).db;
   expect(await auditCompletedWorkoutHistory(db, auth().access)).toMatchObject({
     status: 'paused',
@@ -238,7 +238,8 @@ it('rejects server pages ordered oldest-first or overlapping a previous cursor',
 
   jest.mocked(requestApi).mockReset();
   const last = entries[49]!;
-  jest.mocked(requestApi)
+  jest
+    .mocked(requestApi)
     .mockResolvedValueOnce({
       status: 200,
       json: async () => ({
