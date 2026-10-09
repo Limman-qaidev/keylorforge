@@ -1,4 +1,5 @@
 """Atomic, owner-authorized first and additional performed-set mutations."""
+
 from __future__ import annotations
 
 import hashlib
@@ -79,10 +80,16 @@ def confirm_performed_set(
     if request.agenda_item_id is not None:
         raise HTTPException(409, detail="agenda item dependency not yet synchronized")
     if request.machine is not None:
-        raise HTTPException(409, detail="machine profile dependency not yet synchronized")
+        raise HTTPException(
+            409, detail="machine profile dependency not yet synchronized"
+        )
 
     exercise = session.get(CatalogExercise, request.canonical_exercise_id)
-    if exercise is None or not exercise.is_active or exercise.canonical_exercise_id is not None:
+    if (
+        exercise is None
+        or not exercise.is_active
+        or exercise.canonical_exercise_id is not None
+    ):
         raise HTTPException(422, detail="canonical exercise not available")
 
     if session.get(WorkoutSet, request.set_id) is not None:
