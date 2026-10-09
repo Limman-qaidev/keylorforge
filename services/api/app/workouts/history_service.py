@@ -71,8 +71,7 @@ def list_authoritative_completed_workouts(
             WorkoutSession,
             and_(
                 WorkoutCompletionSnapshot.session_id == WorkoutSession.id,
-                WorkoutCompletionSnapshot.owner_user_id
-                == WorkoutSession.owner_user_id,
+                WorkoutCompletionSnapshot.owner_user_id == WorkoutSession.owner_user_id,
             ),
         )
         .where(
@@ -122,10 +121,9 @@ def list_authoritative_completed_workouts(
     entries: list[CompletedWorkoutHistoryEntry] = []
     for snapshot, workout in records:
         final = FreeWorkoutCompletionSnapshot.model_validate(snapshot.final_agenda)
-        same_finish_instant = (
-            final.finished_at_utc.astimezone(UTC)
-            == snapshot.finished_at.astimezone(UTC)
-        )
+        same_finish_instant = final.finished_at_utc.astimezone(
+            UTC
+        ) == snapshot.finished_at.astimezone(UTC)
         total, working = by_session.get(snapshot.session_id, (0, 0))
         linked_set_ids = [
             set_id
