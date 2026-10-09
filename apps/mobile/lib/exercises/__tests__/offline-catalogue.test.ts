@@ -1,7 +1,4 @@
-import {
-  listExercises,
-  type ExerciseListItem,
-} from '../catalog-api';
+import { listExercises, type ExerciseListItem } from '../catalog-api';
 import {
   type CatalogueSqlitePort,
   type DownloadPage,
