@@ -30,7 +30,7 @@ def test_workout_tables_are_private_and_restrict_active_workouts(test_database_u
                 "AND contype = 'f'"
             )).scalars().all()
             head = conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-        assert head == "20261009_0001"
+        assert head == "20261009_0002"
         assert rls == [
             ("workout_mutation_receipts", True),
             ("workout_sessions", True),
