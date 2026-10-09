@@ -7,7 +7,6 @@ consider rebuilding its read model. This endpoint NEVER mutates or imports.
 
 from __future__ import annotations
 
-from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -136,14 +135,28 @@ def get_completed_workout_detail(
     for row in rows:
         sets_by_occurrence.setdefault(row.occurrence_id, []).append(row)
 
+    snapshot_items = {
+        item.occurrence_id: item
+        for item in final.unplanned_performed_occurrences
+    }
     details: list[PerformedOccurrenceDetail] = []
     all_set_ids: set[UUID] = set()
     working_sets = 0
     for occurrence in occurrences:
+        declared = snapshot_items.pop(occurrence.id, None)
+        if (
+            declared is None
+            or declared.canonical_exercise_id != occurrence.canonical_exercise_id
+            or declared.actual_order != occurrence.actual_order
+            or declared.agenda_item_id is not None
+        ):
+            raise HTTPException(409, detail="inconsistent authoritative history")
         own_sets = sets_by_occurrence.pop(occurrence.id, [])
         if not own_sets or not any(row.id == occurrence.first_set_id for row in own_sets):
             raise HTTPException(409, detail="inconsistent authoritative history")
-        payload_sets = []
+        if set(declared.set_ids) != {row.id for row in own_sets}:
+            raise HTTPException(409, detail="inconsistent authoritative history")
+        payload_sets: list[PerformedSetDetail] = []
         for row in own_sets:
             if row.id in all_set_ids:
                 raise HTTPException(409, detail="inconsistent authoritative history")
@@ -188,6 +201,7 @@ def get_completed_workout_detail(
     }
     if (
         sets_by_occurrence
+        or snapshot_items
         or not rows
         or working_sets < 1
         or expected != all_set_ids
