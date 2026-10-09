@@ -133,9 +133,9 @@ describe('read-only SQLite finished workout history', () => {
       listLocalFinishedWorkouts(db, auth.access),
     ).rejects.toMatchObject({ code: 'corruptLocalData' });
     db.items = [{ ...completed, total_sets: -2 }];
-    await expect(listLocalFinishedWorkouts(db, auth.access)).rejects.toMatchObject({
-      code: 'corruptLocalData',
-    });
+    await expect(
+      listLocalFinishedWorkouts(db, auth.access),
+    ).rejects.toMatchObject({ code: 'corruptLocalData' });
     db.items = [completed, completed];
     await expect(
       listLocalFinishedWorkouts(db, auth.access, { limit: 1 }),
