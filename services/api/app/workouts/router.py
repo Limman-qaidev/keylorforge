@@ -14,6 +14,11 @@ from app.auth.dependencies import (
     require_active_application_user,
 )
 from app.auth.jwt_verifier import AuthenticatedPrincipal
+from app.workouts.cancel_schemas import (
+    CancelFreeWorkoutRequest,
+    CancelFreeWorkoutResponse,
+)
+from app.workouts.cancel_service import cancel_free_workout
 from app.workouts.finish_schemas import (
     FinishFreeWorkoutRequest,
     FinishFreeWorkoutResponse,
@@ -102,3 +107,19 @@ def finish_session(
     if request.session_id != session_id:
         raise HTTPException(status_code=422, detail="session ID mismatch")
     return finish_free_workout(session=session, principal=principal, request=request)
+
+
+@router.post(
+    "/{session_id}/cancel",
+    response_model=CancelFreeWorkoutResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def cancel_session(
+    session_id: UUID,
+    request: CancelFreeWorkoutRequest,
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_authenticated_principal)],
+    session: Annotated[Session, Depends(get_database_session)],
+) -> CancelFreeWorkoutResponse:
+    if request.session_id != session_id:
+        raise HTTPException(status_code=422, detail="session ID mismatch")
+    return cancel_free_workout(session=session, principal=principal, request=request)
