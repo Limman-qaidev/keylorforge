@@ -201,7 +201,7 @@ it('rejects incomplete history detail and missing real native-set measurements',
       occurrences: [
         {
           ...detail.occurrences[0],
-          sets: [{ ...detail.occurrences[0].sets[0], load_unit: 'kg' }],
+          sets: [{ ...detail.occurrences[0]!.sets[0], load_unit: 'kg' }],
         },
       ],
       completion_snapshot: {
