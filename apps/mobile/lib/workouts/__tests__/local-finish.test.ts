@@ -138,7 +138,9 @@ class FakeFinishDb implements SqliteWorkoutPort {
       };
     } else if (sql.includes('AS items_json')) {
       const items = this.sets
-        .filter((row) => row.subject === subject && row.session_id === sessionId)
+        .filter(
+          (row) => row.subject === subject && row.session_id === sessionId,
+        )
         .map((row) => row.set_id);
       result = {
         items_json: JSON.stringify(
@@ -301,7 +303,10 @@ describe('M3 offline-first atomic Free Workout Finish', () => {
     await expect(
       finishLocalFreeWorkout(db, auth.access, input),
     ).rejects.toMatchObject({ code: 'unsupportedAgenda' });
-    db.sessions.set(SUBJECT, { ...sessionRow(), lifecycle_state: 'cancelled' });
+    db.sessions.set(SUBJECT, {
+      ...sessionRow(),
+      lifecycle_state: 'cancelled',
+    });
     await expect(
       finishLocalFreeWorkout(db, auth.access, input),
     ).rejects.toMatchObject({ code: 'sessionNotActive' });
@@ -351,7 +356,9 @@ describe('M3 offline-first atomic Free Workout Finish', () => {
     await finishLocalFreeWorkout(db, identity().access, input);
     const other = identity();
     other.setSubject(OTHER);
-    expect(await readLocalFinishedWorkout(db, other.access, SESSION)).toBeNull();
+    expect(
+      await readLocalFinishedWorkout(db, other.access, SESSION),
+    ).toBeNull();
     await expect(
       finishLocalFreeWorkout(db, other.access, input),
     ).rejects.toMatchObject({ code: 'sessionNotActive' });
