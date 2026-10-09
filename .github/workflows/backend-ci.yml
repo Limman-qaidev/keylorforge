@@ -50,9 +50,7 @@ jobs:
           python -m pip check
 
       - name: Check formatting
-        run: |
-          ruff format --diff app/workouts/finish_service.py tests/test_workout_finish_postgres.py
-          ruff format --check .
+        run: ruff format --check .
 
       - name: Lint
         run: ruff check .
