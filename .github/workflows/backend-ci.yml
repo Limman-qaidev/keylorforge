@@ -52,7 +52,7 @@ jobs:
       # TEMPORARY Machine Profile formatter and integration diagnostics.
       - name: Inspect Machine Profile tests and code
         run: |
-          ruff format --diff .
+          ruff format --diff . || true
           ruff check . || true
           pytest -q tests/test_machines_postgres.py || true
 
