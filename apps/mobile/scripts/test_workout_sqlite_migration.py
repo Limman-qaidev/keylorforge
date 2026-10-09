@@ -137,5 +137,154 @@ def test_upgrade():
     assert not db.execute("PRAGMA foreign_key_check").fetchall()
     print("PASS: QA reset deletes FK-dependent outbox leaves first; other subject retained")
 
+
+
+def test_machine_v3_upgrade():
+    """The real v2→v3 SQLite upgrade must preserve existing performed history."""
+    db = sqlite3.connect(":memory:")
+    db.executescript(sql("local-schema.ts", "LOCAL_WORKOUT_SCHEMA_SQL"))
+    subject = "a3dbf764-e0e3-41aa-9895-6e58eadfbb14"
+    other = "e426dd13-344a-4b69-8920-cb014715c6c1"
+    session = "1f2d27bc-4904-4f4f-9367-39565d78f211"
+    db.execute(
+        "INSERT INTO local_workout_sessions "
+        "(subject,session_id,origin,started_at_utc,time_zone,utc_offset_minutes,"
+        "local_date,original_agenda_json) "
+        "VALUES (?,?,'free','2026-10-08T14:30:00Z','Europe/Madrid',120,"
+        "'2026-10-08','{}')",
+        (subject, session),
+    )
+    db.execute(
+        "INSERT INTO local_workout_outbox "
+        "(subject,mutation_id,session_id,mutation_kind,protocol_version,"
+        "payload_json,created_at_utc) "
+        "VALUES (?,'prior-start',?,'START_SESSION',1,'{}','2026-10-08T14:30:00Z')",
+        (subject, session),
+    )
+    db.commit()
+    db.execute("PRAGMA foreign_keys = OFF")
+    db.executescript(sql("local-performed-schema.ts", "LOCAL_WORKOUT_V2_MIGRATION_SQL"))
+    assert not db.execute("PRAGMA foreign_key_check").fetchall()
+    db.execute("PRAGMA user_version = 2")
+    db.commit()
+    db.execute("PRAGMA foreign_keys = ON")
+    db.execute(
+        "INSERT INTO local_workout_occurrences "
+        "(subject,session_id,occurrence_id,canonical_exercise_id,actual_order,first_set_id) "
+        "VALUES (?,?,'old-occ','old-exercise',0,'old-set')", (subject, session)
+    )
+    db.execute(
+        "INSERT INTO local_workout_outbox "
+        "(subject,mutation_id,session_id,mutation_kind,protocol_version,payload_json,"
+        "created_at_utc,depends_on_mutation_id) "
+        "VALUES (?,'prior-first',?,'CONFIRM_FIRST_SET_WITH_OCCURRENCE',1,'{}',"
+        "'2026-10-08T14:40:00Z','prior-start')",
+        (subject, session),
+    )
+    db.execute(
+        "INSERT INTO local_workout_sets "
+        "(subject,session_id,set_id,occurrence_id,set_role,measurement_type,reps,"
+        "load_decimal,load_unit,load_entry_semantics,machine_profile_id,"
+        "machine_snapshot_json,completed_at_utc,mutation_id) "
+        "VALUES (?,?,'old-set','old-occ','WARMUP','reps',12,'20.5','kg',"
+        "'machine_display','old-machine','{\"label\":\"Polea A\"}',"
+        "'2026-10-08T14:40:00Z','prior-first')",
+        (subject, session),
+    )
+    db.commit()
+    old_set = db.execute(
+        "SELECT machine_profile_id,machine_snapshot_json,load_decimal,load_unit "
+        "FROM local_workout_sets"
+    ).fetchone()
+
+    # New schema tables appear additively with no copying of prior sets or outbox.
+    db.executescript(sql("local-machine-schema.ts", "LOCAL_WORKOUT_V3_MIGRATION_SQL"))
+    assert db.in_transaction
+    assert not db.execute("PRAGMA foreign_key_check").fetchall()
+    db.execute("PRAGMA user_version = 3")
+    db.commit()
+    assert db.execute("PRAGMA user_version").fetchone()[0] == 3
+    assert db.execute(
+        "SELECT machine_profile_id,machine_snapshot_json,load_decimal,load_unit "
+        "FROM local_workout_sets"
+    ).fetchone() == old_set
+    assert db.execute("SELECT COUNT(*) FROM local_workout_outbox").fetchone()[0] == 2
+
+    db.execute(
+        "INSERT INTO local_machine_outbox "
+        "(subject,mutation_id,mutation_kind,profile_id,entity_id,protocol_version,"
+        "payload_json,created_at_utc) VALUES (?,'profile-create',"
+        "'CREATE_MACHINE_PROFILE','profile-a','profile-a',1,'{}','2026-10-09T08:00:00Z')",
+        (subject,),
+    )
+    db.execute(
+        "INSERT INTO local_machine_profiles "
+        "(subject,profile_id,nickname,technical_metadata_json,metadata_source,"
+        "created_at_utc,create_mutation_id) "
+        "VALUES (?,'profile-a','Polea A','{}','user_entered',"
+        "'2026-10-09T08:00:00Z','profile-create')",
+        (subject,),
+    )
+    db.execute(
+        "INSERT INTO local_machine_outbox "
+        "(subject,mutation_id,mutation_kind,profile_id,entity_id,protocol_version,"
+        "payload_json,created_at_utc,depends_on_mutation_id) "
+        "VALUES (?,'config-create','CREATE_MACHINE_CONFIGURATION','profile-a',"
+        "'config-a',1,'{}','2026-10-09T08:01:00Z','profile-create')",
+        (subject,),
+    )
+    db.execute(
+        "INSERT INTO local_machine_configurations "
+        "(subject,configuration_id,profile_id,label,material_setup_json,"
+        "metadata_source,created_at_utc,create_mutation_id) "
+        "VALUES (?,'config-a','profile-a','Cable top','{}',"
+        "'user_entered','2026-10-09T08:01:00Z','config-create')",
+        (subject,),
+    )
+    db.commit()
+    assert db.execute(
+        "SELECT depends_on_mutation_id FROM local_machine_outbox "
+        "WHERE subject=? AND mutation_id='config-create'", (subject,)
+    ).fetchone() == ("profile-create",)
+
+    # Cross-owner references are rejected even when a guessed ID exists.
+    try:
+        db.execute(
+            "INSERT INTO local_machine_configurations "
+            "(subject,configuration_id,profile_id,label,material_setup_json,"
+            "metadata_source,created_at_utc,create_mutation_id) "
+            "VALUES (?,'foreign-config','profile-a','Wrong owner','{}',"
+            "'user_entered','2026-10-09T08:02:00Z','config-create')",
+            (other,),
+        )
+    except sqlite3.IntegrityError:
+        db.rollback()
+    else:
+        raise AssertionError("SQLite permitted cross-owner machine configuration")
+    assert not db.execute("PRAGMA foreign_key_check").fetchall()
+    print("PASS: SQLite v3 retained v2 workout/set/snapshot and enforced machine causality")
+
+    # A failure *mid-migration* must leave all new tables and version rolled back.
+    broken = sqlite3.connect(":memory:")
+    broken.executescript(sql("local-schema.ts", "LOCAL_WORKOUT_SCHEMA_SQL"))
+    broken.execute("PRAGMA foreign_keys = OFF")
+    broken.executescript(sql("local-performed-schema.ts", "LOCAL_WORKOUT_V2_MIGRATION_SQL"))
+    broken.execute("PRAGMA user_version = 2")
+    broken.commit()
+    broken.execute("CREATE TABLE local_machine_profiles (occupied INTEGER)")
+    broken.commit()
+    try:
+        broken.executescript(sql("local-machine-schema.ts", "LOCAL_WORKOUT_V3_MIGRATION_SQL"))
+    except sqlite3.OperationalError:
+        broken.rollback()
+    else:
+        raise AssertionError("Migration unexpectedly succeeded over conflicting table")
+    assert broken.execute("PRAGMA user_version").fetchone()[0] == 2
+    assert not broken.execute(
+        "SELECT name FROM sqlite_master WHERE name='local_machine_outbox'"
+    ).fetchone()
+    print("PASS: v3 partial migration rolled back without advancing schema version")
+
 if __name__ == "__main__":
     test_upgrade()
+    test_machine_v3_upgrade()
