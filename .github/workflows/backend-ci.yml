@@ -49,6 +49,13 @@ jobs:
           python -m pip install -c constraints.txt -e ".[dev]"
           python -m pip check
 
+      # TEMPORARY focused diagnostic; remove before final review.
+      - name: Inspect new PG regression formatting and execution
+        run: |
+          ruff format --diff tests/test_workout_sets_postgres.py || true
+          ruff check . || true
+          pytest -q tests/test_workout_sets_postgres.py || true
+
       - name: Check formatting
         run: ruff format --check .
 
