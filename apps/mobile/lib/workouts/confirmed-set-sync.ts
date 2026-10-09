@@ -58,7 +58,10 @@ type Command = {
 export type ConfirmedSetSyncOutcome =
   | { state: 'idle' | 'inFlight' }
   | { state: 'acknowledged' | 'conflict'; mutationId: string }
-  | { state: 'blocked'; reason: 'dependency' | 'auth' | 'localData' | 'unsupported' | 'rejected' }
+  | {
+      state: 'blocked';
+      reason: 'dependency' | 'auth' | 'localData' | 'unsupported' | 'rejected';
+    }
   | { state: 'retryable'; reason: 'network' | 'server' | 'invalidResponse' };
 
 function currentSubject(access: LocalSubjectAccess): string {
@@ -95,7 +98,11 @@ function readCommand(
   occurrence: Occurrence,
 ): Command | null {
   let raw: unknown;
-  try { raw = JSON.parse(row.payload_json); } catch { return null; }
+  try {
+    raw = JSON.parse(row.payload_json);
+  } catch {
+    return null;
+  }
   const value = object(raw);
   if (
     !value ||
@@ -119,9 +126,13 @@ function readCommand(
       occurrence.first_set_id !== performed.set_id) ||
     (row.mutation_kind === KIND_ADDITIONAL &&
       occurrence.first_set_id === performed.set_id)
-  ) return null;
+  )
+    return null;
   const measurement = object(value.measurement);
-  if (!measurement || measurement.measurementType !== performed.measurement_type) {
+  if (
+    !measurement ||
+    measurement.measurementType !== performed.measurement_type
+  ) {
     return null;
   }
   if (
@@ -132,7 +143,8 @@ function readCommand(
     (performed.measurement_type === 'distance' &&
       (!sameDecimal(measurement.distanceDecimal, performed.distance_decimal) ||
         measurement.distanceUnit !== performed.distance_unit))
-  ) return null;
+  )
+    return null;
   const load = value.load === null ? null : object(value.load);
   if (value.load !== null && !load) return null;
   if (
@@ -141,12 +153,16 @@ function readCommand(
       (!sameDecimal(load.decimal, performed.load_decimal) ||
         load.unit !== performed.load_unit ||
         load.entrySemantics !== performed.load_entry_semantics))
-  ) return null;
+  )
+    return null;
   // No local machine-creation receipts or applied-agenda authority exist yet.
   // Keep them pending for later causal slices rather than generating remote 404
   // or, worse, a success whose provenance is unsourced.
   if (value.machine !== null && !object(value.machine)) return null;
-  if (value.target_at_confirmation !== null && !object(value.target_at_confirmation)) {
+  if (
+    value.target_at_confirmation !== null &&
+    !object(value.target_at_confirmation)
+  ) {
     return null;
   }
   return value as Command;
@@ -169,7 +185,8 @@ function matchingReceipt(body: unknown, cmd: Command): boolean {
     (load === null && data.load_decimal !== null) ||
     (load !== null && !sameDecimal(data.load_decimal, load.decimal)) ||
     typeof data.completed_at !== 'string'
-  ) return false;
+  )
+    return false;
   const serverTime = Date.parse(data.completed_at);
   const localTime = Date.parse(cmd.completed_at);
   return Number.isFinite(serverTime) && serverTime === localTime;
@@ -212,11 +229,12 @@ async function transition(
   row: PendingSet,
   state: 'acknowledged' | 'conflict',
 ): Promise<void> {
-  await db.withExclusiveTransactionAsync(async tx => {
+  await db.withExclusiveTransactionAsync(async (tx) => {
     sameSubject(access, row.subject);
     const fresh = await tx.getFirstAsync<PendingSet>(
       'SELECT * FROM local_workout_outbox WHERE subject = ? AND mutation_id = ?',
-      row.subject, row.mutation_id,
+      row.subject,
+      row.mutation_id,
     );
     if (
       !fresh ||
@@ -226,26 +244,32 @@ async function transition(
       fresh.depends_on_mutation_id !== row.depends_on_mutation_id ||
       fresh.session_id !== row.session_id ||
       fresh.mutation_kind !== row.mutation_kind
-    ) throw new LocalWorkoutError('corruptLocalData');
+    )
+      throw new LocalWorkoutError('corruptLocalData');
     const parent = await tx.getFirstAsync<ParentState>(
       'SELECT mutation_id, delivery_state FROM local_workout_outbox WHERE subject = ? AND mutation_id = ?',
-      row.subject, row.depends_on_mutation_id,
+      row.subject,
+      row.depends_on_mutation_id,
     );
     if (!parent || parent.delivery_state !== 'acknowledged') {
       throw new LocalWorkoutError('corruptLocalData');
     }
     await tx.runAsync(
       "UPDATE local_workout_outbox SET delivery_state = ? WHERE subject = ? AND mutation_id = ? AND delivery_state = 'pending'",
-      state, row.subject, row.mutation_id,
+      state,
+      row.subject,
+      row.mutation_id,
     );
     const checked = await tx.getFirstAsync<PendingSet>(
       'SELECT * FROM local_workout_outbox WHERE subject = ? AND mutation_id = ?',
-      row.subject, row.mutation_id,
+      row.subject,
+      row.mutation_id,
     );
     if (
       checked?.delivery_state !== state ||
       checked.payload_json !== row.payload_json
-    ) throw new LocalWorkoutError('corruptLocalData');
+    )
+      throw new LocalWorkoutError('corruptLocalData');
     sameSubject(access, row.subject);
   });
   sameSubject(access, row.subject);
@@ -266,8 +290,12 @@ export async function syncNextPendingConfirmedSet(
     );
     sameSubject(access, subject);
     if (!row) return { state: 'idle' };
-    if (row.subject !== subject || !UUID.test(row.mutation_id) ||
-        row.session_id === '' || row.delivery_state !== 'pending') {
+    if (
+      row.subject !== subject ||
+      !UUID.test(row.mutation_id) ||
+      row.session_id === '' ||
+      row.delivery_state !== 'pending'
+    ) {
       return { state: 'blocked', reason: 'localData' };
     }
     if (!row.depends_on_mutation_id || !UUID.test(row.depends_on_mutation_id)) {
@@ -275,7 +303,8 @@ export async function syncNextPendingConfirmedSet(
     }
     const predecessor = await db.getFirstAsync<ParentState>(
       'SELECT mutation_id, delivery_state FROM local_workout_outbox WHERE subject = ? AND mutation_id = ?',
-      subject, row.depends_on_mutation_id,
+      subject,
+      row.depends_on_mutation_id,
     );
     sameSubject(access, subject);
     if (!predecessor || predecessor.delivery_state !== 'acknowledged') {
@@ -283,13 +312,16 @@ export async function syncNextPendingConfirmedSet(
     }
     const stored = await db.getFirstAsync<LocalPerformedSet>(
       'SELECT * FROM local_workout_sets WHERE subject = ? AND mutation_id = ?',
-      subject, row.mutation_id,
+      subject,
+      row.mutation_id,
     );
     sameSubject(access, subject);
     if (!stored) return { state: 'blocked', reason: 'localData' };
     const occurrence = await db.getFirstAsync<Occurrence>(
       'SELECT * FROM local_workout_occurrences WHERE subject = ? AND session_id = ? AND occurrence_id = ?',
-      subject, row.session_id, stored.occurrence_id,
+      subject,
+      row.session_id,
+      stored.occurrence_id,
     );
     sameSubject(access, subject);
     if (!occurrence) return { state: 'blocked', reason: 'localData' };
@@ -308,7 +340,8 @@ export async function syncNextPendingConfirmedSet(
       !credential ||
       credential.subject.toLowerCase() !== subject ||
       !credential.accessToken
-    ) return { state: 'blocked', reason: 'auth' };
+    )
+      return { state: 'blocked', reason: 'auth' };
 
     let result: { status: number; body: unknown };
     try {
