@@ -223,7 +223,8 @@ def test_real_postgres_confirmations_are_owner_scoped_atomic_and_idempotent() ->
         incompatible_time["mutation_id"] = str(uuid4())
         incompatible_time["set_id"] = str(uuid4())
         incompatible_time["measurement"] = {
-            "measurementType": "time", "durationSeconds": 30
+            "measurementType": "time",
+            "durationSeconds": 30,
         }
         assert (
             client.post(
