@@ -1,9 +1,15 @@
-import { render } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 
 import ProgressRoute from '../progress';
 import SocialRoute from '../social';
 import TrainRoute from '../train';
+
+const mockPush = jest.fn();
+
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ push: mockPush }),
+}));
 
 jest.mock('@/components/auth/auth-guards', () => ({
   RequireAuthenticated: ({ children }: { children: ReactNode }) => children,
@@ -37,6 +43,14 @@ describe('authenticated product destinations', () => {
     const { getByText } = await render(<TrainRoute />);
 
     expect(getByText('Catálogo de ejercicios')).toBeTruthy();
+  });
+
+  it('exposes the offline catalogue from Entrenar without removing M2 browse', async () => {
+    const { getByLabelText, getByText } = await render(<TrainRoute />);
+
+    expect(getByText('Catálogo de ejercicios')).toBeTruthy();
+    fireEvent.press(getByLabelText('Abrir catálogo sin conexión'));
+    expect(mockPush).toHaveBeenCalledWith('/offline-exercises');
   });
 
   it('renders a truthful Social placeholder without fake rankings or friends', async () => {
