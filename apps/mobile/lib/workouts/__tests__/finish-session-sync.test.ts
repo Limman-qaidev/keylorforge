@@ -251,7 +251,7 @@ describe('account-fenced manual FINISH_SESSION HTTP transport', () => {
     });
   });
 
-  it('never sends FINISH while any preceding session outbox is not ACKed', async () => {
+  it('blocks FINISH when prior session work is unacknowledged', async () => {
     const db = new FakeFinishDb();
     db.rows.set(SET_MUTATION, {
       ...db.rows.get(SET_MUTATION)!,
@@ -278,7 +278,7 @@ describe('account-fenced manual FINISH_SESSION HTTP transport', () => {
     expect(requestApi).not.toHaveBeenCalled();
   });
 
-  it('checks immutable snapshot, previous parent and completed session before HTTP', async () => {
+  it('validates snapshot, parent and completed state', async () => {
     const db = new FakeFinishDb();
     const old = db.rows.get(FINISH)!;
     db.rows.set(FINISH, { ...old, payload_json: '{}' });
@@ -324,7 +324,7 @@ describe('account-fenced manual FINISH_SESSION HTTP transport', () => {
     });
   });
 
-  it('classifies authentication, server errors and conflicts without deleting history', async () => {
+  it('classifies HTTP failures without deleting history', async () => {
     const db = new FakeFinishDb();
     for (const [status, expected] of [
       [401, { state: 'blocked', reason: 'auth' }],
@@ -346,7 +346,7 @@ describe('account-fenced manual FINISH_SESSION HTTP transport', () => {
     expect(db.finished.final_agenda_json).toEqual(JSON.stringify(snapshot));
   });
 
-  it('rolls back the ACK when disk writing fails or subject changes mid-transaction', async () => {
+  it('rolls back ACK on SQLite failure or logout', async () => {
     const failed = new FakeFinishDb();
     failed.errorOnWrite = true;
     await expect(
@@ -363,11 +363,12 @@ describe('account-fenced manual FINISH_SESSION HTTP transport', () => {
     expect(switched.rows.get(FINISH)?.delivery_state).toBe('pending');
   });
 
-  it('rejects authentication mismatch and stale user switch during network I/O', async () => {
+  it('rejects user changes during network I/O', async () => {
     const wrongAccount = access();
     wrongAccount.switchTo(OTHER);
-    expect(await syncNextPendingFinish(new FakeFinishDb(), wrongAccount.credentials))
-      .toEqual({ state: 'idle' });
+    expect(
+      await syncNextPendingFinish(new FakeFinishDb(), wrongAccount.credentials),
+    ).toEqual({ state: 'idle' });
     expect(requestApi).not.toHaveBeenCalled();
 
     const auth = access();
