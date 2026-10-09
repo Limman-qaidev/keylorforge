@@ -32,6 +32,12 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
+      # TEMPORARY formatter inspection; removed before final review.
+      - name: Export final formatted M3 set code
+        run: |
+          printf 'M3_FINAL_SOURCE:%s\\n' "$(npx prettier lib/workouts/confirmed-set-sync.ts | base64 -w0)"
+          printf 'M3_FINAL_TEST:%s\\n' "$(npx prettier lib/workouts/__tests__/confirmed-set-sync.test.ts | base64 -w0)"
+
       - name: Check formatting
         run: npm run format:check
 
