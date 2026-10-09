@@ -83,7 +83,9 @@ describe('read-only SQLite finished workout history', () => {
     expect(LOCAL_FINISHED_HISTORY_SQL).toContain(
       "w.lifecycle_state = 'completed'",
     );
-    expect(LOCAL_FINISHED_HISTORY_SQL).toContain("o.mutation_kind = 'FINISH_SESSION'");
+    expect(LOCAL_FINISHED_HISTORY_SQL).toContain(
+      "o.mutation_kind = 'FINISH_SESSION'",
+    );
     expect(LOCAL_FINISHED_HISTORY_SQL).toContain(
       'ORDER BY f.finished_at_utc DESC, f.session_id DESC',
     );
@@ -92,13 +94,13 @@ describe('read-only SQLite finished workout history', () => {
 
   it('treats a locally completed but unacknowledged Finish as pending, not synchronized', async () => {
     const db = new ReadOnlyDb();
-    expect((await listLocalFinishedWorkouts(db, identity().access))[0].sync_state).toBe(
-      'pending',
-    );
+    expect(
+      (await listLocalFinishedWorkouts(db, identity().access))[0].sync_state,
+    ).toBe('pending');
     db.items = [{ ...completed, sync_state: 'acknowledged' }];
-    expect((await listLocalFinishedWorkouts(db, identity().access))[0].sync_state).toBe(
-      'acknowledged',
-    );
+    expect(
+      (await listLocalFinishedWorkouts(db, identity().access))[0].sync_state,
+    ).toBe('acknowledged');
     db.items = [];
     expect(await listLocalFinishedWorkouts(db, identity().access)).toEqual([]);
   });
@@ -116,15 +118,20 @@ describe('read-only SQLite finished workout history', () => {
   it('rejects malformed pages and corrupted or fabricated history', async () => {
     const db = new ReadOnlyDb();
     const auth = identity();
-    for (const bad of [{ limit: 0 }, { limit: 51 }, { offset: -1 }, { offset: 0.5 }]) {
+    for (const bad of [
+      { limit: 0 },
+      { limit: 51 },
+      { offset: -1 },
+      { offset: 0.5 },
+    ]) {
       await expect(
         listLocalFinishedWorkouts(db, auth.access, bad),
       ).rejects.toMatchObject({ code: 'invalidInput' });
     }
     db.items = [{ ...completed, working_sets: 0 }];
-    await expect(listLocalFinishedWorkouts(db, auth.access)).rejects.toMatchObject({
-      code: 'corruptLocalData',
-    });
+    await expect(
+      listLocalFinishedWorkouts(db, auth.access),
+    ).rejects.toMatchObject({ code: 'corruptLocalData' });
     db.items = [{ ...completed, total_sets: -2 }];
     await expect(listLocalFinishedWorkouts(db, auth.access)).rejects.toMatchObject({
       code: 'corruptLocalData',
@@ -134,8 +141,8 @@ describe('read-only SQLite finished workout history', () => {
       listLocalFinishedWorkouts(db, auth.access, { limit: 1 }),
     ).rejects.toMatchObject({ code: 'corruptLocalData' });
     auth.switchTo(null);
-    await expect(listLocalFinishedWorkouts(db, auth.access)).rejects.toMatchObject({
-      code: 'notAuthenticated',
-    });
+    await expect(
+      listLocalFinishedWorkouts(db, auth.access),
+    ).rejects.toMatchObject({ code: 'notAuthenticated' });
   });
 });
