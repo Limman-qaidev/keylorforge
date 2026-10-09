@@ -24,7 +24,7 @@ from keylorforge_database.models import (
     WorkoutSet,
 )
 from keylorforge_database.workouts import purge_account_workout_data
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -272,6 +272,54 @@ def test_real_postgres_confirmations_are_owner_scoped_atomic_and_idempotent() ->
                 ("WARMUP", "kg"),
                 ("WORKING", "lb"),
             }
+        # CHECK constraints must reject SQL NULL/UNKNOWN, not only invalid
+        # API/Pydantic payloads. Test direct PostgreSQL writes explicitly.
+        bad_rows = [
+            ("reps", None, None, None, None, None, None, None),
+            ("time", None, None, None, None, None, None, None),
+            ("distance", None, None, None, "m", None, None, None),
+            ("reps", 8, None, None, None, "10.0", None, "total"),
+            ("reps", 8, None, None, None, None, "kg", "total"),
+            ("reps", 8, None, None, None, "10.0", "kg", None),
+        ]
+        insert_bad_set = text(
+            "INSERT INTO workout_sets "
+            "(id, owner_user_id, session_id, occurrence_id, mutation_id, "
+            "set_role, measurement_type, reps, duration_seconds, "
+            "distance_value, distance_unit, load_value, load_unit, "
+            "load_entry_semantics, completed_at) "
+            "VALUES (:id, :owner_id, :session_id, :occurrence_id, "
+            ":mutation_id, 'WORKING', :measurement_type, :reps, :duration, "
+            ":distance_value, :distance_unit, :load_value, :load_unit, "
+            ":load_entry_semantics, CURRENT_TIMESTAMP)"
+        )
+        with Session(engine) as owner_lookup:
+            first_set = owner_lookup.get(WorkoutSet, UUID(first["set_id"]))
+            assert first_set is not None
+            row_owner_id = first_set.owner_user_id
+        for measurement_type, reps, duration, distance, distance_unit, load_value, load_unit, semantics in bad_rows:
+            with Session(engine) as invalid_session:
+                with pytest.raises(IntegrityError):
+                    invalid_session.execute(
+                        insert_bad_set,
+                        {
+                            "id": uuid4(),
+                            "owner_id": row_owner_id,
+                            "session_id": UUID(workout_start["session_id"]),
+                            "occurrence_id": UUID(first["occurrence_id"]),
+                            "mutation_id": uuid4(),
+                            "measurement_type": measurement_type,
+                            "reps": reps,
+                            "duration": duration,
+                            "distance_value": distance,
+                            "distance_unit": distance_unit,
+                            "load_value": load_value,
+                            "load_unit": load_unit,
+                            "load_entry_semantics": semantics,
+                        },
+                    )
+                    invalid_session.commit()
+
         # A malformed direct DB insert must not commit an orphan occurrence
         # even if it bypasses the authorized API service.
         with Session(engine) as db:
