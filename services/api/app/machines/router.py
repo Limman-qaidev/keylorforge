@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import (
@@ -69,7 +69,6 @@ def create_configuration(
     principal: Annotated[AuthenticatedPrincipal, Depends(get_authenticated_principal)],
     session: Annotated[Session, Depends(get_database_session)],
 ) -> MachineConfigurationResponse:
-    from fastapi import HTTPException
     if request.profile_id != profile_id:
         raise HTTPException(status_code=422, detail="machine profile ID mismatch")
     return create_machine_configuration(
