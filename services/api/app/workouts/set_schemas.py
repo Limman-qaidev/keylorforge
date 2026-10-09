@@ -1,4 +1,5 @@
 """Validated M3 performed-set semantic commands; not a mobile sync worker."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -46,9 +47,7 @@ class NativeLoad(BaseModel):
     model_config = ConfigDict(extra="forbid")
     decimal: str = Field(pattern=DECIMAL_PATTERN)
     unit: Literal["kg", "lb"]
-    entrySemantics: Literal[
-        "total", "per_implement", "machine_display", "assistance"
-    ]
+    entrySemantics: Literal["total", "per_implement", "machine_display", "assistance"]
 
 
 class MachineAtSet(BaseModel):
