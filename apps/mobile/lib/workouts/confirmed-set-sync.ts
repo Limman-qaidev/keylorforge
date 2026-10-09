@@ -30,7 +30,11 @@ type PendingSet = {
   delivery_state: string;
   depends_on_mutation_id: string | null;
 };
-type ParentState = { mutation_id: string; delivery_state: string };
+type ParentState = {
+  mutation_id: string;
+  session_id: string;
+  delivery_state: string;
+};
 type Occurrence = {
   canonical_exercise_id: string;
   agenda_item_id: string | null;
@@ -155,6 +159,16 @@ function readCommand(
         load.entrySemantics !== performed.load_entry_semantics))
   )
     return null;
+  // A locally persisted machine/target may never disappear merely because a
+  // queued command is corrupt or stale. Compare the two representations first.
+  if (
+    (value.machine === null &&
+      (performed.machine_profile_id !== null ||
+        performed.machine_configuration_id !== null ||
+        performed.machine_snapshot_json !== null)) ||
+    (value.target_at_confirmation === null &&
+      performed.target_at_confirmation_json !== null)
+  ) return null;
   // No local machine-creation receipts or applied-agenda authority exist yet.
   // Keep them pending for later causal slices rather than generating remote 404
   // or, worse, a success whose provenance is unsourced.
@@ -251,7 +265,11 @@ async function transition(
       row.subject,
       row.depends_on_mutation_id,
     );
-    if (!parent || parent.delivery_state !== 'acknowledged') {
+    if (
+      !parent ||
+      parent.session_id !== row.session_id ||
+      parent.delivery_state !== 'acknowledged'
+    ) {
       throw new LocalWorkoutError('corruptLocalData');
     }
     await tx.runAsync(
@@ -293,7 +311,7 @@ export async function syncNextPendingConfirmedSet(
     if (
       row.subject !== subject ||
       !UUID.test(row.mutation_id) ||
-      row.session_id === '' ||
+      !UUID.test(row.session_id) ||
       row.delivery_state !== 'pending'
     ) {
       return { state: 'blocked', reason: 'localData' };
@@ -307,7 +325,11 @@ export async function syncNextPendingConfirmedSet(
       row.depends_on_mutation_id,
     );
     sameSubject(access, subject);
-    if (!predecessor || predecessor.delivery_state !== 'acknowledged') {
+    if (
+      !predecessor ||
+      predecessor.session_id !== row.session_id ||
+      predecessor.delivery_state !== 'acknowledged'
+    ) {
       return { state: 'blocked', reason: 'dependency' };
     }
     const stored = await db.getFirstAsync<LocalPerformedSet>(
@@ -338,6 +360,7 @@ export async function syncNextPendingConfirmedSet(
     sameSubject(access, subject);
     if (
       !credential ||
+      !UUID.test(credential.subject) ||
       credential.subject.toLowerCase() !== subject ||
       !credential.accessToken
     )
