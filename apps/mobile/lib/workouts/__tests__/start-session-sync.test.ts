@@ -119,6 +119,7 @@ class FakeDB implements SqliteWorkoutPort {
       row.delivery_state = String(state);
     }
     this.onUpdate?.();
+    return undefined;
   }
   async withExclusiveTransactionAsync(
     f: (tx: SqliteQueryPort) => Promise<void>,
@@ -272,7 +273,7 @@ describe('M3 START_SESSION real HTTP / offline outbox reconciliation', () => {
       json: async () => {
         throw new Error('invalid JSON');
       },
-    } as Response);
+    } as unknown as Response);
     expect(await syncNextPendingStart(db, auth().access)).toEqual({
       state: 'retryable',
       reason: 'invalidResponse',
