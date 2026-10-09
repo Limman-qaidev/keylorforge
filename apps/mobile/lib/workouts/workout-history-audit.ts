@@ -224,7 +224,9 @@ export async function auditCompletedWorkoutHistory(
       if (response.status === 429 || response.status >= 500) {
         return partial('server', pendingLocal);
       }
-      if (response.status !== 200) return partial('invalidResponse', pendingLocal);
+      if (response.status !== 200) {
+        return partial('invalidResponse', pendingLocal);
+      }
       raw = await response.json();
     } catch (error) {
       checkOwner(access, owner);
@@ -245,7 +247,10 @@ export async function auditCompletedWorkoutHistory(
       finished = true;
       break;
     }
-    const cursor = page.next_before_finished_at + ':' + page.next_before_session_id;
+    const cursor = [
+      page.next_before_finished_at,
+      page.next_before_session_id,
+    ].join(':');
     if (cursors.has(cursor)) return partial('invalidResponse', pendingLocal);
     cursors.add(cursor);
     beforeFinished = page.next_before_finished_at;
@@ -279,26 +284,30 @@ export async function auditCompletedWorkoutHistory(
     let sameSnapshot = false;
     try {
       if (final) {
-        sameSnapshot =
+        const sameId =
           final.subject === owner &&
           final.session_id === id &&
-          final.completion_snapshot_id === authoritative.completion_snapshot_id &&
-          final.finish_mutation_id === authoritative.finish_mutation_id &&
+          final.completion_snapshot_id ===
+            authoritative.completion_snapshot_id &&
+          final.finish_mutation_id === authoritative.finish_mutation_id;
+        sameSnapshot =
+          sameId &&
           canonicalJson(JSON.parse(final.final_agenda_json)) ===
             canonicalJson(authoritative.completion_snapshot);
       }
     } catch {
       sameSnapshot = false;
     }
-    if (
-      !sameSnapshot ||
-      local.completion_snapshot_id !== authoritative.completion_snapshot_id ||
-      Date.parse(local.started_at_utc) !== Date.parse(authoritative.started_at) ||
-      Date.parse(local.finished_at_utc) !== Date.parse(authoritative.finished_at) ||
-      local.local_date !== authoritative.local_date ||
-      local.total_sets !== authoritative.total_sets ||
-      local.working_sets !== authoritative.working_sets
-    ) {
+    const sameMetadata =
+      local.completion_snapshot_id === authoritative.completion_snapshot_id &&
+      Date.parse(local.started_at_utc) ===
+        Date.parse(authoritative.started_at) &&
+      Date.parse(local.finished_at_utc) ===
+        Date.parse(authoritative.finished_at) &&
+      local.local_date === authoritative.local_date &&
+      local.total_sets === authoritative.total_sets &&
+      local.working_sets === authoritative.working_sets;
+    if (!sameSnapshot || !sameMetadata) {
       audit.diverged.push(id);
     } else {
       audit.compared++;
