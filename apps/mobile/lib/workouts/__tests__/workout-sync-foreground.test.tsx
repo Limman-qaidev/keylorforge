@@ -30,15 +30,17 @@ describe('staged automatic foreground workout sync', () => {
       configurable: true,
       value: 'active',
     });
-    appSpy = jest.spyOn(AppState, 'addEventListener').mockImplementation(
-      (_type, listener) => {
+    appSpy = jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation((_type, listener) => {
         foreground = listener as (state: AppStateStatus) => void;
         return { remove: unsubscribe };
-      },
-    );
-    jest.mocked(openLocalWorkoutDatabase).mockResolvedValue(
-      {} as Awaited<ReturnType<typeof openLocalWorkoutDatabase>>,
-    );
+      });
+    jest
+      .mocked(openLocalWorkoutDatabase)
+      .mockResolvedValue(
+        {} as Awaited<ReturnType<typeof openLocalWorkoutDatabase>>,
+      );
     jest.mocked(drainWorkoutSync).mockResolvedValue({
       state: 'idle',
       acknowledged: 0,
