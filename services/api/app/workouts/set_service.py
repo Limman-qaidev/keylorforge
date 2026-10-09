@@ -53,6 +53,7 @@ def _acknowledgement(row: WorkoutSet) -> ConfirmedSetResponse:
         load_decimal=str(row.load_value) if row.load_value is not None else None,
         load_unit=row.load_unit,
         machine_profile_id=row.machine_profile_id,
+        machine_configuration_id=row.machine_configuration_id,
     )
 
 
