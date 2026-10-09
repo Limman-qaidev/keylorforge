@@ -202,7 +202,9 @@ def test_postgres_finish_is_atomic_idempotent_and_owner_scoped() -> None:
 
         missing = deepcopy(command)
         missing["mutation_id"] = str(uuid4())
-        missing_item = missing["completion_snapshot"]["unplanned_performed_occurrences"][0]
+        missing_item = missing["completion_snapshot"][
+            "unplanned_performed_occurrences"
+        ][0]
         missing_item["set_ids"] = [warmup_id]
         assert client.post(finish_url, headers=a, json=missing).status_code == 409
 
@@ -222,15 +224,14 @@ def test_postgres_finish_is_atomic_idempotent_and_owner_scoped() -> None:
         finished = client.post(finish_url, headers=a, json=command)
         assert finished.status_code == 201, finished.text
         assert finished.json()["lifecycle_state"] == "completed"
-        assert finished.json()["completion_snapshot_id"] == (
-            command["completion_snapshot"]["completion_snapshot_id"]
+        assert (
+            finished.json()["completion_snapshot_id"]
+            == (command["completion_snapshot"]["completion_snapshot_id"])
         )
         replay = client.post(finish_url, headers=a, json=command)
         assert replay.status_code == 201 and replay.json() == finished.json()
         changed = deepcopy(command)
-        changed["completion_snapshot"]["finished_at_utc"] = (
-            "2026-10-08T15:15:00+00:00"
-        )
+        changed["completion_snapshot"]["finished_at_utc"] = "2026-10-08T15:15:00+00:00"
         assert client.post(finish_url, headers=a, json=changed).status_code == 409
         fresh_id = deepcopy(command)
         fresh_id["mutation_id"] = str(uuid4())
@@ -241,7 +242,9 @@ def test_postgres_finish_is_atomic_idempotent_and_owner_scoped() -> None:
             "mutation_id": str(uuid4()),
         }
         assert (
-            client.post(f"{sets_path}/additional", headers=a, json=attempted_set).status_code
+            client.post(
+                f"{sets_path}/additional", headers=a, json=attempted_set
+            ).status_code
             == 409
         )
 
@@ -250,9 +253,9 @@ def test_postgres_finish_is_atomic_idempotent_and_owner_scoped() -> None:
             assert completed.lifecycle_state == "completed"
             rows = db.scalars(select(WorkoutCompletionSnapshot)).all()
             assert len(rows) == 1
-            assert rows[0].final_agenda[
-                "unplanned_performed_occurrences"
-            ][0]["set_ids"] == sorted([warmup_id, working_id])
+            assert rows[0].final_agenda["unplanned_performed_occurrences"][0][
+                "set_ids"
+            ] == sorted([warmup_id, working_id])
             assert len(db.scalars(select(WorkoutSet)).all()) == 2
             assert len(db.scalars(select(WorkoutMutationReceipt)).all()) == 4
             # Deletion executor must delete final snapshots before their session.
