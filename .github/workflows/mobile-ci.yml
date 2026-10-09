@@ -35,6 +35,12 @@ jobs:
       - name: Check formatting
         run: npm run format:check
 
+      - name: Diagnose Prettier changes (ephemeral CI only)
+        if: failure()
+        run: |
+          npm run format -- --log-level error
+          git diff -- apps/mobile
+
       - name: Run lint
         run: npm run lint
 
