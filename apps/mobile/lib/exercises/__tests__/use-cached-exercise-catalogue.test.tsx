@@ -154,12 +154,14 @@ describe('transparent native exercise catalogue persistence', () => {
     let nowMs = Date.parse('2026-10-09T12:00:00.000Z');
     jest.spyOn(Date, 'now').mockImplementation(() => nowMs);
 
-    let onAppStateChange: ((state: AppStateStatus) => void) | null = null;
+    const handlers: { onChange?: (state: AppStateStatus) => void } = {};
     const removeListener = jest.fn();
-    jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, listener) => {
-      onAppStateChange = listener as (state: AppStateStatus) => void;
-      return { remove: removeListener };
-    });
+    jest
+      .spyOn(AppState, 'addEventListener')
+      .mockImplementation((_type, listener) => {
+        handlers.onChange = listener as (state: AppStateStatus) => void;
+        return { remove: removeListener };
+      });
 
     let seededAtUtc = '2024-01-01T00:00:00.000Z';
     jest.mocked(offlineCatalogueStatus).mockImplementation(async () => ({
@@ -167,7 +169,8 @@ describe('transparent native exercise catalogue persistence', () => {
       total: 1,
       seededAtUtc,
     }));
-    jest.mocked(seedOfflineCatalogueFromApi)
+    jest
+      .mocked(seedOfflineCatalogueFromApi)
       .mockRejectedValueOnce(new Error('temporarily offline'))
       .mockImplementationOnce(async () => {
         seededAtUtc = new Date(nowMs).toISOString();
@@ -185,7 +188,7 @@ describe('transparent native exercise catalogue persistence', () => {
     // foreground notification retries after the bounded failure cooldown.
     nowMs += 61_000;
     await act(async () => {
-      onAppStateChange?.('active');
+      handlers.onChange?.('active');
     });
     await waitFor(() =>
       expect(seedOfflineCatalogueFromApi).toHaveBeenCalledTimes(2),
@@ -194,10 +197,10 @@ describe('transparent native exercise catalogue persistence', () => {
 
     // A fresh snapshot prevents repeated downloads on subsequent resumes.
     await act(async () => {
-      onAppStateChange?.('active');
+      handlers.onChange?.('active');
     });
     expect(seedOfflineCatalogueFromApi).toHaveBeenCalledTimes(2);
-    await screen.unmount();
+    screen.unmount();
     expect(removeListener).toHaveBeenCalled();
   });
 
