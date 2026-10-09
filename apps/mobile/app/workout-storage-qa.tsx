@@ -17,6 +17,14 @@ import {
 import { RequireAuthenticated } from '@/components/auth/auth-guards';
 import { AuthenticatedShell } from '@/components/navigation/authenticated-shell';
 import { useAuth } from '@/lib/auth/auth-provider';
+import {
+  offlineCatalogueStatus,
+  searchOfflineExercises,
+  seedOfflineCatalogueFromApi,
+  type CachedCatalogueStatus,
+} from '@/lib/exercises/offline-catalogue';
+import { openOfflineExerciseCatalogue } from '@/lib/exercises/offline-catalogue-adapter';
+import type { StartSyncAccess } from '@/lib/workouts/start-session-sync';
 import { openDiagnosticWorkoutDatabase } from '@/lib/workouts/expo-sqlite-adapter';
 import {
   confirmLocalWorkoutSet,
@@ -135,13 +143,31 @@ function StorageDiagnosticScreen() {
   const { session } = useAuth();
   const subject = session?.user.id ?? null;
   const subjectRef = useRef(subject);
+  const sessionRef = useRef(session);
   useEffect(() => {
     subjectRef.current = subject;
-  }, [subject]);
+    sessionRef.current = session;
+  }, [subject, session]);
   const access = useMemo<LocalSubjectAccess>(
     () => ({ currentAuthenticatedSubject: () => subjectRef.current }),
     [],
   );
+  const catalogueAccess = useMemo<StartSyncAccess>(
+    () => ({
+      currentAuthenticatedSubject: () => subjectRef.current,
+      acquireCurrentCredentials: async () => {
+        const current = sessionRef.current;
+        return current?.user.id && current.access_token
+          ? { subject: current.user.id, accessToken: current.access_token }
+          : null;
+      },
+    }),
+    [],
+  );
+  const [cacheStatus, setCacheStatus] = useState<CachedCatalogueStatus>({
+    state: 'unseeded',
+  });
+  const [cacheFeedback, setCacheFeedback] = useState<string | null>(null);
   const [active, setActive] = useState<LocalWorkoutSession | null>(null);
   const [totalPending, setTotalPending] = useState(0);
   const [firstSet, setFirstSet] = useState<LocalPerformedSet | null>(null);
@@ -202,6 +228,64 @@ function StorageDiagnosticScreen() {
       mounted = false;
     };
   }, [refresh]);
+
+  useEffect(() => {
+    let mounted = true;
+    void openOfflineExerciseCatalogue()
+      .then(offlineCatalogueStatus)
+      .then((status) => {
+        if (mounted) setCacheStatus(status);
+      })
+      .catch((error: unknown) => {
+        if (mounted) {
+          setCacheFeedback(
+            error instanceof Error ? error.message : 'Error de la caché.',
+          );
+        }
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const onDownloadCache = async () => {
+    setBusy(true);
+    setCacheFeedback(null);
+    try {
+      const db = await openOfflineExerciseCatalogue();
+      const status = await seedOfflineCatalogueFromApi(db, catalogueAccess);
+      setCacheStatus(status);
+      setCacheFeedback('Catálogo completo descargado y guardado en SQLite.');
+    } catch (error) {
+      setCacheFeedback(
+        error instanceof Error ? error.message : 'Error de descarga.',
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onReadCache = async () => {
+    setBusy(true);
+    setCacheFeedback(null);
+    try {
+      const db = await openOfflineExerciseCatalogue();
+      const status = await offlineCatalogueStatus(db);
+      const result = await searchOfflineExercises(db, { limit: 1 });
+      setCacheStatus(status);
+      setCacheFeedback(
+        status.state === 'ready'
+          ? `Lectura LOCAL: ${result.total} ejercicios. Ejemplo: ${result.items[0]?.name ?? 'sin registros'}.`
+          : 'Sin catálogo descargado. La lectura no utiliza red.',
+      );
+    } catch (error) {
+      setCacheFeedback(
+        error instanceof Error ? error.message : 'Error al leer.',
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const onStart = async () => {
     if (!subject) {
@@ -315,8 +399,8 @@ function StorageDiagnosticScreen() {
         M3 · Diagnóstico SQLite
       </Text>
       <Text style={styles.description}>
-        Prueba aislada en el Samsung: no modifica sesiones reales ni envía datos
-        al servidor.
+        Las pruebas de sesiones no modifican entrenamientos reales ni se
+        sincronizan. Solo la descarga voluntaria del catálogo consulta la API.
       </Text>
       <View style={styles.panel}>
         <Text style={styles.label}>ESTADO LOCAL</Text>
@@ -428,6 +512,43 @@ function StorageDiagnosticScreen() {
       >
         <Text style={styles.secondaryText}>Vaciar solo esta prueba</Text>
       </Pressable>
+      <View style={styles.panel}>
+        <Text style={styles.label}>CATÁLOGO OFFLINE · M3-MOB-008</Text>
+        <Text style={styles.detail}>
+          Base SQLite pública de ejercicios, independiente de las sesiones y
+          series. Descargar requiere conexión; leer no utiliza la red.
+        </Text>
+        <Text testID="qa-catalogue-cache-status" style={styles.value}>
+          {cacheStatus.state === 'ready'
+            ? `CACHÉ COMPLETA · ${cacheStatus.total}`
+            : 'SIN CACHÉ'}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          disabled={busy}
+          onPress={() => void onDownloadCache()}
+          style={[styles.button, busy && styles.disabled]}
+        >
+          <Text style={styles.buttonText}>
+            Descargar catálogo completo (API)
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          disabled={busy}
+          onPress={() => void onReadCache()}
+          style={[styles.secondary, busy && styles.disabled]}
+        >
+          <Text style={styles.secondaryText}>
+            Leer catálogo en SQLite (sin red)
+          </Text>
+        </Pressable>
+        {cacheFeedback ? (
+          <Text testID="qa-catalogue-cache-feedback" style={styles.detail}>
+            {cacheFeedback}
+          </Text>
+        ) : null}
+      </View>
       {message ? (
         <Text
           accessibilityLiveRegion="polite"
