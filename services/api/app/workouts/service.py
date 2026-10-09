@@ -16,6 +16,7 @@ from keylorforge_database.models import (
     ApplicationUser,
     ApplicationUserLifecycle,
     AuthProvider,
+    MachineMutationReceipt,
     WorkoutMutationReceipt,
     WorkoutSession,
 )
@@ -83,6 +84,8 @@ def start_free_workout(
 
     owner = _active_owner(session, principal, lock=True)
     digest = _intent_hash(request)
+    if session.get(MachineMutationReceipt, (request.mutation_id, owner.id)) is not None:
+        raise HTTPException(409, detail="mutation ID already used for machine")
     receipt = session.get(WorkoutMutationReceipt, (request.mutation_id, owner.id))
     if receipt is not None:
         if receipt.intent_hash != digest or receipt.session_id != request.session_id:
