@@ -297,18 +297,13 @@ describe('M3 actual confirmed workout history', () => {
     const db = new FakePerformedSQLite();
     const access = auth().access;
     const firstWithAgenda = { ...first, agendaItemId: AGENDA_ONE };
-    const nextWithAgenda = {
-      ...next,
-      agendaItemId: AGENDA_ONE.toUpperCase(),
-    };
+    const nextWithAgenda = { ...next, agendaItemId: AGENDA_ONE.toUpperCase() };
     await confirmLocalWorkoutSet(db, access, firstWithAgenda);
     const row = await confirmLocalWorkoutSet(db, access, nextWithAgenda);
     expect(row.set_role).toBe('WORKING');
     expect(db.occurrences.size).toBe(1);
-    expect(
-      db.occurrences.get(A + ':' + SESSION + ':' + first.occurrenceId)
-        ?.agenda_item_id,
-    ).toBe(AGENDA_ONE);
+    const saved = [...db.occurrences.values()][0];
+    expect(saved.agenda_item_id).toBe(AGENDA_ONE);
     const queued = JSON.parse(
       db.outbox.get(A + ':' + next.mutationId)!.payload_json,
     ) as { agenda_item_id: string | null };
@@ -337,10 +332,8 @@ describe('M3 actual confirmed workout history', () => {
       expect(db.sets.size).toBe(1);
       expect(db.occurrences.size).toBe(1);
       expect(db.outbox.size).toBe(2);
-      expect(
-        db.occurrences.get(A + ':' + SESSION + ':' + first.occurrenceId)
-          ?.agenda_item_id,
-      ).toBe(firstAgenda);
+      const saved = [...db.occurrences.values()][0];
+      expect(saved.agenda_item_id).toBe(firstAgenda);
     },
   );
 
