@@ -12,14 +12,19 @@ from keylorforge_database.catalog_importer import (
     import_vendored_catalog,
     load_vendored_snapshot,
 )
+from keylorforge_database.identity import ApplicationUserRepository
 from keylorforge_database.models import (
+    AuthProvider,
     Base,
     CatalogExercise,
     WorkoutMutationReceipt,
     WorkoutOccurrence,
+    WorkoutSession,
     WorkoutSet,
 )
+from keylorforge_database.workouts import purge_account_workout_data
 from sqlalchemy import create_engine, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_database_session
@@ -223,5 +228,37 @@ def test_real_postgres_confirmations_are_owner_scoped_atomic_and_idempotent() ->
                 ("WARMUP", "kg"),
                 ("WORKING", "lb"),
             }
+        # A malformed direct DB insert must not commit an orphan occurrence
+        # even if it bypasses the authorized API service.
+        with Session(engine) as db:
+            owner = ApplicationUserRepository(db).get_or_provision_active_user(
+                auth_provider=AuthProvider.SUPABASE,
+                external_subject=subject_a,
+            )
+            bad_occurrence_id = uuid4()
+            db.add(
+                WorkoutOccurrence(
+                    id=bad_occurrence_id,
+                    owner_user_id=owner.id,
+                    session_id=UUID(workout_start["session_id"]),
+                    canonical_exercise_id=exercise_id,
+                    agenda_item_id=None,
+                    actual_order=1,
+                    first_set_id=uuid4(),
+                )
+            )
+            with pytest.raises(IntegrityError):
+                db.commit()
+            db.rollback()
+            assert db.get(WorkoutOccurrence, bad_occurrence_id) is None
+
+            # Full owner purge must remove sets before the occurrence,
+            # mutation receipts before session, satisfying all FKs.
+            purge_account_workout_data(db, owner.id)
+            db.commit()
+            assert db.scalars(select(WorkoutOccurrence)).all() == []
+            assert db.scalars(select(WorkoutSet)).all() == []
+            assert db.scalars(select(WorkoutMutationReceipt)).all() == []
+            assert db.scalars(select(WorkoutSession)).all() == []
     finally:
         engine.dispose()
