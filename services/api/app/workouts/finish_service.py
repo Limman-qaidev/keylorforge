@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import UTC
+from uuid import UUID
 
 from fastapi import HTTPException
 from keylorforge_database.models import (
@@ -100,7 +101,7 @@ def finish_free_workout(
     # Full equality with persisted authoritative history: never accept a
     # client claim about a set/occurrence that is absent, omitted or unowned.
     expected: list[dict[str, object]] = []
-    linked = set()
+    linked: set[UUID] = set()
     for occurrence in occurrences:
         relevant = [row for row in confirmed if row.occurrence_id == occurrence.id]
         if not relevant or occurrence.agenda_item_id is not None:
