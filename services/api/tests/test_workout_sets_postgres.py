@@ -297,7 +297,16 @@ def test_real_postgres_confirmations_are_owner_scoped_atomic_and_idempotent() ->
             first_set = owner_lookup.get(WorkoutSet, UUID(first["set_id"]))
             assert first_set is not None
             row_owner_id = first_set.owner_user_id
-        for measurement_type, reps, duration, distance, distance_unit, load_value, load_unit, semantics in bad_rows:
+        for (
+            measurement_type,
+            reps,
+            duration,
+            distance,
+            distance_unit,
+            load_value,
+            load_unit,
+            semantics,
+        ) in bad_rows:
             with Session(engine) as invalid_session:
                 with pytest.raises(IntegrityError):
                     invalid_session.execute(
