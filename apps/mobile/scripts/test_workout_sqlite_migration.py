@@ -285,6 +285,180 @@ def test_machine_v3_upgrade():
     ).fetchone()
     print("PASS: v3 partial migration rolled back without advancing schema version")
 
+
+
+def test_finish_v4_upgrade():
+    """v3→v4 preserves historical sets, machine rows and dependent outbox."""
+    db = sqlite3.connect(":memory:")
+    db.executescript(sql("local-schema.ts", "LOCAL_WORKOUT_SCHEMA_SQL"))
+    subject = "a3dbf764-e0e3-41aa-9895-6e58eadfbb14"
+    session = "1f2d27bc-4904-4f4f-9367-39565d78f211"
+
+    db.execute(
+        "INSERT INTO local_workout_sessions "
+        "(subject,session_id,origin,started_at_utc,time_zone,utc_offset_minutes,"
+        "local_date,original_agenda_json) "
+        "VALUES (?,?,'free','2026-10-08T14:30:00Z','Europe/Madrid',120,"
+        "'2026-10-08','{}')",
+        (subject, session),
+    )
+    db.execute(
+        "INSERT INTO local_workout_outbox "
+        "(subject,mutation_id,session_id,mutation_kind,protocol_version,"
+        "payload_json,created_at_utc) "
+        "VALUES (?,'prior-start',?,'START_SESSION',1,'{\"original\":true}',"
+        "'2026-10-08T14:30:00Z')",
+        (subject, session),
+    )
+    db.commit()
+
+    db.execute("PRAGMA foreign_keys = OFF")
+    db.executescript(sql("local-performed-schema.ts", "LOCAL_WORKOUT_V2_MIGRATION_SQL"))
+    assert not db.execute("PRAGMA foreign_key_check").fetchall()
+    db.execute("PRAGMA user_version = 2")
+    db.commit()
+    db.execute("PRAGMA foreign_keys = ON")
+
+    db.execute(
+        "INSERT INTO local_workout_occurrences "
+        "(subject,session_id,occurrence_id,canonical_exercise_id,actual_order,"
+        "first_set_id) VALUES (?,?,'occ-1','exercise-1',0,'set-1')",
+        (subject, session),
+    )
+    db.execute(
+        "INSERT INTO local_workout_outbox "
+        "(subject,mutation_id,session_id,mutation_kind,protocol_version,"
+        "payload_json,delivery_state,created_at_utc,depends_on_mutation_id) "
+        "VALUES (?,'set-mutation',?,'CONFIRM_FIRST_SET_WITH_OCCURRENCE',"
+        "1,'{\"set\":true}','blocked','2026-10-08T14:40:00Z','prior-start')",
+        (subject, session),
+    )
+    db.execute(
+        "INSERT INTO local_workout_sets "
+        "(subject,session_id,set_id,occurrence_id,set_role,measurement_type,"
+        "reps,load_decimal,load_unit,load_entry_semantics,machine_profile_id,"
+        "machine_snapshot_json,completed_at_utc,mutation_id) "
+        "VALUES (?,?,'set-1','occ-1','WORKING','reps',8,'27.5','lb',"
+        "'machine_display','machine-1','{\"label\":\"Polea A\"}',"
+        "'2026-10-08T14:40:00Z','set-mutation')",
+        (subject, session),
+    )
+    db.commit()
+
+    db.executescript(sql("local-machine-schema.ts", "LOCAL_WORKOUT_V3_MIGRATION_SQL"))
+    assert not db.execute("PRAGMA foreign_key_check").fetchall()
+    db.execute("PRAGMA user_version = 3")
+    db.commit()
+    db.execute(
+        "INSERT INTO local_machine_outbox "
+        "(subject,mutation_id,mutation_kind,profile_id,entity_id,"
+        "protocol_version,payload_json,created_at_utc) "
+        "VALUES (?,'create-machine','CREATE_MACHINE_PROFILE','machine-1',"
+        "'machine-1',1,'{}','2026-10-08T15:00:00Z')",
+        (subject,),
+    )
+    db.execute(
+        "INSERT INTO local_machine_profiles "
+        "(subject,profile_id,nickname,technical_metadata_json,metadata_source,"
+        "created_at_utc,create_mutation_id) "
+        "VALUES (?,'machine-1','Polea A','{}','user_entered',"
+        "'2026-10-08T15:00:00Z','create-machine')",
+        (subject,),
+    )
+    db.commit()
+
+    before_outbox = db.execute(
+        "SELECT mutation_id,mutation_kind,payload_json,delivery_state,"
+        "depends_on_mutation_id FROM local_workout_outbox ORDER BY mutation_id"
+    ).fetchall()
+    before_set = db.execute(
+        "SELECT set_id,reps,load_decimal,load_unit,machine_snapshot_json "
+        "FROM local_workout_sets"
+    ).fetchall()
+    before_machine = db.execute(
+        "SELECT profile_id,nickname FROM local_machine_profiles"
+    ).fetchall()
+
+    db.execute("PRAGMA foreign_keys = OFF")
+    db.executescript(sql("local-finish-schema.ts", "LOCAL_WORKOUT_V4_MIGRATION_SQL"))
+    assert db.in_transaction
+    assert not db.execute("PRAGMA foreign_key_check").fetchall()
+    db.execute("PRAGMA user_version = 4")
+    db.commit()
+    db.execute("PRAGMA foreign_keys = ON")
+
+    assert db.execute("PRAGMA user_version").fetchone()[0] == 4
+    assert db.execute(
+        "SELECT mutation_id,mutation_kind,payload_json,delivery_state,"
+        "depends_on_mutation_id FROM local_workout_outbox ORDER BY mutation_id"
+    ).fetchall() == before_outbox
+    assert db.execute(
+        "SELECT set_id,reps,load_decimal,load_unit,machine_snapshot_json "
+        "FROM local_workout_sets"
+    ).fetchall() == before_set
+    assert db.execute(
+        "SELECT profile_id,nickname FROM local_machine_profiles"
+    ).fetchall() == before_machine
+
+    # New FINISH intent links to the final performed mutation, but the
+    # migration itself does not end the previously active workout.
+    assert db.execute(
+        "SELECT lifecycle_state FROM local_workout_sessions WHERE subject=?",
+        (subject,),
+    ).fetchone() == ("active",)
+    assert not db.execute("SELECT * FROM local_workout_final_snapshots").fetchall()
+    db.execute(
+        "INSERT INTO local_workout_outbox "
+        "(subject,mutation_id,session_id,mutation_kind,protocol_version,"
+        "payload_json,created_at_utc,depends_on_mutation_id) "
+        "VALUES (?,'finish-mut',?,'FINISH_SESSION',1,'{}',"
+        "'2026-10-08T15:10:00Z','set-mutation')",
+        (subject, session),
+    )
+    db.execute(
+        "INSERT INTO local_workout_final_snapshots "
+        "(subject,session_id,finish_mutation_id,finished_at_utc,final_agenda_json) "
+        "VALUES (?,?,'finish-mut','2026-10-08T15:10:00Z','{\"items\":[]}')",
+        (subject, session),
+    )
+    db.commit()
+    assert not db.execute("PRAGMA foreign_key_check").fetchall()
+    print("PASS: v4 retained v3 workouts/machines/outbox and supports causal FINISH")
+
+    # A failed replacement must roll back the outbox copy and schema change.
+    broken = sqlite3.connect(":memory:")
+    db.backup(broken)
+    broken.execute("DELETE FROM local_workout_final_snapshots")
+    broken.execute("DELETE FROM local_workout_outbox WHERE mutation_id='finish-mut'")
+    broken.execute("DROP TABLE local_workout_final_snapshots")
+    broken.execute("PRAGMA user_version = 3")
+    broken.execute("CREATE TABLE local_workout_final_snapshots (occupied INTEGER)")
+    broken.commit()
+    prefailed_outbox = broken.execute(
+        "SELECT mutation_id,mutation_kind,payload_json FROM local_workout_outbox "
+        "ORDER BY mutation_id"
+    ).fetchall()
+    broken.execute("PRAGMA foreign_keys = OFF")
+    try:
+        broken.executescript(
+            sql("local-finish-schema.ts", "LOCAL_WORKOUT_V4_MIGRATION_SQL")
+        )
+    except sqlite3.OperationalError:
+        broken.rollback()
+    else:
+        raise AssertionError("Conflicting v4 snapshot table was not rejected")
+    assert broken.execute("PRAGMA user_version").fetchone()[0] == 3
+    assert broken.execute(
+        "SELECT mutation_id,mutation_kind,payload_json FROM local_workout_outbox "
+        "ORDER BY mutation_id"
+    ).fetchall() == prefailed_outbox
+    assert broken.execute(
+        "SELECT name FROM sqlite_master "
+        "WHERE name='local_workout_outbox_v4'"
+    ).fetchone() is None
+    print("PASS: v4 failed migration rolls back with legacy outbox intact")
+
 if __name__ == "__main__":
     test_upgrade()
     test_machine_v3_upgrade()
+    test_finish_v4_upgrade()
