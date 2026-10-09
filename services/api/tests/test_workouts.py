@@ -90,3 +90,39 @@ def test_start_requires_explicit_protocol_version() -> None:
         json=body,
     )
     assert response.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "boundary_instant",
+    [
+        "0001-01-01T00:00:00+14:00",
+        "9999-12-31T23:59:59-14:00",
+    ],
+)
+def test_confirmed_set_rejects_utc_overflow_before_any_database_access(
+    boundary_instant: str,
+) -> None:
+    session_id = str(uuid4())
+    request = {
+        "protocol_version": 1,
+        "kind": "CONFIRM_FIRST_SET_WITH_OCCURRENCE",
+        "session_id": session_id,
+        "mutation_id": str(uuid4()),
+        "set_id": str(uuid4()),
+        "occurrence_id": str(uuid4()),
+        "canonical_exercise_id": str(uuid4()),
+        "agenda_item_id": None,
+        "actual_order": 0,
+        "set_role": "WARMUP",
+        "measurement": {"measurementType": "reps", "reps": 12},
+        "load": None,
+        "machine": None,
+        "target_at_confirmation": None,
+        "completed_at": boundary_instant,
+    }
+    response = _client().post(
+        f"/workout-sessions/{session_id}/sets/first",
+        headers={"Authorization": "Bearer valid-token"},
+        json=request,
+    )
+    assert response.status_code == 422

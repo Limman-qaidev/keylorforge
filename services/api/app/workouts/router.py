@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from typing import Annotated
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import (
@@ -15,6 +16,12 @@ from app.auth.dependencies import (
 from app.auth.jwt_verifier import AuthenticatedPrincipal
 from app.workouts.schemas import StartFreeWorkoutRequest, WorkoutSessionResponse
 from app.workouts.service import get_active_free_workout, start_free_workout
+from app.workouts.set_schemas import (
+    ConfirmAdditionalSetRequest,
+    ConfirmedSetResponse,
+    ConfirmFirstSetRequest,
+)
+from app.workouts.set_service import confirm_performed_set
 
 router = APIRouter(
     prefix="/workout-sessions",
@@ -42,3 +49,35 @@ def active_session(
     session: Annotated[Session, Depends(get_database_session)],
 ) -> WorkoutSessionResponse | None:
     return get_active_free_workout(session=session, principal=principal)
+
+
+@router.post(
+    "/{session_id}/sets/first",
+    response_model=ConfirmedSetResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def confirm_first_performed_set(
+    session_id: UUID,
+    request: ConfirmFirstSetRequest,
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_authenticated_principal)],
+    session: Annotated[Session, Depends(get_database_session)],
+) -> ConfirmedSetResponse:
+    if request.session_id != session_id:
+        raise HTTPException(status_code=422, detail="session ID mismatch")
+    return confirm_performed_set(session=session, principal=principal, request=request)
+
+
+@router.post(
+    "/{session_id}/sets/additional",
+    response_model=ConfirmedSetResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def confirm_additional_performed_set(
+    session_id: UUID,
+    request: ConfirmAdditionalSetRequest,
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_authenticated_principal)],
+    session: Annotated[Session, Depends(get_database_session)],
+) -> ConfirmedSetResponse:
+    if request.session_id != session_id:
+        raise HTTPException(status_code=422, detail="session ID mismatch")
+    return confirm_performed_set(session=session, principal=principal, request=request)
