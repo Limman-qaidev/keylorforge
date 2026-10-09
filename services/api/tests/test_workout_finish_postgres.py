@@ -258,6 +258,106 @@ def test_postgres_finish_is_atomic_idempotent_and_owner_scoped() -> None:
             ] == sorted([warmup_id, working_id])
             assert len(db.scalars(select(WorkoutSet)).all()) == 2
             assert len(db.scalars(select(WorkoutMutationReceipt)).all()) == 4
+            # Authoritative read path: only committed snapshots are returned.
+            first_history = client.get("/workout-sessions/history", headers=a)
+            assert first_history.status_code == 200, first_history.text
+            first_entry = first_history.json()["entries"][0]
+            assert first_entry["session_id"] == workout_id
+            assert first_entry["completion_snapshot_id"] == command[
+                "completion_snapshot"
+            ]["completion_snapshot_id"]
+            assert first_entry["finish_mutation_id"] == command["mutation_id"]
+            assert first_entry["total_sets"] == 2
+            assert first_entry["working_sets"] == 1
+            assert set(
+                first_entry["completion_snapshot"]["unplanned_performed_occurrences"][0][
+                    "set_ids"
+                ]
+            ) == {warmup_id, working_id}
+            assert "owner_user_id" not in first_entry
+            other_history = client.get("/workout-sessions/history", headers=b)
+            assert other_history.status_code == 200
+            assert other_history.json()["entries"] == []
+            assert client.get("/workout-sessions/history?limit=0", headers=a).status_code == 422
+            assert client.get(
+                "/workout-sessions/history?before_session_id=" + workout_id, headers=a
+            ).status_code == 422
+            assert client.get(
+                "/workout-sessions/history?before_finished_at=2026-10-08T15:00:00",
+                headers=a,
+            ).status_code == 422
+
+            # Two distinct completed sessions have an identical finish timestamp.
+            # The stable keyset cursor must include the UUID tie-breaker.
+            second_workout_id, second_occurrence_id = str(uuid4()), str(uuid4())
+            second_set_id = str(uuid4())
+            second_started = client.post(
+                "/workout-sessions/start",
+                headers=a,
+                json={
+                    "protocol_version": 1,
+                    "session_id": second_workout_id,
+                    "mutation_id": str(uuid4()),
+                    "started_at": "2026-10-08T14:30:00+00:00",
+                    "time_zone": "Europe/Madrid",
+                },
+            )
+            assert second_started.status_code == 201, second_started.text
+            second_first = _first_set(
+                second_workout_id,
+                str(exercise_id),
+                second_occurrence_id,
+                str(uuid4()),
+                second_set_id,
+                warmup=True,
+            )
+            second_first["set_role"] = "WORKING"
+            assert client.post(
+                f"/workout-sessions/{second_workout_id}/sets/first",
+                headers=a,
+                json=second_first,
+            ).status_code == 201
+            second_finish = _finish(
+                second_workout_id,
+                second_occurrence_id,
+                str(exercise_id),
+                [second_set_id],
+            )
+            assert client.post(
+                f"/workout-sessions/{second_workout_id}/finish",
+                headers=a,
+                json=second_finish,
+            ).status_code == 201
+
+            first_page = client.get(
+                "/workout-sessions/history", headers=a, params={"limit": 1}
+            )
+            assert first_page.status_code == 200, first_page.text
+            page_data = first_page.json()
+            assert len(page_data["entries"]) == 1
+            assert page_data["next_before_finished_at"] is not None
+            assert page_data["next_before_session_id"] is not None
+            second_page = client.get(
+                "/workout-sessions/history",
+                headers=a,
+                params={
+                    "limit": 1,
+                    "before_finished_at": page_data["next_before_finished_at"],
+                    "before_session_id": page_data["next_before_session_id"],
+                },
+            )
+            assert second_page.status_code == 200, second_page.text
+            assert len(second_page.json()["entries"]) == 1
+            assert second_page.json()["next_before_finished_at"] is None
+            assert second_page.json()["next_before_session_id"] is None
+            assert {
+                page_data["entries"][0]["session_id"],
+                second_page.json()["entries"][0]["session_id"],
+            } == {workout_id, second_workout_id}
+            assert client.get(
+                "/workout-sessions/history", headers=b
+            ).json()["entries"] == []
+
             # Deletion executor must delete final snapshots before their session.
             purge_account_workout_data(db, rows[0].owner_user_id)
             db.commit()
