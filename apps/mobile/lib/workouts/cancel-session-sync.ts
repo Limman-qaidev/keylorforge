@@ -35,7 +35,10 @@ type Count = { count: number };
 export type CancelSyncOutcome =
   | { state: 'idle' | 'inFlight' }
   | { state: 'acknowledged' | 'conflict'; mutationId: string }
-  | { state: 'blocked'; reason: 'dependency' | 'auth' | 'localData' | 'rejected' }
+  | {
+      state: 'blocked';
+      reason: 'dependency' | 'auth' | 'localData' | 'rejected';
+    }
   | { state: 'retryable'; reason: 'network' | 'server' | 'invalidResponse' };
 
 function subjectOf(access: LocalSubjectAccess): string {
@@ -65,34 +68,34 @@ function intentValid(
   const p = object(payload);
   return Boolean(
     p &&
-      row.subject === cancel.subject &&
-      row.subject === session.subject &&
-      row.session_id === session.session_id &&
-      row.session_id === cancel.session_id &&
-      row.mutation_id === cancel.cancel_mutation_id &&
-      row.mutation_kind === 'CANCEL_SESSION' &&
-      row.protocol_version === 1 &&
-      row.delivery_state === 'pending' &&
-      UUID.test(row.session_id) &&
-      UUID.test(row.mutation_id) &&
-      row.depends_on_mutation_id &&
-      UUID.test(row.depends_on_mutation_id) &&
-      session.lifecycle_state === 'cancelled' &&
-      session.origin === 'free' &&
-      session.agenda_revision === 0 &&
-      p.protocol_version === 1 &&
-      p.kind === 'CANCEL_SESSION' &&
-      p.session_id === row.session_id &&
-      p.mutation_id === row.mutation_id &&
-      p.cancelled_at_utc === cancel.cancelled_at_utc &&
-      typeof p.discard_performed_sets_confirmed === 'boolean' &&
-      (cancel.prior_confirmed_sets === 0 ||
-        p.discard_performed_sets_confirmed === true) &&
-      p.confirmed_set_count === cancel.prior_confirmed_sets &&
-      Number.isSafeInteger(cancel.prior_confirmed_sets) &&
-      cancel.prior_confirmed_sets >= 0 &&
-      typeof p.cancelled_at_utc === 'string' &&
-      Number.isFinite(Date.parse(p.cancelled_at_utc)),
+    row.subject === cancel.subject &&
+    row.subject === session.subject &&
+    row.session_id === session.session_id &&
+    row.session_id === cancel.session_id &&
+    row.mutation_id === cancel.cancel_mutation_id &&
+    row.mutation_kind === 'CANCEL_SESSION' &&
+    row.protocol_version === 1 &&
+    row.delivery_state === 'pending' &&
+    UUID.test(row.session_id) &&
+    UUID.test(row.mutation_id) &&
+    row.depends_on_mutation_id &&
+    UUID.test(row.depends_on_mutation_id) &&
+    session.lifecycle_state === 'cancelled' &&
+    session.origin === 'free' &&
+    session.agenda_revision === 0 &&
+    p.protocol_version === 1 &&
+    p.kind === 'CANCEL_SESSION' &&
+    p.session_id === row.session_id &&
+    p.mutation_id === row.mutation_id &&
+    p.cancelled_at_utc === cancel.cancelled_at_utc &&
+    typeof p.discard_performed_sets_confirmed === 'boolean' &&
+    (cancel.prior_confirmed_sets === 0 ||
+      p.discard_performed_sets_confirmed === true) &&
+    p.confirmed_set_count === cancel.prior_confirmed_sets &&
+    Number.isSafeInteger(cancel.prior_confirmed_sets) &&
+    cancel.prior_confirmed_sets >= 0 &&
+    typeof p.cancelled_at_utc === 'string' &&
+    Number.isFinite(Date.parse(p.cancelled_at_utc)),
   );
 }
 async function localState(
@@ -132,7 +135,8 @@ async function dependenciesReady(
     parent.mutation_id !== row.depends_on_mutation_id ||
     parent.session_id !== row.session_id ||
     parent.delivery_state !== 'acknowledged'
-  ) return false;
+  )
+    return false;
   const missing = await db.getFirstAsync<Count>(
     "SELECT COUNT(*) AS count FROM local_workout_outbox WHERE subject = ? AND session_id = ? AND mutation_kind != 'CANCEL_SESSION' AND delivery_state != 'acknowledged'",
     row.subject,
@@ -140,7 +144,11 @@ async function dependenciesReady(
   );
   return missing?.count === 0;
 }
-function receiptValid(receipt: unknown, row: PendingCancel, cancel: LocalCancelRow): boolean {
+function receiptValid(
+  receipt: unknown,
+  row: PendingCancel,
+  cancel: LocalCancelRow,
+): boolean {
   const parsed = object(receipt);
   if (
     !parsed ||
@@ -149,7 +157,8 @@ function receiptValid(receipt: unknown, row: PendingCancel, cancel: LocalCancelR
     parsed.lifecycle_state !== 'cancelled' ||
     parsed.confirmed_set_count !== cancel.prior_confirmed_sets ||
     typeof parsed.cancelled_at !== 'string'
-  ) return false;
+  )
+    return false;
   return (
     Number.isFinite(Date.parse(parsed.cancelled_at)) &&
     Date.parse(parsed.cancelled_at) === Date.parse(cancel.cancelled_at_utc)
@@ -178,7 +187,8 @@ async function transition(
       fresh.mutation_kind !== 'CANCEL_SESSION' ||
       !(await localState(tx as SqliteWorkoutPort, row)) ||
       !(await dependenciesReady(tx as SqliteWorkoutPort, row))
-    ) throw new Error('cancelConflict');
+    )
+      throw new Error('cancelConflict');
     fence(access, row.subject);
     await tx.runAsync(
       "UPDATE local_workout_outbox SET delivery_state = ? WHERE subject = ? AND mutation_id = ? AND delivery_state = 'pending'",
@@ -191,7 +201,10 @@ async function transition(
       row.subject,
       row.mutation_id,
     );
-    if (updated?.delivery_state !== state || updated.payload_json !== row.payload_json) {
+    if (
+      updated?.delivery_state !== state ||
+      updated.payload_json !== row.payload_json
+    ) {
       throw new Error('cancelConflict');
     }
     fence(access, row.subject);
@@ -227,7 +240,8 @@ export async function syncNextPendingCancel(
       !UUID.test(auth.subject) ||
       auth.subject.toLowerCase() !== subject ||
       !auth.accessToken
-    ) return { state: 'blocked', reason: 'auth' };
+    )
+      return { state: 'blocked', reason: 'auth' };
     let status: number;
     let body: unknown = null;
     const controller = new AbortController();
