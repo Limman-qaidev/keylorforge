@@ -134,9 +134,21 @@ export function buildSetRequest(
 
 export function FreeWorkoutExperience() {
   const { session } = useAuth();
+  return (
+    <FreeWorkoutSessionExperience
+      key={session?.user.id ?? 'signed-out'}
+      session={session}
+    />
+  );
+}
+
+function FreeWorkoutSessionExperience({
+  session,
+}: {
+  session: ReturnType<typeof useAuth>['session'];
+}) {
   const subject = session?.user.id ?? null;
-  const subjectRef = useRef(subject);
-  subjectRef.current = subject;
+  const subjectRef = useRef<string | null>(null);
   const access = useMemo<LocalSubjectAccess>(
     () => ({ currentAuthenticatedSubject: () => subjectRef.current }),
     [],
@@ -179,17 +191,19 @@ export function FreeWorkoutExperience() {
   }, [access]);
 
   useEffect(() => {
-    setMode('catalogue');
-    setChosen(null);
-    setOverview(null);
-    setHistory([]);
-    setLoading(true);
+    subjectRef.current = subject;
+    let mounted = true;
     void reload().catch((reason: unknown) => {
+      if (!mounted) return;
       setError(
         reason instanceof Error ? reason.message : 'No se pudo leer SQLite.',
       );
       setLoading(false);
     });
+    return () => {
+      mounted = false;
+      subjectRef.current = null;
+    };
   }, [reload, subject]);
 
   const perform = async (task: () => Promise<void>) => {
