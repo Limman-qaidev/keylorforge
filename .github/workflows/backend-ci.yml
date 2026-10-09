@@ -50,7 +50,9 @@ jobs:
           python -m pip check
 
       - name: Diagnose formatting (temporary)
-        run: ruff format --diff app/workouts/history_service.py tests/test_workout_finish_postgres.py
+        run: |
+          ruff format app/workouts/history_service.py tests/test_workout_finish_postgres.py
+          git diff -- app/workouts/history_service.py tests/test_workout_finish_postgres.py
 
       - name: Check formatting
         run: ruff format --check .
