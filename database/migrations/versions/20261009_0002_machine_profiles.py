@@ -138,5 +138,5 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     raise NotImplementedError(
-        "20261009_0002 contains account-owned machine data; roll forward"
+        "20261009_0002 contains account-owned workout machine data; roll forward"
     )
