@@ -35,12 +35,6 @@ jobs:
       - name: Check formatting
         run: npm run format:check
 
-      - name: Diagnose format delta (temporary, no committed file changes)
-        if: failure()
-        run: |
-          npx prettier --write components/workouts/free-workout-experience.tsx components/workouts/__tests__/free-workout-experience.test.tsx components/exercises/exercise-catalog-screen.tsx
-          git diff -- components/workouts/free-workout-experience.tsx components/workouts/__tests__/free-workout-experience.test.tsx components/exercises/exercise-catalog-screen.tsx
-
       - name: Run lint
         run: npm run lint
 
