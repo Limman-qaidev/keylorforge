@@ -18,10 +18,18 @@ jest.mock('@/components/workouts/free-workout-experience', () => {
   return {
     FreeWorkoutExperience: ({
       isolatedPreview,
+      initialMode,
     }: {
       isolatedPreview: boolean;
+      initialMode: 'catalogue' | 'history';
     }) => (
-      <Text>{isolatedPreview ? 'ENTRENAMIENTO AISLADO' : 'NO AISLADO'}</Text>
+      <Text>
+        {isolatedPreview
+          ? initialMode === 'history'
+            ? 'HISTORIAL AISLADO'
+            : 'ENTRENAMIENTO AISLADO'
+          : 'NO AISLADO'}
+      </Text>
     ),
   };
 });
@@ -37,5 +45,19 @@ describe('Entrenar isolated development preview', () => {
     expect(screen.queryByText('CATÁLOGO NORMAL')).toBeNull();
     await user.press(screen.getByText('Volver al catálogo'));
     expect(screen.getByText('CATÁLOGO NORMAL')).toBeTruthy();
+  });
+
+  it('keeps history directly reachable after leaving the preview', async () => {
+    const user = userEvent.setup();
+    const screen = await render(<TrainRoute />);
+    await user.press(screen.getByText('Ver historial (datos aislados)'));
+    expect(screen.getByText('HISTORIAL AISLADO')).toBeTruthy();
+    await user.press(screen.getByText('Volver al catálogo'));
+    expect(screen.getByText('CATÁLOGO NORMAL')).toBeTruthy();
+    await user.press(screen.getByText('Probar entrenamiento (datos aislados)'));
+    expect(screen.getByText('ENTRENAMIENTO AISLADO')).toBeTruthy();
+    await user.press(screen.getByText('Volver al catálogo'));
+    await user.press(screen.getByText('Ver historial (datos aislados)'));
+    expect(screen.getByText('HISTORIAL AISLADO')).toBeTruthy();
   });
 });
