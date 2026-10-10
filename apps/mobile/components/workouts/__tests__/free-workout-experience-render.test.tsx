@@ -84,6 +84,9 @@ jest.mock('@/components/exercises/exercise-catalog-screen', () => {
   };
 });
 
+// UI integration uses real userEvent typing; slower CI workers need headroom.
+jest.setTimeout(15_000);
+
 const OWNER = 'a3dbf764-e0e3-41aa-9895-6e58eadfbb14';
 const SESSION = '1f2d27bc-4904-4f4f-9367-39565d78f211';
 const session = {
