@@ -35,13 +35,16 @@ export type RemoteHistoryDriftReport = {
 };
 
 /** ID-only paginated SQLite read. No payload is serialized into diagnostics. */
-export const REMOTE_CACHE_IDS_SQL = [
-  "SELECT COALESCE(json_group_array(json(item_json)), '[]') AS items_json",
-  "FROM (SELECT json_object('session_id', session_id) AS item_json",
-  'FROM local_remote_workout_history',
-  'WHERE subject = ? AND session_id > ?',
-  'ORDER BY session_id ASC LIMIT ?)',
-].join(' ');
+export const REMOTE_CACHE_IDS_SQL = `
+SELECT COALESCE(json_group_array(json(item_json)), '[]') AS items_json
+FROM (
+  SELECT json_object('session_id', session_id) AS item_json
+  FROM local_remote_workout_history
+  WHERE subject = ? AND session_id > ?
+  ORDER BY session_id ASC
+  LIMIT ?
+);
+`;
 
 function subjectOf(access: StartSyncAccess): string {
   const subject = access.currentAuthenticatedSubject();

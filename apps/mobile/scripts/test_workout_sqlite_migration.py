@@ -751,6 +751,28 @@ def test_finish_v4_upgrade():
     ).fetchall() == original_outbox
     print("PASS: unified local/remote SQL isolates owner and hides collisions")
 
+    # Exercise the EXACT production JS keyset SQL against real SQLite/JSON1.
+    # It must return only the selected user's immutable remote cache IDs and
+    # never cause a local write, ACK or visibility across accounts.
+    drift_sql = sql("remote-history-drift.ts", "REMOTE_CACHE_IDS_SQL")
+    other_ids = json.loads(db.execute(
+        drift_sql, (other, "", 6)
+    ).fetchone()[0])
+    assert [row["session_id"] for row in other_ids] == [remote_id]
+    subject_ids = json.loads(db.execute(
+        drift_sql, (subject, "", 6)
+    ).fetchone()[0])
+    assert [row["session_id"] for row in subject_ids] == [cancelled]
+    after_last = json.loads(db.execute(
+        drift_sql, (subject, cancelled, 6)
+    ).fetchone()[0])
+    assert after_last == []
+    assert db.execute(
+        "SELECT * FROM local_workout_outbox ORDER BY subject, mutation_id"
+    ).fetchall() == original_outbox
+    print("PASS: remote-cache keyset diagnostic respects owner and cursor")
+
+
 
 
 
