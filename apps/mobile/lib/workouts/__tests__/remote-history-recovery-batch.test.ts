@@ -22,7 +22,8 @@ const OTHER = 'e426dd13-344a-4b69-8920-cb014715c6c1';
 const ONE = '1f2d27bc-4904-4f4f-9367-39565d78f211';
 const TWO = '6fbcfd94-2b37-4a29-9f57-ff58753a0011';
 const THREE = 'a46d8ad9-386d-4a6e-9ad2-9cbd721abf92';
-const db = {} as SqliteWorkoutPort;
+const localTraceQuery = jest.fn();
+const db = { getFirstAsync: localTraceQuery } as unknown as SqliteWorkoutPort;
 
 function auth() {
   let owner: string | null = OWNER;
@@ -63,6 +64,7 @@ function stored(sessionId: string) {
 
 beforeEach(() => {
   jest.resetAllMocks();
+  localTraceQuery.mockResolvedValue(null);
   jest.mocked(auditCompletedWorkoutHistory).mockResolvedValue(audit());
   jest.mocked(readCachedRemoteOnlyWorkout).mockResolvedValue(null);
   jest.mocked(cacheRemoteOnlyWorkout).mockImplementation(
@@ -158,6 +160,23 @@ it('isolates a local collision without stopping independent recoveries', async (
     skippedConflicts: 1,
     attempted: 2,
   });
+});
+
+it('skips persistent local session collisions without starving later workouts', async () => {
+  localTraceQuery.mockImplementation(async (sql: string, _: string, id: string) =>
+    id === ONE && sql.includes('FROM local_workout_sessions')
+      ? { session_id: ONE }
+      : null,
+  );
+  expect(await recoverRemoteHistoryBatch(db, auth().access, 1)).toEqual({
+    state: 'yielded',
+    stored: 1,
+    alreadyCached: 0,
+    skippedConflicts: 1,
+    attempted: 1,
+  });
+  expect(jest.mocked(cacheRemoteOnlyWorkout).mock.calls.map(x => x[2]))
+    .toEqual([TWO]);
 });
 
 it('blocks owner switch between cached read and remote write', async () => {

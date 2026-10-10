@@ -39,6 +39,33 @@ function assertSubject(access: StartSyncAccess, expected: string): void {
   if (subjectOf(access) !== expected) throw new Error('notAuthenticated');
 }
 
+/**
+ * Cheap advisory preflight so a fixed local collision at the start of the
+ * authoritative history cannot starve later independent recoveries.
+ * The cache writer repeats these checks inside its exclusive transaction.
+ */
+async function hasLocalTrace(
+  db: SqliteWorkoutPort,
+  access: StartSyncAccess,
+  subject: string,
+  id: string,
+): Promise<boolean> {
+  const session = await db.getFirstAsync<{ session_id: string }>(
+    'SELECT session_id FROM local_workout_sessions WHERE subject = ? AND session_id = ?',
+    subject,
+    id,
+  );
+  assertSubject(access, subject);
+  if (session) return true;
+  const mutation = await db.getFirstAsync<{ mutation_id: string }>(
+    'SELECT mutation_id FROM local_workout_outbox WHERE subject = ? AND session_id = ? LIMIT 1',
+    subject,
+    id,
+  );
+  assertSubject(access, subject);
+  return mutation !== null;
+}
+
 function initial(state: RecoveryBatchOutcome['state']): RecoveryBatchOutcome {
   return {
     state,
@@ -100,6 +127,10 @@ export async function recoverRemoteHistoryBatch(
       assertSubject(access, subject);
       if (cached) {
         outcome.alreadyCached++;
+        continue;
+      }
+      if (await hasLocalTrace(db, access, subject, id)) {
+        outcome.skippedConflicts++;
         continue;
       }
       if (outcome.attempted === maxAttempts) {
