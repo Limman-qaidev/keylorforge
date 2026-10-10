@@ -91,12 +91,12 @@ function server(id: string = ONE) {
 beforeEach(() => {
   jest.resetAllMocks();
   jest.mocked(auditCompletedWorkoutHistory).mockResolvedValue(audit());
-  jest.mocked(readCachedRemoteOnlyWorkout).mockImplementation(
-    async (_, __, id) => cached(id),
-  );
-  jest.mocked(fetchRemoteOnlyWorkoutCandidate).mockImplementation(
-    async (_, __, id) => server(id),
-  );
+  jest
+    .mocked(readCachedRemoteOnlyWorkout)
+    .mockImplementation(async (_, __, id) => cached(id));
+  jest
+    .mocked(fetchRemoteOnlyWorkoutCandidate)
+    .mockImplementation(async (_, __, id) => server(id));
   jest.mocked(isVerifiedRemoteHistoryCandidate).mockReturnValue(true);
   getFirstAsync.mockImplementation(async (sql: string) =>
     sql === REMOTE_CACHE_IDS_SQL
@@ -112,7 +112,12 @@ it('confirms matching owner-scoped detail without SQLite writes or fake ACK', as
     findings: [{ sessionId: ONE, status: 'matching' }],
     nextAfterSessionId: ONE,
   });
-  expect(getFirstAsync).toHaveBeenCalledWith(REMOTE_CACHE_IDS_SQL, OWNER, '', 4);
+  expect(getFirstAsync).toHaveBeenCalledWith(
+    REMOTE_CACHE_IDS_SQL,
+    OWNER,
+    '',
+    4,
+  );
   expect(runAsync).not.toHaveBeenCalled();
 });
 
@@ -218,26 +223,32 @@ it('rechecks subject after awaits and does not leak another account', async () =
     'notAuthenticated',
   );
   const next = who();
-  jest.mocked(fetchRemoteOnlyWorkoutCandidate).mockImplementationOnce(
-    async () => {
+  jest
+    .mocked(fetchRemoteOnlyWorkoutCandidate)
+    .mockImplementationOnce(async () => {
       next.switchTo(null);
       return server();
-    },
-  );
+    });
   await expect(diagnoseCachedRemoteHistory(db, next.access)).rejects.toThrow(
     'notAuthenticated',
   );
 });
 
 it('supports bounded, restartable keyset paging without writes', async () => {
-  jest.mocked(auditCompletedWorkoutHistory).mockResolvedValue(audit([ONE, TWO, THREE]));
-  getFirstAsync.mockImplementation(async (sql: string, _: string, after: string) =>
-    sql !== REMOTE_CACHE_IDS_SQL
-      ? null
-      : { items_json: JSON.stringify(
-        (after === '' ? [ONE, TWO] : [TWO])
-          .map(sessionId => ({ session_id: sessionId })),
-      ) },
+  jest
+    .mocked(auditCompletedWorkoutHistory)
+    .mockResolvedValue(audit([ONE, TWO, THREE]));
+  getFirstAsync.mockImplementation(
+    async (sql: string, _: string, after: string) =>
+      sql !== REMOTE_CACHE_IDS_SQL
+        ? null
+        : {
+            items_json: JSON.stringify(
+              (after === '' ? [ONE, TWO] : [TWO]).map((sessionId) => ({
+                session_id: sessionId,
+              })),
+            ),
+          },
   );
   const first = await diagnoseCachedRemoteHistory(db, who().access, {
     batchSize: 1,
@@ -261,11 +272,16 @@ it('enforces limits and single-flight per SQLite connection', async () => {
   }
   let finish!: (value: ReturnType<typeof audit>) => void;
   jest.mocked(auditCompletedWorkoutHistory).mockImplementationOnce(
-    () => new Promise(resolve => { finish = resolve; }),
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
   );
   const first = diagnoseCachedRemoteHistory(db, who().access);
   expect(await diagnoseCachedRemoteHistory(db, who().access)).toEqual({
-    state: 'busy', findings: [], nextAfterSessionId: null,
+    state: 'busy',
+    findings: [],
+    nextAfterSessionId: null,
   });
   finish(audit([]));
   await first;
