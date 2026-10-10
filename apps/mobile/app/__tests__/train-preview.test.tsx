@@ -1,4 +1,4 @@
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, userEvent } from '@testing-library/react-native';
 
 import TrainRoute from '../train';
 
@@ -28,13 +28,14 @@ jest.mock('@/components/workouts/free-workout-experience', () => {
 
 describe('Entrenar isolated development preview', () => {
   it('keeps the canonical catalogue until explicitly entering and leaving QA', async () => {
+    const user = userEvent.setup();
     const screen = await render(<TrainRoute />);
     expect(screen.getByText('CATÁLOGO NORMAL')).toBeTruthy();
     expect(screen.queryByText('ENTRENAMIENTO AISLADO')).toBeNull();
-    fireEvent.press(screen.getByText('Probar entrenamiento (datos aislados)'));
+    await user.press(screen.getByText('Probar entrenamiento (datos aislados)'));
     expect(screen.getByText('ENTRENAMIENTO AISLADO')).toBeTruthy();
     expect(screen.queryByText('CATÁLOGO NORMAL')).toBeNull();
-    fireEvent.press(screen.getByText('Volver al catálogo'));
+    await user.press(screen.getByText('Volver al catálogo'));
     expect(screen.getByText('CATÁLOGO NORMAL')).toBeTruthy();
   });
 });

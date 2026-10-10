@@ -8,6 +8,7 @@ import {
 jest.mock('expo-sqlite', () => ({ openDatabaseAsync: jest.fn() }));
 
 describe('M3 Expo SQLite native database binding', () => {
+  beforeEach(() => jest.clearAllMocks());
   it('opens account-scoped preview with a distinct persistent filename, never the real or diagnostic store', async () => {
     const database = {
       execAsync: jest.fn(),
