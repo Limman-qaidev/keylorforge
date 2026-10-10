@@ -1,4 +1,4 @@
-import { render, userEvent, waitFor } from '@testing-library/react-native';
+import { act, render, userEvent, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 
 import { FreeWorkoutExperience } from '../free-workout-experience';
@@ -117,9 +117,9 @@ beforeEach(() => {
   jest.mocked(listLocalFinishedWorkouts).mockResolvedValue([]);
   jest.mocked(readActiveFreeWorkoutOverview).mockResolvedValue(null);
   jest.mocked(beginFreeWorkout).mockResolvedValue(session);
-  jest.mocked(cancelFreeWorkout).mockResolvedValue(
-    {} as Awaited<ReturnType<typeof cancelFreeWorkout>>,
-  );
+  jest
+    .mocked(cancelFreeWorkout)
+    .mockResolvedValue({} as Awaited<ReturnType<typeof cancelFreeWorkout>>);
   jest
     .mocked(recordFreeWorkoutSet)
     .mockResolvedValue({} as Awaited<ReturnType<typeof recordFreeWorkoutSet>>);
@@ -144,10 +144,16 @@ describe('staged real Free Workout UI', () => {
 
   it('completes an isolated Free Workout from the UI and shows persisted history', async () => {
     const user = userEvent.setup();
-    let current: Awaited<ReturnType<typeof readActiveFreeWorkoutOverview>> = null;
-    let historyEntries: Awaited<ReturnType<typeof listLocalFinishedWorkouts>> = [];
-    jest.mocked(readActiveFreeWorkoutOverview).mockImplementation(async () => current);
-    jest.mocked(listLocalFinishedWorkouts).mockImplementation(async () => historyEntries);
+    let current: Awaited<ReturnType<typeof readActiveFreeWorkoutOverview>> =
+      null;
+    let historyEntries: Awaited<ReturnType<typeof listLocalFinishedWorkouts>> =
+      [];
+    jest
+      .mocked(readActiveFreeWorkoutOverview)
+      .mockImplementation(async () => current);
+    jest
+      .mocked(listLocalFinishedWorkouts)
+      .mockImplementation(async () => historyEntries);
     jest.mocked(beginFreeWorkout).mockImplementation(async () => {
       current = { session, exercises: [], totalSets: 0, workingSets: 0 };
       return session;
@@ -194,9 +200,11 @@ describe('staged real Free Workout UI', () => {
       ];
       return {} as Awaited<ReturnType<typeof endFreeWorkout>>;
     });
-    const alert = jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
-      buttons?.find((button) => button.text === 'Finalizar')?.onPress?.();
-    });
+    const alert = jest
+      .spyOn(Alert, 'alert')
+      .mockImplementation((_title, _message, buttons) => {
+        buttons?.find((button) => button.text === 'Finalizar')?.onPress?.();
+      });
     try {
       const screen = await render(<FreeWorkoutExperience isolatedPreview />);
       await screen.findByText('Iniciar entrenamiento libre');
@@ -230,7 +238,9 @@ describe('staged real Free Workout UI', () => {
       totalSets: 0,
       workingSets: 0,
     };
-    jest.mocked(readActiveFreeWorkoutOverview).mockImplementation(async () => current);
+    jest
+      .mocked(readActiveFreeWorkoutOverview)
+      .mockImplementation(async () => current);
     jest.mocked(cancelFreeWorkout).mockImplementation(async () => {
       current = null;
       return {} as Awaited<ReturnType<typeof cancelFreeWorkout>>;
@@ -246,7 +256,9 @@ describe('staged real Free Workout UI', () => {
         'Seguir entrenando',
         'Cancelar',
       ]);
-      buttons?.find((button) => button.text === 'Cancelar')?.onPress?.();
+      await act(async () => {
+        buttons?.find((button) => button.text === 'Cancelar')?.onPress?.();
+      });
       await waitFor(() =>
         expect(cancelFreeWorkout).toHaveBeenCalledWith(
           expect.anything(),
