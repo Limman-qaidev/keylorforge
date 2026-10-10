@@ -4,7 +4,11 @@ import { FreeWorkoutExperience } from '../free-workout-experience';
 import { useAuth } from '@/lib/auth/auth-provider';
 import { useCachedExerciseCatalogue } from '@/lib/exercises/use-cached-exercise-catalogue';
 import { readActiveFreeWorkoutOverview } from '@/lib/workouts/active-workout-overview';
-import { openLocalWorkoutDatabase } from '@/lib/workouts/expo-sqlite-adapter';
+import {
+  openLocalWorkoutDatabase,
+  openPreviewWorkoutDatabase,
+} from '@/lib/workouts/expo-sqlite-adapter';
+import { useForegroundWorkoutSync } from '@/lib/workouts/workout-sync-foreground';
 import {
   beginFreeWorkout,
   endFreeWorkout,
@@ -21,6 +25,7 @@ jest.mock('@/lib/workouts/active-workout-overview', () => ({
 }));
 jest.mock('@/lib/workouts/expo-sqlite-adapter', () => ({
   openLocalWorkoutDatabase: jest.fn(),
+  openPreviewWorkoutDatabase: jest.fn(),
 }));
 jest.mock('@/lib/workouts/free-workout-flow', () => ({
   beginFreeWorkout: jest.fn(),
@@ -101,6 +106,9 @@ beforeEach(() => {
     .mockResolvedValue(
       {} as Awaited<ReturnType<typeof openLocalWorkoutDatabase>>,
     );
+  jest.mocked(openPreviewWorkoutDatabase).mockResolvedValue(
+    {} as Awaited<ReturnType<typeof openPreviewWorkoutDatabase>>,
+  );
   jest.mocked(listLocalFinishedWorkouts).mockResolvedValue([]);
   jest.mocked(readActiveFreeWorkoutOverview).mockResolvedValue(null);
   jest.mocked(beginFreeWorkout).mockResolvedValue(session);
@@ -113,6 +121,19 @@ beforeEach(() => {
 });
 
 describe('staged real Free Workout UI', () => {
+  it('isolates preview read/write operations and suppresses network sync', async () => {
+    const user = userEvent.setup();
+    const screen = await render(<FreeWorkoutExperience isolatedPreview />);
+    expect(await screen.findByText('CATÁLOGO CANÓNICO')).toBeTruthy();
+    expect(openPreviewWorkoutDatabase).toHaveBeenCalledWith(OWNER);
+    expect(openLocalWorkoutDatabase).not.toHaveBeenCalled();
+    expect(useForegroundWorkoutSync).toHaveBeenCalledWith(null);
+    await user.press(screen.getByText('Iniciar entrenamiento libre'));
+    await waitFor(() => expect(beginFreeWorkout).toHaveBeenCalledTimes(1));
+    expect(openPreviewWorkoutDatabase).toHaveBeenCalledWith(OWNER);
+    expect(openLocalWorkoutDatabase).not.toHaveBeenCalled();
+  });
+
   it('preserves the normal catalogue until a real Free Workout is explicitly started', async () => {
     const screen = await render(<FreeWorkoutExperience />);
     expect(await screen.findByText('CATÁLOGO CANÓNICO')).toBeTruthy();

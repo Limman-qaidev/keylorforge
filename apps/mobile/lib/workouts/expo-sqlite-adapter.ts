@@ -104,6 +104,39 @@ export function openLocalWorkoutDatabase(): Promise<SqliteWorkoutPort> {
 
 /** Isolated, development-only store for real-device SQLite smoke testing. */
 const diagnosticDatabases = new Map<string, Promise<SqliteWorkoutPort>>();
+const previewDatabases = new Map<string, Promise<SqliteWorkoutPort>>();
+
+/**
+ * Persistent, per-account UI preview database, distinct from BOTH the real
+ * workout store and previous developer diagnostics. Never reset user data.
+ */
+export function openPreviewWorkoutDatabase(
+  subject: string,
+): Promise<SqliteWorkoutPort> {
+  if (!__DEV__) {
+    throw new Error('Workout preview is unavailable in release builds.');
+  }
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      subject,
+    )
+  ) {
+    throw new Error('A valid authenticated subject is required.');
+  }
+  const databaseName = `keylorforge-m3-ui-preview-${subject.toLowerCase()}.db`;
+  let preview = previewDatabases.get(databaseName);
+  if (!preview) {
+    preview = initializeNativeWorkoutDatabase(databaseName).catch(
+      (error: unknown) => {
+        previewDatabases.delete(databaseName);
+        throw error;
+      },
+    );
+    previewDatabases.set(databaseName, preview);
+  }
+  return preview;
+}
+
 
 export function openDiagnosticWorkoutDatabase(
   subject: string,
