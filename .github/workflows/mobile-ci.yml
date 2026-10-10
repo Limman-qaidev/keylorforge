@@ -32,6 +32,10 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
+      - name: Diagnose QA test formatting
+        run: |
+          npx prettier --write components/workouts/__tests__/free-workout-experience-render.test.tsx
+          git diff -- components/workouts/__tests__/free-workout-experience-render.test.tsx
       - name: Check formatting
         run: npm run format:check
 
