@@ -131,7 +131,9 @@ function validSet(value: unknown): value is ActiveSetSummary {
   return true;
 }
 
-function decode(value: unknown): ActiveExerciseSummary[] {
+export function decodeActiveWorkoutExercises(
+  value: unknown,
+): ActiveExerciseSummary[] {
   if (!Array.isArray(value)) {
     throw new LocalWorkoutError('corruptLocalData');
   }
@@ -203,7 +205,7 @@ export async function readActiveFreeWorkoutOverview(
   } catch {
     throw new LocalWorkoutError('corruptLocalData');
   }
-  const exercises = decode(raw);
+  const exercises = decodeActiveWorkoutExercises(raw);
   const all = exercises.flatMap((exercise) => exercise.sets);
   const workingSets = all.filter((set) => set.set_role === 'WORKING').length;
   if (subjectOf(access) !== subject) {
