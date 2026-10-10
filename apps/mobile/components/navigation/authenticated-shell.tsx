@@ -1,6 +1,16 @@
 import { useRouter } from 'expo-router';
-import type { PropsWithChildren } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, type PropsWithChildren } from 'react';
+import {
+  Image,
+  InteractionManager,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+
+import { preloadExerciseCatalogue } from '@/lib/exercises/use-cached-exercise-catalogue';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const trainingBolt = require('../../assets/icons/training-bolt-white.png');
@@ -38,6 +48,19 @@ export function AuthenticatedShell({
   children,
 }: AuthenticatedShellProps) {
   const router = useRouter();
+
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    // Let the current screen and navigation finish painting first. Public
+    // reference data can then warm once in memory before the user trains.
+    const pending = InteractionManager.runAfterInteractions(() => {
+      void preloadExerciseCatalogue().catch(() => {
+        // A missing or damaged cache must still use the existing online
+        // fallback when Entrenar opens. Never delete or reset stored data.
+      });
+    });
+    return () => pending.cancel();
+  }, []);
 
   return (
     <View style={styles.root}>
