@@ -1,6 +1,9 @@
 import * as SQLite from 'expo-sqlite';
 
-import { openLocalWorkoutDatabase, openPreviewWorkoutDatabase } from '../expo-sqlite-adapter';
+import {
+  openLocalWorkoutDatabase,
+  openPreviewWorkoutDatabase,
+} from '../expo-sqlite-adapter';
 
 jest.mock('expo-sqlite', () => ({ openDatabaseAsync: jest.fn() }));
 

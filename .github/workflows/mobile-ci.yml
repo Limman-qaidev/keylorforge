@@ -32,10 +32,6 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
-      - name: Diagnose preview formatting
-        run: |
-          npx prettier --write app/__tests__/train-preview.test.tsx components/workouts/__tests__/free-workout-experience-render.test.tsx lib/workouts/__tests__/expo-sqlite-adapter.test.ts lib/workouts/expo-sqlite-adapter.ts
-          git diff -- app/__tests__/train-preview.test.tsx components/workouts/__tests__/free-workout-experience-render.test.tsx lib/workouts/__tests__/expo-sqlite-adapter.test.ts lib/workouts/expo-sqlite-adapter.ts
       - name: Check formatting
         run: npm run format:check
 

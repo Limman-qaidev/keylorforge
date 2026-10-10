@@ -106,9 +106,11 @@ beforeEach(() => {
     .mockResolvedValue(
       {} as Awaited<ReturnType<typeof openLocalWorkoutDatabase>>,
     );
-  jest.mocked(openPreviewWorkoutDatabase).mockResolvedValue(
-    {} as Awaited<ReturnType<typeof openPreviewWorkoutDatabase>>,
-  );
+  jest
+    .mocked(openPreviewWorkoutDatabase)
+    .mockResolvedValue(
+      {} as Awaited<ReturnType<typeof openPreviewWorkoutDatabase>>,
+    );
   jest.mocked(listLocalFinishedWorkouts).mockResolvedValue([]);
   jest.mocked(readActiveFreeWorkoutOverview).mockResolvedValue(null);
   jest.mocked(beginFreeWorkout).mockResolvedValue(session);

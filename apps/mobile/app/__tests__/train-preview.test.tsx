@@ -3,7 +3,8 @@ import { render, fireEvent } from '@testing-library/react-native';
 import TrainRoute from '../train';
 
 jest.mock('@/components/auth/auth-guards', () => ({
-  RequireAuthenticated: ({ children }: { children: React.ReactNode }) => children,
+  RequireAuthenticated: ({ children }: { children: React.ReactNode }) =>
+    children,
 }));
 jest.mock('@/components/navigation/authenticated-shell', () => ({
   AuthenticatedShell: ({ children }: { children: React.ReactNode }) => children,
@@ -15,15 +16,19 @@ jest.mock('@/components/exercises/exercise-catalog-screen', () => {
 jest.mock('@/components/workouts/free-workout-experience', () => {
   const { Text } = jest.requireActual('react-native');
   return {
-    FreeWorkoutExperience: ({ isolatedPreview }: { isolatedPreview: boolean }) => (
+    FreeWorkoutExperience: ({
+      isolatedPreview,
+    }: {
+      isolatedPreview: boolean;
+    }) => (
       <Text>{isolatedPreview ? 'ENTRENAMIENTO AISLADO' : 'NO AISLADO'}</Text>
     ),
   };
 });
 
 describe('Entrenar isolated development preview', () => {
-  it('keeps the canonical catalogue until explicitly entering and leaving QA', () => {
-    const screen = render(<TrainRoute />);
+  it('keeps the canonical catalogue until explicitly entering and leaving QA', async () => {
+    const screen = await render(<TrainRoute />);
     expect(screen.getByText('CATÁLOGO NORMAL')).toBeTruthy();
     expect(screen.queryByText('ENTRENAMIENTO AISLADO')).toBeNull();
     fireEvent.press(screen.getByText('Probar entrenamiento (datos aislados)'));

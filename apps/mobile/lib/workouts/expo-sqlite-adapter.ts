@@ -137,7 +137,6 @@ export function openPreviewWorkoutDatabase(
   return preview;
 }
 
-
 export function openDiagnosticWorkoutDatabase(
   subject: string,
 ): Promise<SqliteWorkoutPort> {
