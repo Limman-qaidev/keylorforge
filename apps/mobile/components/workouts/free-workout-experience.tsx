@@ -37,7 +37,10 @@ import {
   listLocalFinishedWorkouts,
   type FinishedWorkoutHistoryEntry,
 } from '@/lib/workouts/local-finish-history';
-import { openLocalWorkoutDatabase } from '@/lib/workouts/expo-sqlite-adapter';
+import {
+  openLocalWorkoutDatabase,
+  openPreviewWorkoutDatabase,
+} from '@/lib/workouts/expo-sqlite-adapter';
 import { useForegroundWorkoutSync } from '@/lib/workouts/workout-sync-foreground';
 import type { LocalSubjectAccess } from '@/lib/workouts/local-store';
 import {
@@ -134,28 +137,47 @@ export function buildSetRequest(
   };
 }
 
-export function FreeWorkoutExperience() {
+export function FreeWorkoutExperience({
+  isolatedPreview = false,
+}: {
+  isolatedPreview?: boolean;
+}) {
+  if (isolatedPreview && !__DEV__) {
+    throw new Error('Isolated preview must not run in release builds.');
+  }
   const { session } = useAuth();
   return (
     <FreeWorkoutSessionExperience
       key={session?.user.id ?? 'signed-out'}
       session={session}
+      isolatedPreview={isolatedPreview}
     />
   );
 }
 
 function FreeWorkoutSessionExperience({
   session,
+  isolatedPreview,
 }: {
   session: ReturnType<typeof useAuth>['session'];
+  isolatedPreview: boolean;
 }) {
   const subject = session?.user.id ?? null;
-  const triggerSync = useForegroundWorkoutSync(subject);
+  // QA sessions must never reach the server or the ordinary workout database.
+  const triggerSync = useForegroundWorkoutSync(
+    isolatedPreview ? null : subject,
+  );
   const subjectRef = useRef<string | null>(null);
   const access = useMemo<LocalSubjectAccess>(
     () => ({ currentAuthenticatedSubject: () => subjectRef.current }),
     [],
   );
+  const openDb = useCallback(() => {
+    if (!isolatedPreview) return openLocalWorkoutDatabase();
+    const authenticatedSubject = subjectRef.current;
+    if (!authenticatedSubject) throw new Error('notAuthenticated');
+    return openPreviewWorkoutDatabase(authenticatedSubject);
+  }, [isolatedPreview]);
   const { snapshot } = useCachedExerciseCatalogue(session);
   const [overview, setOverview] = useState<ActiveFreeWorkoutOverview | null>(
     null,
@@ -181,7 +203,7 @@ function FreeWorkoutSessionExperience({
       setLoading(false);
       return;
     }
-    const db = await openLocalWorkoutDatabase();
+    const db = await openDb();
     const [current, finished] = await Promise.all([
       readActiveFreeWorkoutOverview(db, access),
       listLocalFinishedWorkouts(db, access, { limit: 20 }),
@@ -191,7 +213,7 @@ function FreeWorkoutSessionExperience({
     setHistory(finished);
     setError(null);
     setLoading(false);
-  }, [access]);
+  }, [access, openDb]);
 
   useEffect(() => {
     subjectRef.current = subject;
@@ -230,7 +252,7 @@ function FreeWorkoutSessionExperience({
 
   const begin = () => {
     void perform(async () => {
-      const db = await openLocalWorkoutDatabase();
+      const db = await openDb();
       await beginFreeWorkout(db, access, secureWorkoutIds, deviceWorkoutClock);
       setMode('catalogue');
     });
@@ -253,7 +275,7 @@ function FreeWorkoutSessionExperience({
       return;
     }
     void perform(async () => {
-      const db = await openLocalWorkoutDatabase();
+      const db = await openDb();
       await recordFreeWorkoutSet(
         db,
         access,
@@ -279,7 +301,7 @@ function FreeWorkoutSessionExperience({
           text: 'Finalizar',
           onPress: () => {
             void perform(async () => {
-              const db = await openLocalWorkoutDatabase();
+              const db = await openDb();
               await endFreeWorkout(
                 db,
                 access,
@@ -299,7 +321,7 @@ function FreeWorkoutSessionExperience({
     const hasPerformed = overview.totalSets > 0;
     const cancelConfirmed = () => {
       void perform(async () => {
-        const db = await openLocalWorkoutDatabase();
+        const db = await openDb();
         await cancelFreeWorkout(
           db,
           access,
