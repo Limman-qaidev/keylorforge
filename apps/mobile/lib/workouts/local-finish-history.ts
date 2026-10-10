@@ -6,6 +6,11 @@
  * writes SQLite, modifies active sessions, or fabricates exercise names.
  */
 import type { SqliteWorkoutPort } from './local-schema';
+import {
+  ACTIVE_WORKOUT_OVERVIEW_SQL,
+  decodeActiveWorkoutExercises,
+  type ActiveExerciseSummary,
+} from './active-workout-overview';
 import { LocalFinishError } from './local-finish';
 import type { LocalSubjectAccess } from './local-store';
 
@@ -151,4 +156,103 @@ export async function listLocalFinishedWorkouts(
     throw new LocalFinishError('notAuthenticated');
   }
   return parsed as FinishedWorkoutHistoryEntry[];
+}
+
+/** One exact completed session, never active/cancelled/another account. */
+export type FinishedWorkoutDetail = {
+  entry: FinishedWorkoutHistoryEntry;
+  exercises: ActiveExerciseSummary[];
+};
+
+export const LOCAL_FINISHED_DETAIL_GUARD_SQL = [
+  'SELECT f.completion_snapshot_id, w.started_at_utc, f.finished_at_utc,',
+  'w.local_date, o.delivery_state AS sync_state',
+  'FROM local_workout_final_snapshots AS f',
+  'JOIN local_workout_sessions AS w ON w.subject = f.subject AND w.session_id = f.session_id',
+  'JOIN local_workout_outbox AS o ON o.subject = f.subject AND o.mutation_id = f.finish_mutation_id',
+  "WHERE f.subject = ? AND f.session_id = ? AND w.lifecycle_state = 'completed'",
+  "AND o.mutation_kind = 'FINISH_SESSION'",
+].join(' ');
+
+/**
+ * Read only the performed ledger for a history entry already shown to the
+ * authenticated owner. Never re-create an agenda or modify the outbox.
+ * Every query is account-scoped; completed state and finish snapshot are
+ * rechecked rather than trusting an ID carried by the UI.
+ */
+export async function readLocalFinishedWorkoutDetail(
+  db: SqliteWorkoutPort,
+  access: LocalSubjectAccess,
+  entry: FinishedWorkoutHistoryEntry,
+): Promise<FinishedWorkoutDetail> {
+  const subject = authenticatedSubject(access);
+  if (!validEntry(entry)) throw new LocalFinishError('invalidInput');
+
+  const guard = await db.getFirstAsync<{
+    completion_snapshot_id: string;
+    started_at_utc: string;
+    finished_at_utc: string;
+    local_date: string;
+    sync_state: string;
+  }>(LOCAL_FINISHED_DETAIL_GUARD_SQL, subject, entry.session_id);
+
+  if (authenticatedSubject(access) !== subject) {
+    throw new LocalFinishError('notAuthenticated');
+  }
+  if (
+    !guard ||
+    guard.completion_snapshot_id !== entry.completion_snapshot_id ||
+    guard.started_at_utc !== entry.started_at_utc ||
+    guard.finished_at_utc !== entry.finished_at_utc ||
+    guard.local_date !== entry.local_date ||
+    !VALID_STATES.has(guard.sync_state)
+  ) {
+    throw new LocalFinishError('corruptLocalData');
+  }
+
+  const data = await db.getFirstAsync<{ items_json: string }>(
+    ACTIVE_WORKOUT_OVERVIEW_SQL,
+    subject,
+    entry.session_id,
+  );
+  if (authenticatedSubject(access) !== subject) {
+    throw new LocalFinishError('notAuthenticated');
+  }
+  let raw: unknown;
+  try {
+    if (typeof data?.items_json !== 'string') throw new Error('Missing ledger');
+    raw = JSON.parse(data.items_json);
+  } catch {
+    throw new LocalFinishError('corruptLocalData');
+  }
+
+  let exercises: ActiveExerciseSummary[];
+  try {
+    exercises = decodeActiveWorkoutExercises(raw);
+  } catch {
+    throw new LocalFinishError('corruptLocalData');
+  }
+  const sets = exercises.flatMap((exercise) => exercise.sets);
+  if (
+    sets.length !== entry.total_sets ||
+    sets.filter((set) => set.set_role === 'WORKING').length !==
+      entry.working_sets ||
+    sets.some(
+      (set) =>
+        Date.parse(set.completed_at_utc) < Date.parse(entry.started_at_utc) ||
+        Date.parse(set.completed_at_utc) > Date.parse(entry.finished_at_utc),
+    )
+  ) {
+    throw new LocalFinishError('corruptLocalData');
+  }
+  if (authenticatedSubject(access) !== subject) {
+    throw new LocalFinishError('notAuthenticated');
+  }
+  return {
+    entry: {
+      ...entry,
+      sync_state: guard.sync_state as FinishedWorkoutHistoryEntry['sync_state'],
+    },
+    exercises,
+  };
 }
