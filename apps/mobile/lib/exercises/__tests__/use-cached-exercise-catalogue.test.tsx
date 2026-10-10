@@ -7,7 +7,11 @@ import {
   seedOfflineCatalogueFromApi,
 } from '@/lib/exercises/offline-catalogue';
 import { openOfflineExerciseCatalogue } from '@/lib/exercises/offline-catalogue-adapter';
-import { useCachedExerciseCatalogue } from '@/lib/exercises/use-cached-exercise-catalogue';
+import {
+  invalidateInMemoryExerciseCatalogue,
+  preloadExerciseCatalogue,
+  useCachedExerciseCatalogue,
+} from '@/lib/exercises/use-cached-exercise-catalogue';
 
 jest.mock('@/lib/exercises/offline-catalogue', () => ({
   readOfflineExerciseSnapshot: jest.fn(),
@@ -54,6 +58,7 @@ describe('transparent native exercise catalogue persistence', () => {
   });
 
   beforeEach(() => {
+    invalidateInMemoryExerciseCatalogue();
     jest.clearAllMocks();
     jest
       .mocked(openOfflineExerciseCatalogue)
@@ -86,6 +91,25 @@ describe('transparent native exercise catalogue persistence', () => {
     const next = await render(<TestScreen />);
     expect(await next.findByText('Abdominal Otis')).toBeTruthy();
     expect(seedOfflineCatalogueFromApi).not.toHaveBeenCalled();
+    expect(readOfflineExerciseSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it('preloads once and opens Entrenar immediately using the validated memory snapshot', async () => {
+    const warmed = await Promise.all([
+      preloadExerciseCatalogue(),
+      preloadExerciseCatalogue(),
+    ]);
+    expect(warmed[0]?.items[0]?.name).toBe('Abdominal Otis');
+    expect(warmed[1]).toBe(warmed[0]);
+    expect(readOfflineExerciseSnapshot).toHaveBeenCalledTimes(1);
+
+    const first = await render(<TestScreen />);
+    expect(first.getByText('Abdominal Otis')).toBeTruthy();
+    await first.unmount();
+    const second = await render(<TestScreen />);
+    expect(second.getByText('Abdominal Otis')).toBeTruthy();
+    expect(readOfflineExerciseSnapshot).toHaveBeenCalledTimes(1);
+    expect(seedOfflineCatalogueFromApi).not.toHaveBeenCalled();
   });
 
   it('automatically boots a missing cache without a special download button', async () => {
@@ -108,6 +132,18 @@ describe('transparent native exercise catalogue persistence', () => {
       subject,
       accessToken: 'verified-token',
     });
+  });
+
+  it('discards failed hydration promises and safely retries without changing SQLite', async () => {
+    jest
+      .mocked(readOfflineExerciseSnapshot)
+      .mockRejectedValueOnce(new Error('transient database issue'));
+    await expect(preloadExerciseCatalogue()).rejects.toThrow(
+      'transient database issue',
+    );
+    const recovered = await preloadExerciseCatalogue();
+    expect(recovered?.items[0]?.name).toBe('Abdominal Otis');
+    expect(readOfflineExerciseSnapshot).toHaveBeenCalledTimes(2);
   });
 
   it('keeps a prior complete cache after automatic refresh fails', async () => {
