@@ -224,6 +224,17 @@ def test_postgres_finish_is_atomic_idempotent_and_owner_scoped() -> None:
         finished = client.post(finish_url, headers=a, json=command)
         assert finished.status_code == 201, finished.text
         assert finished.json()["lifecycle_state"] == "completed"
+        lifecycle_url = f"/workout-sessions/{workout_id}/lifecycle-state"
+        current = client.get(lifecycle_url, headers=a)
+        assert current.status_code == 200, current.text
+        assert current.json() == {
+            "session_id": workout_id,
+            "lifecycle_state": "completed",
+            "completion_snapshot_id": command["completion_snapshot"][
+                "completion_snapshot_id"
+            ],
+        }
+        assert client.get(lifecycle_url, headers=b).status_code == 404
         assert (
             finished.json()["completion_snapshot_id"]
             == (command["completion_snapshot"]["completion_snapshot_id"])

@@ -33,6 +33,10 @@ from app.workouts.history_service import (
     CompletedWorkoutHistoryPage,
     list_authoritative_completed_workouts,
 )
+from app.workouts.lifecycle_service import (
+    WorkoutLifecycleStateResponse,
+    get_authoritative_workout_lifecycle,
+)
 from app.workouts.schemas import StartFreeWorkoutRequest, WorkoutSessionResponse
 from app.workouts.service import get_active_free_workout, start_free_workout
 from app.workouts.set_schemas import (
@@ -84,6 +88,20 @@ def completed_history(
         limit=limit,
         before_finished_at=before_finished_at,
         before_session_id=before_session_id,
+    )
+
+
+@router.get(
+    "/{session_id}/lifecycle-state",
+    response_model=WorkoutLifecycleStateResponse,
+)
+def workout_lifecycle_state(
+    session_id: UUID,
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_authenticated_principal)],
+    session: Annotated[Session, Depends(get_database_session)],
+) -> WorkoutLifecycleStateResponse:
+    return get_authoritative_workout_lifecycle(
+        session=session, principal=principal, session_id=session_id
     )
 
 
