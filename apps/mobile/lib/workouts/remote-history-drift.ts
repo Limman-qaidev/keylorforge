@@ -6,9 +6,7 @@
  * Product UI and foreground sync must not invoke this before M3 security QA.
  */
 import type { SqliteWorkoutPort } from './local-schema';
-import {
-  readCachedRemoteOnlyWorkout,
-} from './remote-history-cache';
+import { readCachedRemoteOnlyWorkout } from './remote-history-cache';
 import {
   fetchRemoteOnlyWorkoutCandidate,
   isVerifiedRemoteHistoryCandidate,
@@ -25,10 +23,7 @@ const active = new WeakSet<SqliteWorkoutPort>();
 export type RemoteHistoryDriftFinding = {
   sessionId: string;
   status:
-    | 'matching'
-    | 'remoteChanged'
-    | 'notListedAsCompleted'
-    | 'localCollision';
+    'matching' | 'remoteChanged' | 'notListedAsCompleted' | 'localCollision';
 };
 
 export type RemoteHistoryDriftReport = {
@@ -42,7 +37,7 @@ export type RemoteHistoryDriftReport = {
 /** ID-only paginated SQLite read. No payload is serialized into diagnostics. */
 export const REMOTE_CACHE_IDS_SQL = [
   "SELECT COALESCE(json_group_array(json(item_json)), '[]') AS items_json",
-  'FROM (SELECT json_object(\'session_id\', session_id) AS item_json',
+  "FROM (SELECT json_object('session_id', session_id) AS item_json",
   'FROM local_remote_workout_history',
   'WHERE subject = ? AND session_id > ?',
   'ORDER BY session_id ASC LIMIT ?)',
