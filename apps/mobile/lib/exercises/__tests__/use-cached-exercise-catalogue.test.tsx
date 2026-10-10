@@ -3,16 +3,18 @@ import type { Session } from '@supabase/supabase-js';
 import { AppState, type AppStateStatus, Text } from 'react-native';
 
 import {
-  offlineCatalogueStatus,
-  searchOfflineExercises,
+  readOfflineExerciseSnapshot,
   seedOfflineCatalogueFromApi,
 } from '@/lib/exercises/offline-catalogue';
 import { openOfflineExerciseCatalogue } from '@/lib/exercises/offline-catalogue-adapter';
-import { useCachedExerciseCatalogue } from '@/lib/exercises/use-cached-exercise-catalogue';
+import {
+  invalidateInMemoryExerciseCatalogue,
+  preloadExerciseCatalogue,
+  useCachedExerciseCatalogue,
+} from '@/lib/exercises/use-cached-exercise-catalogue';
 
 jest.mock('@/lib/exercises/offline-catalogue', () => ({
-  offlineCatalogueStatus: jest.fn(),
-  searchOfflineExercises: jest.fn(),
+  readOfflineExerciseSnapshot: jest.fn(),
   seedOfflineCatalogueFromApi: jest.fn(),
 }));
 jest.mock('@/lib/exercises/offline-catalogue-adapter', () => ({
@@ -56,20 +58,16 @@ describe('transparent native exercise catalogue persistence', () => {
   });
 
   beforeEach(() => {
+    invalidateInMemoryExerciseCatalogue();
     jest.clearAllMocks();
     jest
       .mocked(openOfflineExerciseCatalogue)
       .mockResolvedValue(
         {} as Awaited<ReturnType<typeof openOfflineExerciseCatalogue>>,
       );
-    jest.mocked(offlineCatalogueStatus).mockResolvedValue({
-      state: 'ready',
-      total: 1,
-      seededAtUtc: new Date().toISOString(),
-    });
-    jest.mocked(searchOfflineExercises).mockResolvedValue({
-      total: 1,
+    jest.mocked(readOfflineExerciseSnapshot).mockResolvedValue({
       items: [cachedExercise],
+      seededAtUtc: new Date().toISOString(),
     });
     jest.mocked(seedOfflineCatalogueFromApi).mockResolvedValue({
       state: 'ready',
@@ -82,10 +80,8 @@ describe('transparent native exercise catalogue persistence', () => {
     const screen = await render(<TestScreen />);
     expect(await screen.findByText('Abdominal Otis')).toBeTruthy();
     expect(seedOfflineCatalogueFromApi).not.toHaveBeenCalled();
-    expect(searchOfflineExercises).toHaveBeenCalledWith(expect.anything(), {
-      offset: 0,
-      limit: 100,
-    });
+    expect(readOfflineExerciseSnapshot).toHaveBeenCalledWith(expect.anything());
+    expect(readOfflineExerciseSnapshot).toHaveBeenCalledTimes(1);
   });
 
   it('opens the same SQLite cache after a normal component relaunch', async () => {
@@ -95,15 +91,33 @@ describe('transparent native exercise catalogue persistence', () => {
     const next = await render(<TestScreen />);
     expect(await next.findByText('Abdominal Otis')).toBeTruthy();
     expect(seedOfflineCatalogueFromApi).not.toHaveBeenCalled();
+    expect(readOfflineExerciseSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it('preloads once and opens Entrenar immediately using the validated memory snapshot', async () => {
+    const warmed = await Promise.all([
+      preloadExerciseCatalogue(),
+      preloadExerciseCatalogue(),
+    ]);
+    expect(warmed[0]?.items[0]?.name).toBe('Abdominal Otis');
+    expect(warmed[1]).toBe(warmed[0]);
+    expect(readOfflineExerciseSnapshot).toHaveBeenCalledTimes(1);
+
+    const first = await render(<TestScreen />);
+    expect(first.getByText('Abdominal Otis')).toBeTruthy();
+    await first.unmount();
+    const second = await render(<TestScreen />);
+    expect(second.getByText('Abdominal Otis')).toBeTruthy();
+    expect(readOfflineExerciseSnapshot).toHaveBeenCalledTimes(1);
+    expect(seedOfflineCatalogueFromApi).not.toHaveBeenCalled();
   });
 
   it('automatically boots a missing cache without a special download button', async () => {
     jest
-      .mocked(offlineCatalogueStatus)
-      .mockResolvedValueOnce({ state: 'unseeded' })
+      .mocked(readOfflineExerciseSnapshot)
+      .mockResolvedValueOnce(null)
       .mockResolvedValue({
-        state: 'ready',
-        total: 1,
+        items: [cachedExercise],
         seededAtUtc: new Date().toISOString(),
       });
 
@@ -120,10 +134,21 @@ describe('transparent native exercise catalogue persistence', () => {
     });
   });
 
+  it('discards failed hydration promises and safely retries without changing SQLite', async () => {
+    jest
+      .mocked(readOfflineExerciseSnapshot)
+      .mockRejectedValueOnce(new Error('transient database issue'));
+    await expect(preloadExerciseCatalogue()).rejects.toThrow(
+      'transient database issue',
+    );
+    const recovered = await preloadExerciseCatalogue();
+    expect(recovered?.items[0]?.name).toBe('Abdominal Otis');
+    expect(readOfflineExerciseSnapshot).toHaveBeenCalledTimes(2);
+  });
+
   it('keeps a prior complete cache after automatic refresh fails', async () => {
-    jest.mocked(offlineCatalogueStatus).mockResolvedValue({
-      state: 'ready',
-      total: 1,
+    jest.mocked(readOfflineExerciseSnapshot).mockResolvedValue({
+      items: [cachedExercise],
       seededAtUtc: '2024-01-01T00:00:00.000Z',
     });
     jest
@@ -138,9 +163,7 @@ describe('transparent native exercise catalogue persistence', () => {
   });
 
   it('retains the online first-use fallback when no SQLite cache can be seeded', async () => {
-    jest.mocked(offlineCatalogueStatus).mockResolvedValue({
-      state: 'unseeded',
-    });
+    jest.mocked(readOfflineExerciseSnapshot).mockResolvedValue(null);
     jest
       .mocked(seedOfflineCatalogueFromApi)
       .mockRejectedValue(new Error('not connected'));
@@ -165,9 +188,8 @@ describe('transparent native exercise catalogue persistence', () => {
       });
 
     let seededAtUtc = '2024-01-01T00:00:00.000Z';
-    jest.mocked(offlineCatalogueStatus).mockImplementation(async () => ({
-      state: 'ready',
-      total: 1,
+    jest.mocked(readOfflineExerciseSnapshot).mockImplementation(async () => ({
+      items: [cachedExercise],
       seededAtUtc,
     }));
     jest

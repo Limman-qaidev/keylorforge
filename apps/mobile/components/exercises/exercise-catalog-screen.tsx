@@ -246,9 +246,10 @@ function ExerciseCard({ exercise, onOpen }: ExerciseCardProps) {
 type DetailViewProps = {
   detail: ExerciseDetail;
   onBack: () => void;
+  onChoose?: (exercise: ExerciseDetail) => void;
 };
 
-function DetailView({ detail, onBack }: DetailViewProps) {
+function DetailView({ detail, onBack, onChoose }: DetailViewProps) {
   return (
     <ScrollView
       contentContainerStyle={styles.detailContent}
@@ -266,6 +267,15 @@ function DetailView({ detail, onBack }: DetailViewProps) {
       <Text accessibilityRole="header" style={styles.title}>
         {detail.name}
       </Text>
+      {onChoose ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => onChoose(detail)}
+          style={styles.primaryButton}
+        >
+          <Text style={styles.primaryButtonText}>Añadir al entrenamiento</Text>
+        </Pressable>
+      ) : null}
 
       <View style={styles.metadataGrid}>
         <View style={styles.metadataBlock}>
@@ -326,7 +336,11 @@ function DetailView({ detail, onBack }: DetailViewProps) {
   );
 }
 
-export function ExerciseCatalogScreen() {
+export function ExerciseCatalogScreen({
+  onChooseExercise,
+}: {
+  onChooseExercise?: (exercise: ExerciseDetail) => void;
+} = {}) {
   const { invalidateSession, refreshSession, session } = useAuth();
   const accessToken = session?.access_token ?? null;
   const { snapshot, initialized } = useCachedExerciseCatalogue(session);
@@ -456,6 +470,7 @@ export function ExerciseCatalogScreen() {
         <DetailView
           detail={detailQuery.data ?? cachedDetail!}
           onBack={() => setSelectedExerciseId(null)}
+          onChoose={onChooseExercise}
         />
       );
     }

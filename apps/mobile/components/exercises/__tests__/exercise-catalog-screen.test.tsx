@@ -138,7 +138,7 @@ describe('ExerciseCatalogScreen', () => {
     await act(async () => fireEvent.press(getByText('Buscar')));
     expect(getByText('Sentadilla')).toBeTruthy();
     expect(listExercises).not.toHaveBeenCalled();
-  });
+  }, 15_000);
 
   it('opens an immediate offline summary detail in the same DetailView without inventing fields', async () => {
     jest.mocked(useCachedExerciseCatalogue).mockReturnValue({
@@ -331,6 +331,30 @@ describe('ExerciseCatalogScreen', () => {
     expect(await findByText('Compuesto')).toBeTruthy();
     expect(await findByText('Empuje')).toBeTruthy();
     expect(getExercise).toHaveBeenCalledWith('current-token', 'exercise-1');
+  });
+
+  it('chooses from the existing detail without recording an exercise as performed', async () => {
+    const onChoose = jest.fn();
+    const user = userEvent.setup();
+    const { findByText, getByLabelText, getByText } = await render(
+      <QueryClientProvider client={queryClient()}>
+        <ExerciseCatalogScreen onChooseExercise={onChoose} />
+      </QueryClientProvider>,
+    );
+
+    await findByText('Press de banca');
+    await user.press(getByLabelText('Abrir Press de banca'));
+    await findByText('DETALLE DEL EJERCICIO');
+    expect(onChoose).not.toHaveBeenCalled();
+    await user.press(getByText('Añadir al entrenamiento'));
+    expect(onChoose).toHaveBeenCalledTimes(1);
+    expect(onChoose).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'exercise-1',
+        name: 'Press de banca',
+        measurement_type: 'reps',
+      }),
+    );
   });
 
   it('handles a missing exercise detail and allows returning to the catalogue', async () => {

@@ -1,11 +1,39 @@
 import * as SQLite from 'expo-sqlite';
 
-import { openLocalWorkoutDatabase } from '../expo-sqlite-adapter';
+import {
+  openLocalWorkoutDatabase,
+  openPreviewWorkoutDatabase,
+} from '../expo-sqlite-adapter';
 
 jest.mock('expo-sqlite', () => ({ openDatabaseAsync: jest.fn() }));
 
 describe('M3 Expo SQLite native database binding', () => {
-  it('initializes and migrates the persisted v3 schema exactly once and retains its connection', async () => {
+  beforeEach(() => jest.clearAllMocks());
+  it('opens account-scoped preview with a distinct persistent filename, never the real or diagnostic store', async () => {
+    const database = {
+      execAsync: jest.fn(),
+      getFirstAsync: jest.fn(async (sql: string) =>
+        sql === 'PRAGMA user_version' ? { user_version: 5 } : null,
+      ),
+      closeAsync: jest.fn(),
+    };
+    jest
+      .mocked(SQLite.openDatabaseAsync)
+      .mockResolvedValue(database as unknown as SQLite.SQLiteDatabase);
+    const owner = 'a3dbf764-e0e3-41aa-9895-6e58eadfbb14';
+    const first = await openPreviewWorkoutDatabase(owner);
+    const again = await openPreviewWorkoutDatabase(owner);
+    expect(again).toBe(first);
+    expect(SQLite.openDatabaseAsync).toHaveBeenCalledWith(
+      'keylorforge-m3-ui-preview-' + owner + '.db',
+    );
+    expect(SQLite.openDatabaseAsync).not.toHaveBeenCalledWith(
+      'keylorforge-m3-workouts.db',
+    );
+    expect(() => openPreviewWorkoutDatabase('invalid')).toThrow();
+  });
+
+  it('initializes and migrates the persisted v5 schema exactly once and retains its connection', async () => {
     const queries: string[] = [];
     const database = {
       execAsync: jest.fn(async (sql: string) => {
@@ -49,9 +77,21 @@ describe('M3 Expo SQLite native database binding', () => {
     expect(
       queries.some((sql) => sql.includes('CREATE TABLE local_machine_outbox')),
     ).toBe(true);
-    expect(queries[queries.length - 1]).toBe(
-      'PRAGMA user_version = 3; COMMIT;',
-    );
+    expect(
+      queries.some((sql) =>
+        sql.includes('CREATE TABLE local_workout_final_snapshots'),
+      ),
+    ).toBe(true);
+    expect(queries.some((sql) => sql.includes('FINISH_SESSION'))).toBe(true);
+    expect(queries[queries.length - 1]).toBe('PRAGMA foreign_keys = ON;');
+    expect(queries).toContain('PRAGMA user_version = 4; COMMIT;');
+    expect(queries).toContain('PRAGMA user_version = 5; COMMIT;');
+    expect(
+      queries.some((sql) =>
+        sql.includes('CREATE TABLE local_workout_cancellations'),
+      ),
+    ).toBe(true);
+    expect(queries.some((sql) => sql.includes('CANCEL_SESSION'))).toBe(true);
     expect(database.closeAsync).not.toHaveBeenCalled();
   });
 });

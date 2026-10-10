@@ -12,8 +12,7 @@ import { AppState, Platform } from 'react-native';
 
 import type { CatalogueReference, ExerciseListItem } from './catalog-api';
 import {
-  offlineCatalogueStatus,
-  searchOfflineExercises,
+  readOfflineExerciseSnapshot,
   seedOfflineCatalogueFromApi,
 } from './offline-catalogue';
 import { openOfflineExerciseCatalogue } from './offline-catalogue-adapter';
@@ -21,7 +20,6 @@ import type { StartSyncAccess } from '../workouts/start-session-sync';
 
 const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const RETRY_AFTER_MS = 60 * 1000;
-const CACHE_PAGE_SIZE = 100;
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -47,30 +45,53 @@ function references(
   );
 }
 
-async function readSnapshot(): Promise<ExerciseCatalogueSnapshot | null> {
+async function readSnapshotFromDisk(): Promise<ExerciseCatalogueSnapshot | null> {
   const db = await openOfflineExerciseCatalogue();
-  const state = await offlineCatalogueStatus(db);
-  if (state.state === 'unseeded') return null;
-  const items: ExerciseListItem[] = [];
-  for (let offset = 0; offset < state.total; offset += CACHE_PAGE_SIZE) {
-    const page = await searchOfflineExercises(db, {
-      offset,
-      limit: CACHE_PAGE_SIZE,
-    });
-    if (
-      page.total !== state.total ||
-      page.items.length !== Math.min(CACHE_PAGE_SIZE, state.total - offset)
-    ) {
-      throw new Error('Incomplete local exercise snapshot');
-    }
-    items.push(...page.items);
-  }
+  const cached = await readOfflineExerciseSnapshot(db);
+  if (!cached) return null;
   return {
-    items,
-    muscles: references(items, 'primary_muscles'),
-    equipment: references(items, 'equipment'),
-    seededAtUtc: state.seededAtUtc,
+    items: cached.items,
+    muscles: references(cached.items, 'primary_muscles'),
+    equipment: references(cached.items, 'equipment'),
+    seededAtUtc: cached.seededAtUtc,
   };
+}
+
+// The canonical catalogue is public, shared across accounts, and immutable
+// until an atomic refresh replaces it. Keep one validated JS snapshot across
+// navigation mounts; never persist credentials or workout records here.
+let memorySnapshot: ExerciseCatalogueSnapshot | null = null;
+let pendingHydration: Promise<ExerciseCatalogueSnapshot | null> | null = null;
+let snapshotEpoch = 0;
+
+/** Clear only JS memory, never the durable SQLite cache. */
+export function invalidateInMemoryExerciseCatalogue(): void {
+  memorySnapshot = null;
+  pendingHydration = null;
+  snapshotEpoch++;
+}
+
+/** Eagerly hydrate the public catalogue once while another screen is visible. */
+export function preloadExerciseCatalogue(): Promise<ExerciseCatalogueSnapshot | null> {
+  if (Platform.OS === 'web') return Promise.resolve(null);
+  if (memorySnapshot) return Promise.resolve(memorySnapshot);
+  if (pendingHydration) return pendingHydration;
+
+  const requestedEpoch = snapshotEpoch;
+  const pending = readSnapshotFromDisk().then((cached) => {
+    if (cached && snapshotEpoch === requestedEpoch) memorySnapshot = cached;
+    return cached;
+  });
+  pendingHydration = pending;
+  void pending.then(
+    () => {
+      if (pendingHydration === pending) pendingHydration = null;
+    },
+    () => {
+      if (pendingHydration === pending) pendingHydration = null;
+    },
+  );
+  return pending;
 }
 
 function stale(snapshot: ExerciseCatalogueSnapshot | null): boolean {
@@ -85,9 +106,11 @@ export function useCachedExerciseCatalogue(session: Session | null): {
   initialized: boolean;
 } {
   const [snapshot, setSnapshot] = useState<ExerciseCatalogueSnapshot | null>(
-    null,
+    () => memorySnapshot,
   );
-  const [initialized, setInitialized] = useState(Platform.OS === 'web');
+  const [initialized, setInitialized] = useState(
+    Platform.OS === 'web' || memorySnapshot !== null,
+  );
   const currentSession = useRef<Session | null>(session);
   const mounted = useRef(true);
   const snapshotRef = useRef<ExerciseCatalogueSnapshot | null>(null);
@@ -132,12 +155,16 @@ export function useCachedExerciseCatalogue(session: Session | null): {
     try {
       const db = await openOfflineExerciseCatalogue();
       await seedOfflineCatalogueFromApi(db, access);
-      const next = await readSnapshot();
+      // Do not reuse the pre-refresh memory snapshot after a successful
+      // atomic SQLite seed. Previous memory stays valid on any failure.
+      const next = await readSnapshotFromDisk();
       if (
         mounted.current &&
         currentSession.current?.user.id === current.user.id &&
         next
       ) {
+        snapshotEpoch++;
+        memorySnapshot = next;
         snapshotRef.current = next;
         setSnapshot(next);
       }
@@ -152,7 +179,7 @@ export function useCachedExerciseCatalogue(session: Session | null): {
   useEffect(() => {
     if (Platform.OS === 'web') return;
     let active = true;
-    void readSnapshot()
+    void preloadExerciseCatalogue()
       .then((cached) => {
         if (!active) return;
         snapshotRef.current = cached;
