@@ -1,6 +1,4 @@
-import {
-  recoverRemoteHistoryBatch,
-} from '../remote-history-recovery-batch';
+import { recoverRemoteHistoryBatch } from '../remote-history-recovery-batch';
 import {
   cacheRemoteOnlyWorkout,
   readCachedRemoteOnlyWorkout,
@@ -67,9 +65,9 @@ beforeEach(() => {
   localTraceQuery.mockResolvedValue(null);
   jest.mocked(auditCompletedWorkoutHistory).mockResolvedValue(audit());
   jest.mocked(readCachedRemoteOnlyWorkout).mockResolvedValue(null);
-  jest.mocked(cacheRemoteOnlyWorkout).mockImplementation(
-    async (_, __, id) => stored(id),
-  );
+  jest
+    .mocked(cacheRemoteOnlyWorkout)
+    .mockImplementation(async (_, __, id) => stored(id));
 });
 
 it('recovers a small batch in audit order without directly mutating SQLite', async () => {
@@ -81,18 +79,18 @@ it('recovers a small batch in audit order without directly mutating SQLite', asy
     skippedConflicts: 0,
     attempted: 2,
   });
-  expect(jest.mocked(cacheRemoteOnlyWorkout).mock.calls.map(x => x[2]))
-    .toEqual([ONE, TWO]);
+  expect(
+    jest.mocked(cacheRemoteOnlyWorkout).mock.calls.map((x) => x[2]),
+  ).toEqual([ONE, TWO]);
 });
 
 it('resumes from existing immutable cache without duplicating writes', async () => {
   const cached = new Set<string>();
-  jest.mocked(readCachedRemoteOnlyWorkout).mockImplementation(
-    async (_, __, id) =>
-      cached.has(id)
-        ? { preview: stored(id).preview, detailJson: '{}' }
-        : null,
-  );
+  jest
+    .mocked(readCachedRemoteOnlyWorkout)
+    .mockImplementation(async (_, __, id) =>
+      cached.has(id) ? { preview: stored(id).preview, detailJson: '{}' } : null,
+    );
   jest.mocked(cacheRemoteOnlyWorkout).mockImplementation(async (_, __, id) => {
     cached.add(id);
     return stored(id);
@@ -109,8 +107,9 @@ it('resumes from existing immutable cache without duplicating writes', async () 
     skippedConflicts: 0,
     attempted: 1,
   });
-  expect(jest.mocked(cacheRemoteOnlyWorkout).mock.calls.map(x => x[2]))
-    .toEqual([ONE, TWO, THREE]);
+  expect(
+    jest.mocked(cacheRemoteOnlyWorkout).mock.calls.map((x) => x[2]),
+  ).toEqual([ONE, TWO, THREE]);
 });
 
 it('fails closed before any write on an incomplete authoritative audit', async () => {
@@ -133,7 +132,8 @@ it('fails closed before any write on an incomplete authoritative audit', async (
 });
 
 it('stops on network failure while preserving prior committed cache records', async () => {
-  jest.mocked(cacheRemoteOnlyWorkout)
+  jest
+    .mocked(cacheRemoteOnlyWorkout)
     .mockResolvedValueOnce(stored(ONE))
     .mockResolvedValueOnce({ status: 'paused', reason: 'network' });
   const result = await recoverRemoteHistoryBatch(db, auth().access);
@@ -149,12 +149,16 @@ it('stops on network failure while preserving prior committed cache records', as
 });
 
 it('isolates a local collision without stopping independent recoveries', async () => {
-  jest.mocked(cacheRemoteOnlyWorkout)
+  jest
+    .mocked(cacheRemoteOnlyWorkout)
     .mockResolvedValueOnce({ status: 'paused', reason: 'localCollision' })
     .mockResolvedValueOnce(stored(TWO));
-  jest.mocked(auditCompletedWorkoutHistory).mockResolvedValue(audit([ONE, TWO]));
+  jest
+    .mocked(auditCompletedWorkoutHistory)
+    .mockResolvedValue(audit([ONE, TWO]));
   expect(await recoverRemoteHistoryBatch(db, auth().access)).toEqual({
-    state: 'idle',
+    state: 'paused',
+    reason: 'conflict',
     stored: 1,
     alreadyCached: 0,
     skippedConflicts: 1,
@@ -163,10 +167,11 @@ it('isolates a local collision without stopping independent recoveries', async (
 });
 
 it('skips persistent local session collisions without starving later workouts', async () => {
-  localTraceQuery.mockImplementation(async (sql: string, _: string, id: string) =>
-    id === ONE && sql.includes('FROM local_workout_sessions')
-      ? { session_id: ONE }
-      : null,
+  localTraceQuery.mockImplementation(
+    async (sql: string, _: string, id: string) =>
+      id === ONE && sql.includes('FROM local_workout_sessions')
+        ? { session_id: ONE }
+        : null,
   );
   expect(await recoverRemoteHistoryBatch(db, auth().access, 1)).toEqual({
     state: 'yielded',
@@ -175,8 +180,9 @@ it('skips persistent local session collisions without starving later workouts', 
     skippedConflicts: 1,
     attempted: 1,
   });
-  expect(jest.mocked(cacheRemoteOnlyWorkout).mock.calls.map(x => x[2]))
-    .toEqual([TWO]);
+  expect(
+    jest.mocked(cacheRemoteOnlyWorkout).mock.calls.map((x) => x[2]),
+  ).toEqual([TWO]);
 });
 
 it('blocks owner switch between cached read and remote write', async () => {
@@ -232,9 +238,9 @@ it('rejects invalid bounds and duplicated or corrupt audit candidate IDs', async
       recoverRemoteHistoryBatch(db, auth().access, value),
     ).rejects.toThrow('invalidRecoveryBatch');
   }
-  jest.mocked(auditCompletedWorkoutHistory).mockResolvedValueOnce(
-    audit([ONE, ONE.toUpperCase()]),
-  );
+  jest
+    .mocked(auditCompletedWorkoutHistory)
+    .mockResolvedValueOnce(audit([ONE, ONE.toUpperCase()]));
   expect(await recoverRemoteHistoryBatch(db, auth().access)).toMatchObject({
     state: 'paused',
     reason: 'invalidResponse',

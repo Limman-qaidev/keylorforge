@@ -144,18 +144,24 @@ export async function recoverRemoteHistoryBatch(
         outcome.stored++;
       } else if (result.status === 'alreadyStored') {
         outcome.alreadyCached++;
-      } else if (
-        result.reason === 'localCollision' ||
-        result.reason === 'remoteConflict'
-      ) {
-        // Preserve both sides. An independent candidate may still proceed.
-        outcome.skippedConflicts++;
-      } else {
-        // Stop after network/auth/validation failure: no retry spin.
-        outcome.state = 'paused';
-        outcome.reason = result.reason;
-        return outcome;
+      } else if (result.status === 'paused') {
+        if (
+          result.reason === 'localCollision' ||
+          result.reason === 'remoteConflict'
+        ) {
+          // Preserve both sides. Independent candidates may still proceed.
+          outcome.skippedConflicts++;
+        } else {
+          // Stop after network/auth/validation failure: no retry spin.
+          outcome.state = 'paused';
+          outcome.reason = result.reason;
+          return outcome;
+        }
       }
+    }
+    if (outcome.skippedConflicts > 0) {
+      outcome.state = 'paused';
+      outcome.reason = 'conflict';
     }
     return outcome;
   } finally {
