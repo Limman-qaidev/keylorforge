@@ -224,6 +224,58 @@ def test_postgres_finish_is_atomic_idempotent_and_owner_scoped() -> None:
         finished = client.post(finish_url, headers=a, json=command)
         assert finished.status_code == 201, finished.text
         assert finished.json()["lifecycle_state"] == "completed"
+        lifecycle_url = f"/workout-sessions/{workout_id}/lifecycle-state"
+        current = client.get(lifecycle_url, headers=a)
+        assert current.status_code == 200, current.text
+        assert current.json() == {
+            "session_id": workout_id,
+            "lifecycle_state": "completed",
+            "completion_snapshot_id": command["completion_snapshot"][
+                "completion_snapshot_id"
+            ],
+        }
+        assert client.get(lifecycle_url, headers=b).status_code == 404
+
+        # A present snapshot is NOT sufficient evidence of a valid completion.
+        # Corruption must return a controlled 409 without leaking the payload
+        # or causing any write/delete. Restore the original row after each read.
+        with Session(engine) as db:
+            saved_snapshot = db.get(
+                WorkoutCompletionSnapshot,
+                UUID(command["completion_snapshot"]["completion_snapshot_id"]),
+            )
+            assert saved_snapshot is not None
+            original_agenda = deepcopy(saved_snapshot.final_agenda)
+        invalid_snapshots = [
+            {**original_agenda, "session_id": str(uuid4())},
+            {**original_agenda, "completion_snapshot_id": str(uuid4())},
+            {**original_agenda, "finished_at_utc": "2026-10-08T16:00:00+00:00"},
+            {"schema_version": 1, "origin": "free"},
+        ]
+        for damaged in invalid_snapshots:
+            with Session(engine) as db:
+                stored = db.get(
+                    WorkoutCompletionSnapshot,
+                    UUID(command["completion_snapshot"]["completion_snapshot_id"]),
+                )
+                assert stored is not None
+                stored.final_agenda = damaged
+                db.commit()
+            response = client.get(lifecycle_url, headers=a)
+            assert response.status_code == 409, response.text
+            assert "session_id" not in response.json()
+            assert client.get(lifecycle_url, headers=b).status_code == 404
+            with Session(engine) as db:
+                stored = db.get(
+                    WorkoutCompletionSnapshot,
+                    UUID(command["completion_snapshot"]["completion_snapshot_id"]),
+                )
+                assert stored is not None
+                stored.final_agenda = deepcopy(original_agenda)
+                db.commit()
+        restored = client.get(lifecycle_url, headers=a)
+        assert restored.status_code == 200
+        assert restored.json()["lifecycle_state"] == "completed"
         assert (
             finished.json()["completion_snapshot_id"]
             == (command["completion_snapshot"]["completion_snapshot_id"])

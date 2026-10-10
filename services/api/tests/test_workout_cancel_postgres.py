@@ -107,6 +107,23 @@ def test_cancel_is_atomic_owner_scoped_and_preserves_sets() -> None:
         # Zero-set cancellation: session tombstone and idempotent receipt,
         # no completed history, no automatic loss of START mutation receipt.
         empty = _start(client, a)
+        # The owner can distinguish ACTIVE from a subsequent CANCELLED state;
+        # a foreign/missing ID is always 404 (not an enumerable status).
+        lifecycle = f"/workout-sessions/{empty}/lifecycle-state"
+        opened = client.get(lifecycle, headers=a)
+        assert opened.status_code == 200
+        assert opened.json() == {
+            "session_id": empty,
+            "lifecycle_state": "active",
+            "completion_snapshot_id": None,
+        }
+        assert client.get(lifecycle, headers=b).status_code == 404
+        assert (
+            client.get(
+                f"/workout-sessions/{uuid4()}/lifecycle-state", headers=a
+            ).status_code
+            == 404
+        )
         endpoint = f"/workout-sessions/{empty}/cancel"
         intent = _cancel(empty)
         assert client.post(endpoint, headers=b, json=intent).status_code == 404
@@ -120,6 +137,14 @@ def test_cancel_is_atomic_owner_scoped_and_preserves_sets() -> None:
         assert first.status_code == 201, first.text
         assert first.json()["lifecycle_state"] == "cancelled"
         assert first.json()["confirmed_set_count"] == 0
+        terminal = client.get(lifecycle, headers=a)
+        assert terminal.status_code == 200
+        assert terminal.json() == {
+            "session_id": empty,
+            "lifecycle_state": "cancelled",
+            "completion_snapshot_id": None,
+        }
+        assert client.get(lifecycle, headers=b).status_code == 404
         replay = client.post(endpoint, headers=a, json=intent)
         assert replay.status_code == 201 and replay.json() == first.json()
         stale = {**intent, "cancelled_at_utc": "2026-10-08T15:01:00+00:00"}
