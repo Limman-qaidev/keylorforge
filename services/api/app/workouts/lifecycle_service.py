@@ -7,7 +7,7 @@ Never infer ACKs or amend the device's SQLite cache here.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, cast
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -52,6 +52,6 @@ def get_authoritative_workout_lifecycle(
 
     return WorkoutLifecycleStateResponse(
         session_id=workout.id,
-        lifecycle_state=lifecycle,
+        lifecycle_state=cast(Literal["active", "completed", "cancelled"], lifecycle),
         completion_snapshot_id=snapshot.id if snapshot is not None else None,
     )
