@@ -32,10 +32,6 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
-      - name: Inspect new history feature formatting
-        run: |
-          npx prettier --write components/workouts/free-workout-experience.tsx lib/workouts/active-workout-overview.ts lib/workouts/local-finish-history.ts app/train.tsx app/__tests__/train-preview.test.tsx components/workouts/__tests__/free-workout-experience-render.test.tsx lib/workouts/__tests__/local-finish-history.test.ts
-          git diff -- components/workouts/free-workout-experience.tsx lib/workouts/active-workout-overview.ts lib/workouts/local-finish-history.ts app/train.tsx app/__tests__/train-preview.test.tsx components/workouts/__tests__/free-workout-experience-render.test.tsx lib/workouts/__tests__/local-finish-history.test.ts
       - name: Check formatting
         run: npm run format:check
 

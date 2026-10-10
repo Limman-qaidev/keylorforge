@@ -34,38 +34,40 @@ class ReadOnlyDb implements SqliteWorkoutPort {
     local_date: completed.local_date,
     sync_state: 'pending',
   };
-  ledger: unknown = [{
-    occurrence_id: 'c226a777-d460-4d5f-bad6-f75667a9d022',
-    canonical_exercise_id: '502c4c87-80a5-4567-9aaf-296e43bfc4d1',
-    actual_order: 0,
-    agenda_item_id: null,
-    sets: [
-      {
-        set_id: '1b428bd6-781d-44ec-8609-57af594a5511',
-        set_role: 'WORKING',
-        measurement_type: 'reps',
-        reps: 8,
-        duration_seconds: null,
-        distance_decimal: null,
-        distance_unit: null,
-        load_decimal: '25',
-        load_unit: 'kg',
-        completed_at_utc: '2026-10-09T14:30:00.000Z',
-      },
-      {
-        set_id: '0d72c629-6248-4221-8ab2-d9b9f1b63901',
-        set_role: 'WARMUP',
-        measurement_type: 'reps',
-        reps: 12,
-        duration_seconds: null,
-        distance_decimal: null,
-        distance_unit: null,
-        load_decimal: '0',
-        load_unit: 'kg',
-        completed_at_utc: '2026-10-09T14:15:00.000Z',
-      },
-    ],
-  }];
+  ledger: unknown = [
+    {
+      occurrence_id: 'c226a777-d460-4d5f-bad6-f75667a9d022',
+      canonical_exercise_id: '502c4c87-80a5-4567-9aaf-296e43bfc4d1',
+      actual_order: 0,
+      agenda_item_id: null,
+      sets: [
+        {
+          set_id: '1b428bd6-781d-44ec-8609-57af594a5511',
+          set_role: 'WORKING',
+          measurement_type: 'reps',
+          reps: 8,
+          duration_seconds: null,
+          distance_decimal: null,
+          distance_unit: null,
+          load_decimal: '25',
+          load_unit: 'kg',
+          completed_at_utc: '2026-10-09T14:30:00.000Z',
+        },
+        {
+          set_id: '0d72c629-6248-4221-8ab2-d9b9f1b63901',
+          set_role: 'WARMUP',
+          measurement_type: 'reps',
+          reps: 12,
+          duration_seconds: null,
+          distance_decimal: null,
+          distance_unit: null,
+          load_decimal: '0',
+          load_unit: 'kg',
+          completed_at_utc: '2026-10-09T14:15:00.000Z',
+        },
+      ],
+    },
+  ];
   queries: { sql: string; params: unknown[] }[] = [];
   observed: { sql: string; params: unknown[] } | null = null;
   duringRead?: () => void;
@@ -167,9 +169,19 @@ describe('read-only SQLite finished workout history', () => {
 
   it('reads exact completed sets with owner-scoped ledger, no mutation or synthetic values', async () => {
     const db = new ReadOnlyDb();
-    const result = await readLocalFinishedWorkoutDetail(db, identity().access, completed);
+    const result = await readLocalFinishedWorkoutDetail(
+      db,
+      identity().access,
+      completed,
+    );
     expect(result.entry).toEqual(completed);
-    expect(result.exercises[0]?.sets.map((set) => [set.set_role, set.reps, set.load_decimal])).toEqual([
+    expect(
+      result.exercises[0]?.sets.map((set) => [
+        set.set_role,
+        set.reps,
+        set.load_decimal,
+      ]),
+    ).toEqual([
       ['WORKING', 8, '25'],
       ['WARMUP', 12, '0'],
     ]);
@@ -177,15 +189,18 @@ describe('read-only SQLite finished workout history', () => {
       { sql: LOCAL_FINISHED_DETAIL_GUARD_SQL, params: [OWNER, SESSION] },
       { sql: ACTIVE_WORKOUT_OVERVIEW_SQL, params: [OWNER, SESSION] },
     ]);
-    expect(LOCAL_FINISHED_DETAIL_GUARD_SQL).toContain("w.lifecycle_state = 'completed'");
+    expect(LOCAL_FINISHED_DETAIL_GUARD_SQL).toContain(
+      "w.lifecycle_state = 'completed'",
+    );
     expect(db.writes).toBe(0);
   });
 
   it('rejects missing/completed-state mismatch, corrupted ledger, and cross-account reads', async () => {
     const db = new ReadOnlyDb();
     db.detailGuard = null;
-    await expect(readLocalFinishedWorkoutDetail(db, identity().access, completed))
-      .rejects.toMatchObject({ code: 'corruptLocalData' });
+    await expect(
+      readLocalFinishedWorkoutDetail(db, identity().access, completed),
+    ).rejects.toMatchObject({ code: 'corruptLocalData' });
     db.detailGuard = {
       completion_snapshot_id: SNAPSHOT,
       started_at_utc: completed.started_at_utc,
@@ -194,17 +209,20 @@ describe('read-only SQLite finished workout history', () => {
       sync_state: 'pending',
     };
     db.ledger = [];
-    await expect(readLocalFinishedWorkoutDetail(db, identity().access, completed))
-      .rejects.toMatchObject({ code: 'corruptLocalData' });
+    await expect(
+      readLocalFinishedWorkoutDetail(db, identity().access, completed),
+    ).rejects.toMatchObject({ code: 'corruptLocalData' });
     db.ledger = 'invalid-ledger';
-    await expect(readLocalFinishedWorkoutDetail(db, identity().access, completed))
-      .rejects.toMatchObject({ code: 'corruptLocalData' });
+    await expect(
+      readLocalFinishedWorkoutDetail(db, identity().access, completed),
+    ).rejects.toMatchObject({ code: 'corruptLocalData' });
     db.duringRead = () => {
       auth.switchTo(OTHER);
     };
     const auth = identity();
-    await expect(readLocalFinishedWorkoutDetail(db, auth.access, completed))
-      .rejects.toMatchObject({ code: 'notAuthenticated' });
+    await expect(
+      readLocalFinishedWorkoutDetail(db, auth.access, completed),
+    ).rejects.toMatchObject({ code: 'notAuthenticated' });
     expect(db.writes).toBe(0);
   });
 

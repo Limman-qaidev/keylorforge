@@ -12,7 +12,9 @@ import { FreeWorkoutExperience } from '@/components/workouts/free-workout-experi
  * The QA preview has a DIFFERENT SQLite file and never starts remote sync.
  */
 export default function TrainRoute() {
-  const [previewMode, setPreviewMode] = useState<'workout' | 'history' | null>(null);
+  const [previewMode, setPreviewMode] = useState<'workout' | 'history' | null>(
+    null,
+  );
   const preview = previewMode !== null;
   const canPreview = __DEV__ && Platform.OS !== 'web';
   return (
@@ -22,7 +24,11 @@ export default function TrainRoute() {
           <View style={{ paddingHorizontal: 16, paddingVertical: 8 }}>
             <Pressable
               accessibilityRole="button"
-              onPress={() => setPreviewMode((current) => current === null ? 'workout' : null)}
+              onPress={() =>
+                setPreviewMode((current) =>
+                  current === null ? 'workout' : null,
+                )
+              }
               style={{ padding: 12, alignItems: 'center' }}
             >
               <Text>

@@ -131,7 +131,9 @@ function validSet(value: unknown): value is ActiveSetSummary {
   return true;
 }
 
-export function decodeActiveWorkoutExercises(value: unknown): ActiveExerciseSummary[] {
+export function decodeActiveWorkoutExercises(
+  value: unknown,
+): ActiveExerciseSummary[] {
   if (!Array.isArray(value)) {
     throw new LocalWorkoutError('corruptLocalData');
   }

@@ -248,5 +248,11 @@ export async function readLocalFinishedWorkoutDetail(
   if (authenticatedSubject(access) !== subject) {
     throw new LocalFinishError('notAuthenticated');
   }
-  return { entry: { ...entry, sync_state: guard.sync_state as FinishedWorkoutHistoryEntry['sync_state'] }, exercises };
+  return {
+    entry: {
+      ...entry,
+      sync_state: guard.sync_state as FinishedWorkoutHistoryEntry['sync_state'],
+    },
+    exercises,
+  };
 }
