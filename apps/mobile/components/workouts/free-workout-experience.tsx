@@ -35,6 +35,8 @@ import {
 } from '@/lib/workouts/free-workout-flow';
 import {
   listLocalFinishedWorkouts,
+  readLocalFinishedWorkoutDetail,
+  type FinishedWorkoutDetail,
   type FinishedWorkoutHistoryEntry,
 } from '@/lib/workouts/local-finish-history';
 import {
@@ -48,7 +50,7 @@ import {
   secureWorkoutIds,
 } from '@/lib/workouts/native-workout-platform';
 
-type Mode = 'catalogue' | 'picker' | 'set' | 'history';
+type Mode = 'catalogue' | 'picker' | 'set' | 'history' | 'history-detail';
 type Measurement = 'reps' | 'time' | 'distance';
 type Role = 'WORKING' | 'WARMUP';
 
@@ -139,8 +141,10 @@ export function buildSetRequest(
 
 export function FreeWorkoutExperience({
   isolatedPreview = false,
+  initialMode = 'catalogue',
 }: {
   isolatedPreview?: boolean;
+  initialMode?: 'catalogue' | 'history';
 }) {
   if (isolatedPreview && !__DEV__) {
     throw new Error('Isolated preview must not run in release builds.');
@@ -148,9 +152,10 @@ export function FreeWorkoutExperience({
   const { session } = useAuth();
   return (
     <FreeWorkoutSessionExperience
-      key={session?.user.id ?? 'signed-out'}
+      key={`${session?.user.id ?? 'signed-out'}:${initialMode}`}
       session={session}
       isolatedPreview={isolatedPreview}
+      initialMode={initialMode}
     />
   );
 }
@@ -158,9 +163,11 @@ export function FreeWorkoutExperience({
 function FreeWorkoutSessionExperience({
   session,
   isolatedPreview,
+  initialMode,
 }: {
   session: ReturnType<typeof useAuth>['session'];
   isolatedPreview: boolean;
+  initialMode: 'catalogue' | 'history';
 }) {
   const subject = session?.user.id ?? null;
   // QA sessions must never reach the server or the ordinary workout database.
@@ -183,7 +190,13 @@ function FreeWorkoutSessionExperience({
     null,
   );
   const [history, setHistory] = useState<FinishedWorkoutHistoryEntry[]>([]);
-  const [mode, setMode] = useState<Mode>('catalogue');
+  const [mode, setMode] = useState<Mode>(initialMode);
+  const [selectedHistory, setSelectedHistory] =
+    useState<FinishedWorkoutHistoryEntry | null>(null);
+  const [historyDetail, setHistoryDetail] =
+    useState<FinishedWorkoutDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const [chosen, setChosen] = useState<ExerciseDetail | null>(null);
   const [role, setRole] = useState<Role>('WORKING');
   const [quantity, setQuantity] = useState('');
@@ -364,6 +377,34 @@ function FreeWorkoutSessionExperience({
     );
   };
 
+  const openHistoryDetail = (item: FinishedWorkoutHistoryEntry) => {
+    const expectedSubject = subjectRef.current;
+    setSelectedHistory(item);
+    setHistoryDetail(null);
+    setDetailError(null);
+    setDetailLoading(true);
+    setMode('history-detail');
+    void (async () => {
+      const db = await openDb();
+      const result = await readLocalFinishedWorkoutDetail(db, access, item);
+      if (subjectRef.current === expectedSubject) {
+        setHistoryDetail(result);
+      }
+    })()
+      .catch((reason: unknown) => {
+        if (subjectRef.current === expectedSubject) {
+          setDetailError(
+            reason instanceof Error
+              ? reason.message
+              : 'No se pudo abrir el entrenamiento.',
+          );
+        }
+      })
+      .finally(() => {
+        if (subjectRef.current === expectedSubject) setDetailLoading(false);
+      });
+  };
+
   const choose = (exercise: ExerciseDetail) => {
     setChosen(exercise);
     setRole('WORKING');
@@ -529,6 +570,57 @@ function FreeWorkoutSessionExperience({
     );
   }
 
+  if (mode === 'history-detail') {
+    return (
+      <ScrollView contentContainerStyle={styles.page}>
+        <Button
+          title="Volver al historial"
+          secondary
+          onPress={() => setMode('history')}
+        />
+        <Text style={styles.eyebrow}>ENTRENAMIENTO FINALIZADO</Text>
+        <Text accessibilityRole="header" style={styles.heading}>
+          {selectedHistory?.local_date ?? 'Detalle del entrenamiento'}
+        </Text>
+        {detailLoading ? (
+          <ActivityIndicator accessibilityLabel="Cargando detalle del entrenamiento" />
+        ) : detailError ? (
+          <Text accessibilityLiveRegion="polite" style={styles.error}>
+            {detailError}
+          </Text>
+        ) : historyDetail ? (
+          <>
+            <Text style={styles.caption}>
+              {historyDetail.entry.total_sets} series confirmadas ·{' '}
+              {historyDetail.entry.working_sets} de trabajo
+            </Text>
+            {historyDetail.exercises.map((exercise) => (
+              <View key={exercise.occurrence_id} style={styles.item}>
+                <Text style={styles.itemTitle}>
+                  {nameOf(exercise.canonical_exercise_id)}
+                </Text>
+                {exercise.sets.map((set, index) => (
+                  <Text key={set.set_id} style={styles.caption}>
+                    {index + 1}.{' '}
+                    {set.set_role === 'WORKING' ? 'Trabajo' : 'Calentamiento'} ·{' '}
+                    {set.measurement_type === 'reps'
+                      ? `${set.reps} rep`
+                      : set.measurement_type === 'time'
+                        ? `${set.duration_seconds} s`
+                        : `${set.distance_decimal} ${set.distance_unit}`}
+                    {set.load_decimal !== null
+                      ? ` · ${set.load_decimal} ${set.load_unit}`
+                      : ''}
+                  </Text>
+                ))}
+              </View>
+            ))}
+          </>
+        ) : null}
+      </ScrollView>
+    );
+  }
+
   if (mode === 'history') {
     return (
       <ScrollView contentContainerStyle={styles.page}>
@@ -537,12 +629,19 @@ function FreeWorkoutSessionExperience({
           Historial
         </Text>
         {history.map((item) => (
-          <View key={item.session_id} style={styles.item}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Ver entrenamiento del ${item.local_date}`}
+            key={item.session_id}
+            onPress={() => openHistoryDetail(item)}
+            style={styles.item}
+          >
             <Text style={styles.itemTitle}>{item.local_date}</Text>
             <Text>
               {item.total_sets} series · {item.working_sets} de trabajo
             </Text>
-          </View>
+            <Text style={styles.caption}>Ver ejercicios y series ›</Text>
+          </Pressable>
         ))}
         {history.length === 0 ? (
           <Text>Todavía no hay entrenamientos finalizados.</Text>
@@ -637,13 +736,12 @@ function FreeWorkoutSessionExperience({
           onPress={begin}
           disabled={busy}
         />
-        {history.length > 0 ? (
-          <Button
-            title="Historial"
-            secondary
-            onPress={() => setMode('history')}
-          />
-        ) : null}
+        <Button
+          title="Ver historial"
+          secondary
+          disabled={busy}
+          onPress={() => setMode('history')}
+        />
       </View>
       {error ? (
         <Text accessibilityLiveRegion="polite" style={styles.error}>
