@@ -16,7 +16,10 @@ import {
   endFreeWorkout,
   recordFreeWorkoutSet,
 } from '@/lib/workouts/free-workout-flow';
-import { listLocalFinishedWorkouts } from '@/lib/workouts/local-finish-history';
+import {
+  listLocalFinishedWorkouts,
+  readLocalFinishedWorkoutDetail,
+} from '@/lib/workouts/local-finish-history';
 
 jest.mock('@/lib/auth/auth-provider', () => ({ useAuth: jest.fn() }));
 jest.mock('@/lib/exercises/use-cached-exercise-catalogue', () => ({
@@ -37,6 +40,7 @@ jest.mock('@/lib/workouts/free-workout-flow', () => ({
 }));
 jest.mock('@/lib/workouts/local-finish-history', () => ({
   listLocalFinishedWorkouts: jest.fn(),
+  readLocalFinishedWorkoutDetail: jest.fn(),
 }));
 jest.mock('@/lib/workouts/workout-sync-foreground', () => ({
   useForegroundWorkoutSync: jest.fn(() => jest.fn()),
@@ -80,6 +84,9 @@ jest.mock('@/components/exercises/exercise-catalog-screen', () => {
   };
 });
 
+// UI integration uses real userEvent typing; slower CI workers need headroom.
+jest.setTimeout(15_000);
+
 const OWNER = 'a3dbf764-e0e3-41aa-9895-6e58eadfbb14';
 const SESSION = '1f2d27bc-4904-4f4f-9367-39565d78f211';
 const session = {
@@ -115,6 +122,7 @@ beforeEach(() => {
       {} as Awaited<ReturnType<typeof openPreviewWorkoutDatabase>>,
     );
   jest.mocked(listLocalFinishedWorkouts).mockResolvedValue([]);
+  jest.mocked(readLocalFinishedWorkoutDetail).mockReset();
   jest.mocked(readActiveFreeWorkoutOverview).mockResolvedValue(null);
   jest.mocked(beginFreeWorkout).mockResolvedValue(session);
   jest
@@ -228,6 +236,132 @@ describe('staged real Free Workout UI', () => {
     } finally {
       alert.mockRestore();
     }
+  });
+
+  it('opens the exact completed workout, returns to list, and retains history after remount', async () => {
+    const user = userEvent.setup();
+    const entry = {
+      session_id: SESSION,
+      completion_snapshot_id: '17e1a62d-965f-4caf-a509-c95ab2fe6438',
+      started_at_utc: '2026-10-09T14:00:00.000Z',
+      finished_at_utc: '2026-10-09T15:00:00.000Z',
+      local_date: '2026-10-09',
+      total_sets: 1,
+      working_sets: 1,
+      sync_state: 'pending' as const,
+    };
+    jest.mocked(listLocalFinishedWorkouts).mockResolvedValue([entry]);
+    jest.mocked(readLocalFinishedWorkoutDetail).mockResolvedValue({
+      entry,
+      exercises: [
+        {
+          occurrence_id: 'c226a777-d460-4d5f-bad6-f75667a9d022',
+          canonical_exercise_id: '502c4c87-80a5-4567-9aaf-296e43bfc4d1',
+          actual_order: 0,
+          agenda_item_id: null,
+          sets: [
+            {
+              set_id: '1b428bd6-781d-44ec-8609-57af594a5511',
+              set_role: 'WORKING',
+              measurement_type: 'reps',
+              reps: 8,
+              duration_seconds: null,
+              distance_decimal: null,
+              distance_unit: null,
+              load_decimal: '25',
+              load_unit: 'kg',
+              completed_at_utc: '2026-10-09T14:30:00.000Z',
+            },
+          ],
+        },
+      ],
+    });
+    jest.mocked(useCachedExerciseCatalogue).mockReturnValue({
+      initialized: true,
+      snapshot: {
+        items: [
+          {
+            id: '502c4c87-80a5-4567-9aaf-296e43bfc4d1',
+            name: 'Press de banca',
+          },
+        ],
+      },
+    } as unknown as ReturnType<typeof useCachedExerciseCatalogue>);
+    const screen = await render(
+      <FreeWorkoutExperience isolatedPreview initialMode="history" />,
+    );
+    expect(await screen.findByText('Historial')).toBeTruthy();
+    await user.press(
+      screen.getByRole('button', {
+        name: 'Ver entrenamiento del 2026-10-09',
+      }),
+    );
+    expect(await screen.findByText('ENTRENAMIENTO FINALIZADO')).toBeTruthy();
+    expect(screen.getByText('Press de banca')).toBeTruthy();
+    expect(screen.getByText(/8 rep.*25 kg/)).toBeTruthy();
+    expect(readLocalFinishedWorkoutDetail).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      entry,
+    );
+    await user.press(screen.getByText('Volver al historial'));
+    expect(screen.getByText('Historial')).toBeTruthy();
+    await user.press(screen.getByText('Volver a Entrenar'));
+    expect(screen.getByText('Ver historial')).toBeTruthy();
+    await user.press(screen.getByText('Ver historial'));
+    expect(screen.getByText('Historial')).toBeTruthy();
+    await act(async () => {
+      screen.unmount();
+    });
+    const reopened = await render(
+      <FreeWorkoutExperience isolatedPreview initialMode="history" />,
+    );
+    expect(await reopened.findByText('Historial')).toBeTruthy();
+    expect(
+      reopened.getByRole('button', {
+        name: 'Ver entrenamiento del 2026-10-09',
+      }),
+    ).toBeTruthy();
+    expect(beginFreeWorkout).not.toHaveBeenCalled();
+    expect(openLocalWorkoutDatabase).not.toHaveBeenCalled();
+    expect(useForegroundWorkoutSync).toHaveBeenCalledWith(null);
+    await act(async () => {
+      reopened.unmount();
+    });
+  });
+
+  it('reports a detail read error without losing history access or writing anything', async () => {
+    const entry = {
+      session_id: SESSION,
+      completion_snapshot_id: '17e1a62d-965f-4caf-a509-c95ab2fe6438',
+      started_at_utc: '2026-10-09T14:00:00.000Z',
+      finished_at_utc: '2026-10-09T15:00:00.000Z',
+      local_date: '2026-10-09',
+      total_sets: 1,
+      working_sets: 1,
+      sync_state: 'pending' as const,
+    };
+    jest.mocked(listLocalFinishedWorkouts).mockResolvedValue([entry]);
+    jest
+      .mocked(readLocalFinishedWorkoutDetail)
+      .mockRejectedValue(new Error('No se pudo recuperar el detalle'));
+    const user = userEvent.setup();
+    const screen = await render(
+      <FreeWorkoutExperience isolatedPreview initialMode="history" />,
+    );
+    await screen.findByText('Historial');
+    await user.press(
+      screen.getByRole('button', {
+        name: 'Ver entrenamiento del 2026-10-09',
+      }),
+    );
+    expect(
+      await screen.findByText('No se pudo recuperar el detalle'),
+    ).toBeTruthy();
+    await user.press(screen.getByText('Volver al historial'));
+    expect(screen.getByText('Historial')).toBeTruthy();
+    expect(recordFreeWorkoutSet).not.toHaveBeenCalled();
+    expect(endFreeWorkout).not.toHaveBeenCalled();
   });
 
   it('requires explicit confirmation to cancel an empty isolated session without fabricating history', async () => {
