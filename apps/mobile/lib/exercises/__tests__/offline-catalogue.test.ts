@@ -4,6 +4,7 @@ import {
   type DownloadPage,
   OfflineCatalogueError,
   offlineCatalogueStatus,
+  readOfflineExerciseSnapshot,
   resolveOfflineCanonicalExercise,
   searchOfflineExercises,
   seedOfflineCatalogueFromApi,
@@ -52,6 +53,7 @@ class FakeDB implements CatalogueSqlitePort {
   meta: { total: number; seeded_at_utc: string } | null = null;
   failAt = 0;
   writes = 0;
+  fullReads = 0;
   onWrite?: () => void;
 
   async execAsync(): Promise<void> {}
@@ -65,6 +67,7 @@ class FakeDB implements CatalogueSqlitePort {
     throw new Error('unexpected SELECT ' + sql);
   }
   async getAllAsync<T>(sql: string): Promise<T[]> {
+    this.fullReads++;
     if (!sql.includes('public_exercise_cache')) {
       throw new Error('unexpected getAll ' + sql);
     }
@@ -170,6 +173,34 @@ describe('M3 complete and atomic offline canonical exercise cache', () => {
     expect((await resolveOfflineCanonicalExercise(db, ALIAS))?.id).toBe(ID(1));
     expect((await resolveOfflineCanonicalExercise(db, ID(1)))?.id).toBe(ID(1));
     expect(await resolveOfflineCanonicalExercise(db, ID(900))).toBeNull();
+  });
+
+  it('hydrates all cached exercises with one native read, never pages of repeated full scans', async () => {
+    const db = new FakeDB();
+    await seedOfflineExerciseCatalogue(db, auth().access, pages(517));
+    const saved = await readOfflineExerciseSnapshot(db);
+    expect(saved?.items).toHaveLength(517);
+    expect(saved?.items[0]?.name).toBe('Prensa de piernas 1');
+    expect(db.fullReads).toBe(1);
+    expect(saved?.items.every((item) => item.id && item.name)).toBe(true);
+  });
+
+  it('fails closed when the committed exercise snapshot contains a damaged row or duplicate alias', async () => {
+    const db = new FakeDB();
+    await seedOfflineExerciseCatalogue(db, auth().access, pages(3));
+    const corrupted = JSON.parse(db.cache.get(ID(2))!) as ExerciseListItem;
+    db.cache.set(ID(2), JSON.stringify({ ...corrupted, alias_ids: [ALIAS] }));
+    await expect(readOfflineExerciseSnapshot(db)).rejects.toMatchObject({
+      code: 'corruptCache',
+    });
+    db.cache.set(ID(2), '{broken-json');
+    await expect(readOfflineExerciseSnapshot(db)).rejects.toMatchObject({
+      code: 'corruptCache',
+    });
+    db.cache.delete(ID(2));
+    await expect(readOfflineExerciseSnapshot(db)).rejects.toMatchObject({
+      code: 'corruptCache',
+    });
   });
 
   it('bootstrap with current authenticated token, never save it', async () => {
