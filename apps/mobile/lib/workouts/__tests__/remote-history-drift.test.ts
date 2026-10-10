@@ -126,8 +126,9 @@ it('ignores object-key ordering but detects changed native set data', async () =
       session_id: ONE,
     }),
   });
-  expect((await diagnoseCachedRemoteHistory(db, who().access)).findings[0])
-    ?.status).toBe('matching');
+  expect(
+    (await diagnoseCachedRemoteHistory(db, who().access)).findings[0]?.status,
+  ).toBe('matching');
   jest.mocked(fetchRemoteOnlyWorkoutCandidate).mockResolvedValueOnce({
     ...server(),
     detailJson: JSON.stringify({
@@ -161,8 +162,9 @@ it('isolates local collisions without asking server or rewriting outbox', async 
       ? { items_json: JSON.stringify([{ session_id: ONE }]) }
       : { session_id: ONE },
   );
-  expect((await diagnoseCachedRemoteHistory(db, who().access)).findings[0])
-    ?.status).toBe('localCollision');
+  expect(
+    (await diagnoseCachedRemoteHistory(db, who().access)).findings[0]?.status,
+  ).toBe('localCollision');
   expect(fetchRemoteOnlyWorkoutCandidate).not.toHaveBeenCalled();
   expect(runAsync).not.toHaveBeenCalled();
 });
