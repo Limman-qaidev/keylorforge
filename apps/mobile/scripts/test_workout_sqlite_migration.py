@@ -711,6 +711,47 @@ def test_finish_v4_upgrade():
     ).fetchall() == original_outbox
     print("PASS: v6 remote-only cache preserves local sessions, sets and outbox")
 
+    # The unified read model must exclude foreign rows, cancellations and
+    # remote IDs colliding with ANY local session, without mutating either.
+    query = sql("unified-finish-history.ts", "UNIFIED_FINISHED_HISTORY_SQL")
+    local_page = json.loads(db.execute(
+        query, (subject, subject, 50, 0)
+    ).fetchone()[0])
+    assert all(row["subject"] == subject for row in local_page)
+    assert all(row["origin"] == "local" for row in local_page)
+    assert all(row["session_id"] != cancelled for row in local_page)
+    remote_page = json.loads(db.execute(
+        query, (other, other, 50, 0)
+    ).fetchone()[0])
+    assert any(row["session_id"] == remote_id
+               and row["origin"] == "remote_complete"
+               and row["sync_state"] is None for row in remote_page)
+    existing_local = cancelled
+    db.execute(
+        "INSERT INTO local_remote_workout_history "
+        "(subject,session_id,completion_snapshot_id,finish_mutation_id,"
+        "finished_at_utc,observed_at_utc,occurrence_count,total_sets,"
+        "working_sets,detail_json) VALUES (?,?,?,?,?,?,?,?,?,?)",
+        (subject, existing_local, "3f0f41e3-bfa4-4598-a680-389617f6a0ff",
+         "fa6ed1b5-1f03-4aa0-b810-68a4fb6de001",
+         "2026-10-10T15:00:00Z", "2026-10-10T15:10:00Z",
+         1, 1, 1, '{"confirmed":true}'),
+    )
+    db.commit()
+    remote_page = json.loads(db.execute(
+        query, (subject, subject, 50, 0)
+    ).fetchone()[0])
+    assert all(row["session_id"] != existing_local for row in remote_page)
+    assert db.execute(
+        "SELECT COUNT(*) FROM local_remote_workout_history "
+        "WHERE subject=? AND session_id=?", (subject, existing_local)
+    ).fetchone()[0] == 1
+    assert db.execute(
+        "SELECT * FROM local_workout_outbox ORDER BY subject, mutation_id"
+    ).fetchall() == original_outbox
+    print("PASS: unified local/remote SQL isolates owner and hides collisions")
+
+
 
 
 if __name__ == "__main__":
