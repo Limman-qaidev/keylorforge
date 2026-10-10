@@ -7,16 +7,18 @@ Never infer ACKs or amend the device's SQLite cache here.
 
 from __future__ import annotations
 
+from datetime import UTC
 from typing import Literal, cast
 from uuid import UUID
 
 from fastapi import HTTPException
 from keylorforge_database.models import WorkoutCompletionSnapshot, WorkoutSession
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.jwt_verifier import AuthenticatedPrincipal
+from app.workouts.finish_schemas import FreeWorkoutCompletionSnapshot
 from app.workouts.service import _active_owner
 
 
@@ -49,6 +51,27 @@ def get_authoritative_workout_lifecycle(
         raise HTTPException(409, detail="inconsistent authoritative lifecycle")
     if (lifecycle == "completed") != (snapshot is not None):
         raise HTTPException(409, detail="inconsistent authoritative lifecycle")
+    if snapshot is not None:
+        # A row existing is not proof of a valid completion. Reject any
+        # damaged or mismatched immutable provenance before returning "completed".
+        try:
+            final = FreeWorkoutCompletionSnapshot.model_validate(snapshot.final_agenda)
+        except ValidationError as exc:
+            raise HTTPException(
+                409, detail="inconsistent authoritative lifecycle"
+            ) from exc
+        if (
+            final.session_id != workout.id
+            or final.completion_snapshot_id != snapshot.id
+            or final.finished_at_utc.astimezone(UTC)
+            != snapshot.finished_at.astimezone(UTC)
+            or final.time_zone != workout.time_zone
+            or final.local_date != workout.local_date
+            or final.final_agenda_revision != workout.agenda_revision
+            or final.original_agenda.model_dump(mode="json")
+            != workout.start_prescription
+        ):
+            raise HTTPException(409, detail="inconsistent authoritative lifecycle")
 
     return WorkoutLifecycleStateResponse(
         session_id=workout.id,

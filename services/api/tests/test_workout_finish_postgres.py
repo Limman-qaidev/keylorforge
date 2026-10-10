@@ -235,6 +235,47 @@ def test_postgres_finish_is_atomic_idempotent_and_owner_scoped() -> None:
             ],
         }
         assert client.get(lifecycle_url, headers=b).status_code == 404
+
+        # A present snapshot is NOT sufficient evidence of a valid completion.
+        # Corruption must return a controlled 409 without leaking the payload
+        # or causing any write/delete. Restore the original row after each read.
+        with Session(engine) as db:
+            saved_snapshot = db.get(
+                WorkoutCompletionSnapshot,
+                UUID(command["completion_snapshot"]["completion_snapshot_id"]),
+            )
+            assert saved_snapshot is not None
+            original_agenda = deepcopy(saved_snapshot.final_agenda)
+        invalid_snapshots = [
+            {**original_agenda, "session_id": str(uuid4())},
+            {**original_agenda, "completion_snapshot_id": str(uuid4())},
+            {**original_agenda, "finished_at_utc": "2026-10-08T16:00:00+00:00"},
+            {"schema_version": 1, "origin": "free"},
+        ]
+        for damaged in invalid_snapshots:
+            with Session(engine) as db:
+                stored = db.get(
+                    WorkoutCompletionSnapshot,
+                    UUID(command["completion_snapshot"]["completion_snapshot_id"]),
+                )
+                assert stored is not None
+                stored.final_agenda = damaged
+                db.commit()
+            response = client.get(lifecycle_url, headers=a)
+            assert response.status_code == 409, response.text
+            assert "session_id" not in response.json()
+            assert client.get(lifecycle_url, headers=b).status_code == 404
+            with Session(engine) as db:
+                stored = db.get(
+                    WorkoutCompletionSnapshot,
+                    UUID(command["completion_snapshot"]["completion_snapshot_id"]),
+                )
+                assert stored is not None
+                stored.final_agenda = deepcopy(original_agenda)
+                db.commit()
+        restored = client.get(lifecycle_url, headers=a)
+        assert restored.status_code == 200
+        assert restored.json()["lifecycle_state"] == "completed"
         assert (
             finished.json()["completion_snapshot_id"]
             == (command["completion_snapshot"]["completion_snapshot_id"])
