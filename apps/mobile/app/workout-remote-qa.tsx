@@ -1,6 +1,6 @@
 /** One-button Android QA: explicit, isolated and never part of product training. */
 import { useRouter } from 'expo-router';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Platform,
   Pressable,
@@ -20,7 +20,13 @@ function RemoteM3QaScreen() {
   const router = useRouter();
   const { session } = useAuth();
   const subjectRef = useRef<string | null>(null);
-  subjectRef.current = session?.user.id ?? null;
+  const subject = session?.user.id ?? null;
+  useEffect(() => {
+    subjectRef.current = subject;
+    return () => {
+      subjectRef.current = null;
+    };
+  }, [subject]);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState(
     'Sin ejecutar. Solo usa una SQLite QA nueva y PostgreSQL keylorforge_m3_e2e.',

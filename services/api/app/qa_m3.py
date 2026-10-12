@@ -8,13 +8,13 @@ an environment variable, before allowing any workout mutation.
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
+from keylorforge_database.models import CatalogExercise
 from pydantic import BaseModel
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_authenticated_principal, get_database_session
 from app.auth.jwt_verifier import AuthenticatedPrincipal
-from keylorforge_database.models import CatalogExercise
 
 EXPECTED_DATABASE = "keylorforge_m3_e2e"
 router = APIRouter(prefix="/_qa", tags=["m3-qa"])

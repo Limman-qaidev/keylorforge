@@ -9,8 +9,8 @@ from app.config import Settings
 from app.exercises.router import router as exercises_router
 from app.identity.router import router as identity_router
 from app.logging_config import configure_logging
-from app.qa_m3 import router as m3_qa_router
 from app.machines.router import router as machines_router
+from app.qa_m3 import router as m3_qa_router
 from app.workouts.router import router as workouts_router
 
 
