@@ -165,3 +165,35 @@ export function openDiagnosticWorkoutDatabase(
   }
   return openedForSubject;
 }
+
+/**
+ * One new persistent SQLite file per Supabase subject for physical remote E2E.
+ * Never reuses the production, offline-preview, or previous diagnostic files.
+ */
+const remoteE2eDatabases = new Map<string, Promise<SqliteWorkoutPort>>();
+
+export function openRemoteE2eWorkoutDatabase(
+  subject: string,
+): Promise<SqliteWorkoutPort> {
+  if (!__DEV__) {
+    throw new Error('Remote M3 QA is unavailable in release builds.');
+  }
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      subject,
+    )
+  ) {
+    throw new Error('A valid authenticated subject is required.');
+  }
+  const databaseName =
+    'keylorforge-m3-remote-e2e-v1-' + subject.toLowerCase() + '.db';
+  let db = remoteE2eDatabases.get(databaseName);
+  if (!db) {
+    db = initializeNativeWorkoutDatabase(databaseName).catch((error: unknown) => {
+      remoteE2eDatabases.delete(databaseName);
+      throw error;
+    });
+    remoteE2eDatabases.set(databaseName, db);
+  }
+  return db;
+}

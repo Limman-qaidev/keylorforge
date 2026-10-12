@@ -83,6 +83,19 @@ function HomeScreen() {
         </Pressable>
       ) : null}
 
+      {__DEV__ ? (
+        <Pressable
+          accessibilityLabel="Abrir QA de sincronización real M3"
+          accessibilityRole="button"
+          onPress={() => router.push('/workout-remote-qa')}
+          style={styles.profileLink}
+        >
+          <Text style={styles.profileLinkText}>
+            QA M3 · Sincronización real (base aislada)
+          </Text>
+        </Pressable>
+      ) : null}
+
       <View style={styles.sectionHeader}>
         <Text accessibilityRole="header" style={styles.sectionTitle}>
           Tu actividad
