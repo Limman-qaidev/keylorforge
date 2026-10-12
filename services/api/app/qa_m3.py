@@ -22,7 +22,7 @@ router = APIRouter(prefix="/_qa", tags=["m3-qa"])
 
 class M3ReadyResponse(BaseModel):
     ready: Literal[True] = True
-    database: Literal["keylorforge_m3_e2e"] = EXPECTED_DATABASE
+    database: Literal["keylorforge_m3_e2e"] = "keylorforge_m3_e2e"
     exercises: int
 
 
