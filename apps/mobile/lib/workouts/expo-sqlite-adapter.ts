@@ -189,10 +189,12 @@ export function openRemoteE2eWorkoutDatabase(
     'keylorforge-m3-remote-e2e-v1-' + subject.toLowerCase() + '.db';
   let db = remoteE2eDatabases.get(databaseName);
   if (!db) {
-    db = initializeNativeWorkoutDatabase(databaseName).catch((error: unknown) => {
-      remoteE2eDatabases.delete(databaseName);
-      throw error;
-    });
+    db = initializeNativeWorkoutDatabase(databaseName).catch(
+      (error: unknown) => {
+        remoteE2eDatabases.delete(databaseName);
+        throw error;
+      },
+    );
     remoteE2eDatabases.set(databaseName, db);
   }
   return db;

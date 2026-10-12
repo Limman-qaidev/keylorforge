@@ -1,7 +1,13 @@
 /** One-button Android QA: explicit, isolated and never part of product training. */
 import { useRouter } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import {
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+} from 'react-native';
 
 import { RequireAuthenticated } from '@/components/auth/auth-guards';
 import { AuthenticatedShell } from '@/components/navigation/authenticated-shell';

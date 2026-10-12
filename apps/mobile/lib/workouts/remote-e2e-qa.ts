@@ -12,7 +12,10 @@ import {
 import { listLocalFinishedWorkouts } from './local-finish-history';
 import type { SqliteWorkoutPort } from './local-schema';
 import { getActiveLocalWorkout } from './local-store';
-import { deviceWorkoutClock, secureWorkoutIds } from './native-workout-platform';
+import {
+  deviceWorkoutClock,
+  secureWorkoutIds,
+} from './native-workout-platform';
 import type { StartSyncAccess } from './start-session-sync';
 import { drainWorkoutSync } from './workout-sync-coordinator';
 

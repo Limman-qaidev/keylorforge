@@ -28,9 +28,7 @@ class M3ReadyResponse(BaseModel):
 
 @router.get("/m3-ready", response_model=M3ReadyResponse)
 def m3_ready(
-    _principal: Annotated[
-        AuthenticatedPrincipal, Depends(get_authenticated_principal)
-    ],
+    _principal: Annotated[AuthenticatedPrincipal, Depends(get_authenticated_principal)],
     session: Annotated[Session, Depends(get_database_session)],
 ) -> M3ReadyResponse:
     actual_database = session.scalar(text("SELECT current_database()"))
