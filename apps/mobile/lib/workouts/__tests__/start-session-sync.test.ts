@@ -108,15 +108,15 @@ class FakeDB implements SqliteWorkoutPort {
       );
       if (currentIndex < 0) return null;
       const current = rows[currentIndex]!;
-      return {
-        count: rows.slice(0, currentIndex).filter(
-          (row) =>
-            row.subject === current.subject &&
-            row.session_id !== current.session_id &&
-            ['FINISH_SESSION', 'CANCEL_SESSION'].includes(row.mutation_kind) &&
-            row.delivery_state !== 'acknowledged',
-        ).length,
-      } as T;
+      const preceding = rows.slice(0, currentIndex);
+      const count = preceding.filter(
+        (row) =>
+          row.subject === current.subject &&
+          row.session_id !== current.session_id &&
+          ['FINISH_SESSION', 'CANCEL_SESSION'].includes(row.mutation_kind) &&
+          row.delivery_state !== 'acknowledged',
+      ).length;
+      return { count } as T;
     }
     if (sql.includes('FROM local_workout_sessions')) {
       if (args[0] === A && args[1] === SESSION) return { ...session } as T;

@@ -127,13 +127,7 @@ describe('bounded causal Workout M3 sync coordinator', () => {
       state: 'idle',
       acknowledged: 2,
     });
-    expect(order).toEqual([
-      'start',
-      'finish',
-      'start',
-      'start',
-      'finish',
-    ]);
+    expect(order).toEqual(['start', 'finish', 'start', 'start', 'finish']);
   });
 
   it('allows independent machine progress when a workout set awaits a dependency', async () => {

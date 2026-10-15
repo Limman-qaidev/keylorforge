@@ -54,7 +54,10 @@ export type StartSyncOutcome =
   | { state: 'inFlight' }
   | { state: 'acknowledged'; mutationId: string }
   | { state: 'retryable'; reason: 'network' | 'server' | 'invalidResponse' }
-  | { state: 'blocked'; reason: 'auth' | 'rejected' | 'localData' | 'dependency' }
+  | {
+      state: 'blocked';
+      reason: 'auth' | 'rejected' | 'localData' | 'dependency';
+    }
   | { state: 'conflict'; mutationId: string };
 
 const inFlight = new WeakSet<SqliteWorkoutPort>();
