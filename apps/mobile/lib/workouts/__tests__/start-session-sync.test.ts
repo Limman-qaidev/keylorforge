@@ -12,6 +12,9 @@ const A = 'a3dbf764-e0e3-41aa-9895-6e58eadfbb14';
 const B = 'e426dd13-344a-4b69-8920-cb014715c6c1';
 const SESSION = '1f2d27bc-4904-4f4f-9367-39565d78f211';
 const MUTATION = 'bf6ba981-334f-4d88-b081-c74d65b940fa';
+const NEXT_SESSION = '9c01923d-c348-4346-9d6b-5795d86cd98d';
+const NEXT_MUTATION = '85d091a0-16d6-46d8-a9f9-fbd7a0355cb7';
+const TERMINAL_MUTATION = '0169b5c1-46f8-4ae5-a3a6-26eaa36a03bd';
 const payload = {
   protocol_version: 1,
   session_id: SESSION,
@@ -31,6 +34,19 @@ const session = {
   original_agenda_json: '{}',
   agenda_revision: 0,
 };
+const nextPayload = {
+  ...payload,
+  session_id: NEXT_SESSION,
+  mutation_id: NEXT_MUTATION,
+  started_at: '2026-10-09T14:30:00.000Z',
+};
+const nextSession = {
+  ...session,
+  session_id: NEXT_SESSION,
+  started_at_utc: nextPayload.started_at,
+  local_date: '2026-10-09',
+};
+
 type Row = {
   subject: string;
   mutation_id: string;
@@ -84,10 +100,29 @@ class FakeDB implements SqliteWorkoutPort {
     ...args: (string | number | null)[]
   ): Promise<T | null> {
     this.onRead?.();
+    if (sql.includes('FROM local_workout_outbox AS terminal')) {
+      const rows = [...this.outbox.values()];
+      const currentIndex = rows.findIndex(
+        (candidate) =>
+          candidate.subject === args[0] && candidate.mutation_id === args[1],
+      );
+      if (currentIndex < 0) return null;
+      const current = rows[currentIndex]!;
+      return {
+        count: rows.slice(0, currentIndex).filter(
+          (row) =>
+            row.subject === current.subject &&
+            row.session_id !== current.session_id &&
+            ['FINISH_SESSION', 'CANCEL_SESSION'].includes(row.mutation_kind) &&
+            row.delivery_state !== 'acknowledged',
+        ).length,
+      } as T;
+    }
     if (sql.includes('FROM local_workout_sessions')) {
-      return (
-        args[0] === A && args[1] === SESSION ? { ...session } : null
-      ) as T | null;
+      if (args[0] === A && args[1] === SESSION) return { ...session } as T;
+      if (args[0] === A && args[1] === NEXT_SESSION)
+        return { ...nextSession } as T;
+      return null;
     }
     if (sql.includes("mutation_kind = 'START_SESSION'")) {
       return ([...this.outbox.values()].find(
@@ -135,6 +170,31 @@ class FakeDB implements SqliteWorkoutPort {
       throw error;
     }
   }
+}
+
+function addLaterOfflineWorkout(
+  db: FakeDB,
+  kind: 'FINISH_SESSION' | 'CANCEL_SESSION',
+  state: string = 'pending',
+): void {
+  db.outbox.set(TERMINAL_MUTATION, {
+    subject: A,
+    mutation_id: TERMINAL_MUTATION,
+    session_id: SESSION,
+    mutation_kind: kind,
+    protocol_version: 1,
+    payload_json: '{}',
+    delivery_state: state,
+  });
+  db.outbox.set(NEXT_MUTATION, {
+    subject: A,
+    mutation_id: NEXT_MUTATION,
+    session_id: NEXT_SESSION,
+    mutation_kind: 'START_SESSION',
+    protocol_version: 1,
+    payload_json: JSON.stringify(nextPayload),
+    delivery_state: 'pending',
+  });
 }
 
 function auth() {
@@ -200,6 +260,73 @@ describe('M3 START_SESSION real HTTP / offline outbox reconciliation', () => {
     expect(db.state('other')).toBe('pending');
     expect(await syncNextPendingStart(db, auth().access)).toEqual({
       state: 'idle',
+    });
+  });
+
+  it.each(['FINISH_SESSION', 'CANCEL_SESSION'] as const)(
+    'blocks START B until earlier %s A is ACKed, even after START A ACK',
+    async (kind) => {
+      const db = new FakeDB();
+      addLaterOfflineWorkout(db, kind);
+      expect(await syncNextPendingStart(db, auth().access)).toEqual({
+        state: 'acknowledged',
+        mutationId: MUTATION,
+      });
+      jest.mocked(requestApi).mockClear();
+
+      expect(await syncNextPendingStart(db, auth().access)).toEqual({
+        state: 'blocked',
+        reason: 'dependency',
+      });
+      expect(db.state(NEXT_MUTATION)).toBe('pending');
+      expect(requestApi).not.toHaveBeenCalled();
+
+      db.outbox.get(TERMINAL_MUTATION)!.delivery_state = 'acknowledged';
+      jest.mocked(requestApi).mockResolvedValueOnce(
+        response(201, {
+          id: NEXT_SESSION,
+          started_at: '2026-10-09T14:30:00+00:00',
+          local_date: '2026-10-09',
+        }),
+      );
+      expect(await syncNextPendingStart(db, auth().access)).toEqual({
+        state: 'acknowledged',
+        mutationId: NEXT_MUTATION,
+      });
+      expect(db.state(NEXT_MUTATION)).toBe('acknowledged');
+      expect(requestApi).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('preserves START B after an unresolved earlier terminal conflict', async () => {
+    const db = new FakeDB();
+    addLaterOfflineWorkout(db, 'FINISH_SESSION', 'conflict');
+    await syncNextPendingStart(db, auth().access);
+    jest.mocked(requestApi).mockClear();
+    expect(await syncNextPendingStart(db, auth().access)).toEqual({
+      state: 'blocked',
+      reason: 'dependency',
+    });
+    expect(db.state(NEXT_MUTATION)).toBe('pending');
+    expect(requestApi).not.toHaveBeenCalled();
+  });
+
+  it('does not block START B on another account terminal', async () => {
+    const db = new FakeDB();
+    addLaterOfflineWorkout(db, 'FINISH_SESSION');
+    db.outbox.get(TERMINAL_MUTATION)!.subject = B;
+    await syncNextPendingStart(db, auth().access);
+    jest.mocked(requestApi).mockClear();
+    jest.mocked(requestApi).mockResolvedValueOnce(
+      response(201, {
+        id: NEXT_SESSION,
+        started_at: '2026-10-09T14:30:00+00:00',
+        local_date: '2026-10-09',
+      }),
+    );
+    expect(await syncNextPendingStart(db, auth().access)).toEqual({
+      state: 'acknowledged',
+      mutationId: NEXT_MUTATION,
     });
   });
 
