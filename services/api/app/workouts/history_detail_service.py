@@ -86,7 +86,10 @@ def get_completed_workout_detail(
     principal: AuthenticatedPrincipal,
     session_id: UUID,
 ) -> CompletedWorkoutDetail:
-    owner = _active_owner(session, principal, lock=False)
+    # Hold the owner's row lock through this read transaction. Account
+    # deletion takes the same lock: do not return detail after deletion
+    # has concurrently terminalized the identity.
+    owner = _active_owner(session, principal, lock=True)
     workout = session.get(WorkoutSession, session_id)
     if (
         workout is None
