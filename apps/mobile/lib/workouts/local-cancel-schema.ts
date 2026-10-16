@@ -44,7 +44,8 @@ INSERT INTO local_workout_outbox_v5
    payload_json, delivery_state, created_at_utc, depends_on_mutation_id)
 SELECT subject, mutation_id, session_id, mutation_kind, protocol_version,
        payload_json, delivery_state, created_at_utc, depends_on_mutation_id
-FROM local_workout_outbox;
+FROM local_workout_outbox
+ORDER BY rowid;
 
 DROP TABLE local_workout_outbox;
 ALTER TABLE local_workout_outbox_v5 RENAME TO local_workout_outbox;
