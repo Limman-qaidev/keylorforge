@@ -33,7 +33,7 @@ describe('M3 Expo SQLite native database binding', () => {
     expect(() => openPreviewWorkoutDatabase('invalid')).toThrow();
   });
 
-  it('initializes and migrates the persisted v5 schema exactly once and retains its connection', async () => {
+  it('initializes and migrates the persisted v6 schema exactly once and retains its connection', async () => {
     const queries: string[] = [];
     const database = {
       execAsync: jest.fn(async (sql: string) => {
@@ -83,9 +83,17 @@ describe('M3 Expo SQLite native database binding', () => {
       ),
     ).toBe(true);
     expect(queries.some((sql) => sql.includes('FINISH_SESSION'))).toBe(true);
-    expect(queries[queries.length - 1]).toBe('PRAGMA foreign_keys = ON;');
+    expect(queries[queries.length - 1]).toBe(
+      'PRAGMA user_version = 6; COMMIT;',
+    );
     expect(queries).toContain('PRAGMA user_version = 4; COMMIT;');
     expect(queries).toContain('PRAGMA user_version = 5; COMMIT;');
+    expect(queries).toContain('PRAGMA user_version = 6; COMMIT;');
+    expect(
+      queries.some((sql) =>
+        sql.includes('CREATE TABLE local_remote_workout_history'),
+      ),
+    ).toBe(true);
     expect(
       queries.some((sql) =>
         sql.includes('CREATE TABLE local_workout_cancellations'),

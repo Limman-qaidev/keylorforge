@@ -24,6 +24,15 @@ export type RemoteRecoveryPreview = {
   workingSets: number;
 };
 
+export type RemoteRecoveryCandidate = {
+  status: 'candidate';
+  preview: RemoteRecoveryPreview;
+  /** Fully verified server response, without authentication data. */
+  detailJson: string;
+  completionSnapshotId: string;
+  finishMutationId: string;
+};
+
 export type RemoteRecoveryCheck =
   | { status: 'candidate'; preview: RemoteRecoveryPreview }
   | {
@@ -212,6 +221,45 @@ function validateDetail(
   };
 }
 
+/**
+ * Defense in depth at the SQLite write boundary. The remote GET and history
+ * audit occur outside this transaction; never trust metadata independently
+ * of the exact native-set detail being persisted.
+ */
+export function isVerifiedRemoteHistoryCandidate(
+  candidate: RemoteRecoveryCandidate,
+  requestedSessionId: string,
+): boolean {
+  if (
+    !id(requestedSessionId) ||
+    candidate.preview.sessionId !== requestedSessionId ||
+    !id(candidate.completionSnapshotId) ||
+    !id(candidate.finishMutationId) ||
+    typeof candidate.detailJson !== 'string' ||
+    candidate.detailJson.length > 512_000
+  ) {
+    return false;
+  }
+  try {
+    const data: unknown = JSON.parse(candidate.detailJson);
+    const source = record(data);
+    const preview = validateDetail(data, requestedSessionId);
+    return (
+      source !== null &&
+      preview !== null &&
+      source.completion_snapshot_id === candidate.completionSnapshotId &&
+      source.finish_mutation_id === candidate.finishMutationId &&
+      preview.sessionId === candidate.preview.sessionId &&
+      preview.finishedAt === candidate.preview.finishedAt &&
+      preview.occurrenceCount === candidate.preview.occurrenceCount &&
+      preview.confirmedSets === candidate.preview.confirmedSets &&
+      preview.workingSets === candidate.preview.workingSets
+    );
+  } catch {
+    return false;
+  }
+}
+
 async function hasAnyLocalTrace(
   db: SqliteWorkoutPort,
   subject: string,
@@ -230,11 +278,13 @@ async function hasAnyLocalTrace(
   return session !== null || mutation !== null;
 }
 
-export async function previewRemoteOnlyWorkout(
+export async function fetchRemoteOnlyWorkoutCandidate(
   db: SqliteWorkoutPort,
   access: StartSyncAccess,
   sessionId: string,
-): Promise<RemoteRecoveryCheck> {
+): Promise<
+  RemoteRecoveryCandidate | Extract<RemoteRecoveryCheck, { status: 'paused' }>
+> {
   if (!id(sessionId)) return { status: 'paused', reason: 'invalidResponse' };
   const subject = ownerOf(access);
   const canonicalId = sessionId.toLowerCase();
@@ -297,5 +347,35 @@ export async function previewRemoteOnlyWorkout(
     return { status: 'paused', reason: 'localCollision' };
   }
   fence(access, subject);
-  return { status: 'candidate', preview };
+  const responseDetail = record(data);
+  if (
+    !responseDetail ||
+    !id(responseDetail.completion_snapshot_id) ||
+    !id(responseDetail.finish_mutation_id)
+  ) {
+    return { status: 'paused', reason: 'invalidResponse' };
+  }
+  const detailJson = JSON.stringify(data);
+  if (detailJson.length > 512_000) {
+    return { status: 'paused', reason: 'invalidResponse' };
+  }
+  return {
+    status: 'candidate',
+    preview,
+    detailJson,
+    completionSnapshotId: responseDetail.completion_snapshot_id,
+    finishMutationId: responseDetail.finish_mutation_id,
+  };
+}
+
+/** Public non-mutating preflight never exposes the full historical payload. */
+export async function previewRemoteOnlyWorkout(
+  db: SqliteWorkoutPort,
+  access: StartSyncAccess,
+  sessionId: string,
+): Promise<RemoteRecoveryCheck> {
+  const result = await fetchRemoteOnlyWorkoutCandidate(db, access, sessionId);
+  return result.status === 'candidate'
+    ? { status: 'candidate', preview: result.preview }
+    : result;
 }
