@@ -54,7 +54,10 @@ export type StartSyncOutcome =
   | { state: 'inFlight' }
   | { state: 'acknowledged'; mutationId: string }
   | { state: 'retryable'; reason: 'network' | 'server' | 'invalidResponse' }
-  | { state: 'blocked'; reason: 'auth' | 'rejected' | 'localData' }
+  | {
+      state: 'blocked';
+      reason: 'auth' | 'rejected' | 'localData' | 'dependency';
+    }
   | { state: 'conflict'; mutationId: string };
 
 const inFlight = new WeakSet<SqliteWorkoutPort>();
@@ -234,7 +237,7 @@ export async function syncNextPendingStart(
   try {
     const subject = currentSubject(access);
     const row = await db.getFirstAsync<StartRow>(
-      "SELECT * FROM local_workout_outbox WHERE subject = ? AND mutation_kind = 'START_SESSION' AND delivery_state = 'pending' ORDER BY created_at_utc, mutation_id LIMIT 1",
+      "SELECT * FROM local_workout_outbox WHERE subject = ? AND mutation_kind = 'START_SESSION' AND delivery_state = 'pending' ORDER BY rowid LIMIT 1",
       subject,
     );
     ensureSubject(access, subject);
@@ -253,6 +256,33 @@ export async function syncNextPendingStart(
     ensureSubject(access, subject);
     if (!local || !validStartCommand(row, local)) {
       return { state: 'blocked', reason: 'localData' };
+    }
+
+    // An offline START B can exist while the earlier, locally finished or
+    // cancelled workout A is still ACTIVE remotely. Do not send START B until
+    // the earlier terminal mutation is durably ACKed. SQLite insertion order
+    // is authoritative here; device timestamps may move backwards offline.
+    const earlierTerminal = await db.getFirstAsync<{ count: number }>(
+      `SELECT COUNT(*) AS count
+       FROM local_workout_outbox AS terminal
+       JOIN local_workout_outbox AS current
+         ON current.subject = terminal.subject
+       WHERE current.subject = ? AND current.mutation_id = ?
+         AND current.mutation_kind = 'START_SESSION'
+         AND terminal.session_id != current.session_id
+         AND terminal.rowid < current.rowid
+         AND terminal.mutation_kind IN ('FINISH_SESSION', 'CANCEL_SESSION')
+         AND terminal.delivery_state != 'acknowledged'`,
+      subject,
+      row.mutation_id,
+    );
+    ensureSubject(access, subject);
+    if (!earlierTerminal || !Number.isSafeInteger(earlierTerminal.count)) {
+      return { state: 'blocked', reason: 'localData' };
+    }
+    if (earlierTerminal.count > 0) {
+      // Let the coordinator drain prior sets and FINISH/CANCEL first.
+      return { state: 'blocked', reason: 'dependency' };
     }
 
     const credentials = await access.acquireCurrentCredentials();
