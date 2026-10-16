@@ -35,7 +35,10 @@ def get_authoritative_workout_lifecycle(
     session_id: UUID,
 ) -> WorkoutLifecycleStateResponse:
     """Return only a session owned by the authenticated active application user."""
-    owner = _active_owner(session, principal, lock=False)
+    # Serialize this read with account deletion, exactly like the active
+    # session and completed-history endpoints. Holding the owner row lock until
+    # transaction close prevents returning a stale pre-deletion lifecycle.
+    owner = _active_owner(session, principal, lock=True)
     workout = session.get(WorkoutSession, session_id)
     if workout is None or workout.owner_user_id != owner.id:
         raise HTTPException(404, detail="workout session not found")
