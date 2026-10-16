@@ -12,7 +12,9 @@ from app.auth.jwt_verifier import AuthenticatedPrincipal
 from app.workouts import history_detail_service
 
 
-def test_completed_detail_locks_owner_before_read(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_completed_detail_locks_owner_before_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Even a missing workout must lock the owner's row before probing data."""
     principal = AuthenticatedPrincipal(external_subject=uuid4())
     owner = SimpleNamespace(id=uuid4())
