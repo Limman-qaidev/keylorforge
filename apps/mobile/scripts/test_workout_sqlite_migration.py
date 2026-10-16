@@ -754,7 +754,126 @@ def test_finish_v4_upgrade():
 
 
 
+def test_outbox_causal_order_across_rebuilds():
+    """Production causal START gate must survive v1-v5 outbox rebuilds."""
+    db = sqlite3.connect(":memory:")
+    db.executescript(sql("local-schema.ts", "LOCAL_WORKOUT_SCHEMA_SQL"))
+    db.execute("PRAGMA foreign_keys = ON")
+    owner = "a3dbf764-e0e3-41aa-9895-6e58eadfbb14"
+    other = "e426dd13-344a-4b69-8920-cb014715c6c1"
+    first = "1f2d27bc-4904-4f4f-9367-39565d78f211"
+    second = "9c01923d-c348-4346-9d6b-5795d86cd98d"
+    alien = "d811e91f-2fc2-4af6-a8d7-90bc9a816922"
+    start_a = "bf6ba981-334f-4d88-b081-c74d65b940fa"
+    start_b = "85d091a0-16d6-46d8-a9f9-fbd7a0355cb7"
+    terminal_a = "0169b5c1-46f8-4ae5-a3a6-26eaa36a03bd"
+    alien_start = "010194a7-20d2-4e67-8f03-672420e04a99"
+
+    def session(subject, session_id):
+        db.execute(
+            "INSERT INTO local_workout_sessions "
+            "(subject,session_id,origin,started_at_utc,time_zone,"
+            "utc_offset_minutes,local_date,original_agenda_json) "
+            "VALUES (?,?,'free','2026-10-08T14:30:00Z','Europe/Madrid',"
+            "120,'2026-10-08','{}')",
+            (subject, session_id),
+        )
+
+    def mutation(subject, mutation_id, session_id, kind, time, parent=None):
+        db.execute(
+            "INSERT INTO local_workout_outbox "
+            "(subject,mutation_id,session_id,mutation_kind,protocol_version,"
+            "payload_json,created_at_utc,depends_on_mutation_id) "
+            "VALUES (?,?,?,?,1,'{}',?,?)",
+            (subject, mutation_id, session_id, kind, time, parent),
+        )
+
+    def ordered():
+        return db.execute(
+            "SELECT mutation_id FROM local_workout_outbox ORDER BY rowid"
+        ).fetchall()
+
+    session(other, alien)
+    mutation(other, alien_start, alien, "START_SESSION", "2030-10-08T14:00:00Z")
+    session(owner, first)
+    mutation(owner, start_a, first, "START_SESSION", "2029-10-08T14:00:00Z")
+    db.commit()
+    base_order = ordered()
+
+    def upgrade(file, prefix, target, fk_off=False):
+        db.commit()
+        if fk_off:
+            db.execute("PRAGMA foreign_keys = OFF")
+        db.executescript(sql(file, prefix))
+        assert not db.execute("PRAGMA foreign_key_check").fetchall()
+        db.execute(f"PRAGMA user_version = {target}")
+        db.commit()
+        db.execute("PRAGMA foreign_keys = ON")
+        assert db.execute("PRAGMA user_version").fetchone()[0] == target
+
+    upgrade("local-performed-schema.ts", "LOCAL_WORKOUT_V2_MIGRATION_SQL", 2, True)
+    assert ordered() == base_order
+    upgrade("local-machine-schema.ts", "LOCAL_WORKOUT_V3_MIGRATION_SQL", 3)
+    assert ordered() == base_order
+    upgrade("local-finish-schema.ts", "LOCAL_WORKOUT_V4_MIGRATION_SQL", 4, True)
+    assert ordered() == base_order
+
+    # B begins locally only after A has been explicitly finished. Simulate
+    # a backwards device clock to prove the sender relies on durable order.
+    db.execute(
+        "UPDATE local_workout_sessions SET lifecycle_state='completed' "
+        "WHERE subject=? AND session_id=?", (owner, first)
+    )
+    mutation(
+        owner, terminal_a, first, "FINISH_SESSION",
+        "2030-10-08T15:00:00Z", start_a,
+    )
+    session(owner, second)
+    mutation(
+        owner, start_b, second, "START_SESSION", "2020-10-08T13:00:00Z"
+    )
+    db.commit()
+    expected_order = ordered()
+    assert expected_order == [
+        (alien_start,), (start_a,), (terminal_a,), (start_b,)
+    ]
+
+    upgrade("local-cancel-schema.ts", "LOCAL_WORKOUT_V5_MIGRATION_SQL", 5, True)
+    assert ordered() == expected_order
+
+    # Execute the EXACT SQL from the production START sender on real SQLite,
+    # as distinct from Jest's synthetic in-memory database.
+    sender = (root / "start-session-sync.ts").read_text(encoding="utf-8")
+    query = "SELECT COUNT(*) AS count" + sender.split(
+        "`SELECT COUNT(*) AS count", 1
+    )[1].split("`", 1)[0]
+
+    def blocked(subject):
+        return db.execute(query, (subject, start_b)).fetchone()[0]
+
+    assert blocked(owner) == 1
+    assert blocked(other) == 0
+    db.execute(
+        "UPDATE local_workout_outbox SET delivery_state='acknowledged' "
+        "WHERE subject=? AND mutation_id=?", (owner, terminal_a)
+    )
+    assert blocked(owner) == 0
+    db.execute(
+        "UPDATE local_workout_outbox SET delivery_state='pending', "
+        "mutation_kind='CANCEL_SESSION' "
+        "WHERE subject=? AND mutation_id=?", (owner, terminal_a)
+    )
+    assert blocked(owner) == 1
+    db.commit()
+    assert not db.execute("PRAGMA foreign_key_check").fetchall()
+    print(
+        "PASS: v1-v5 preserve cross-owner rowid order; real causal SQL "
+        "blocks START B until earlier FINISH/CANCEL ACK"
+    )
+
+
 if __name__ == "__main__":
     test_upgrade()
     test_machine_v3_upgrade()
     test_finish_v4_upgrade()
+    test_outbox_causal_order_across_rebuilds()
