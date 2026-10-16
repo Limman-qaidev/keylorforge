@@ -105,6 +105,31 @@ describe('bounded causal Workout M3 sync coordinator', () => {
     ]);
   });
 
+  it('drains earlier FINISH before retrying an offline START for the next session', async () => {
+    const order: string[] = [];
+    let startCalls = 0;
+    let finishCalls = 0;
+    jest.mocked(syncNextPendingStart).mockImplementation(async () => {
+      startCalls++;
+      order.push('start');
+      if (startCalls === 1) return { state: 'blocked', reason: 'dependency' };
+      if (startCalls === 2) return { state: 'acknowledged', mutationId: OTHER };
+      return { state: 'idle' };
+    });
+    jest.mocked(syncNextPendingFinish).mockImplementation(async () => {
+      finishCalls++;
+      order.push('finish');
+      return finishCalls === 1
+        ? { state: 'acknowledged', mutationId: OWNER }
+        : { state: 'idle' };
+    });
+    expect(await drainWorkoutSync(db, auth().access)).toEqual({
+      state: 'idle',
+      acknowledged: 2,
+    });
+    expect(order).toEqual(['start', 'finish', 'start', 'start', 'finish']);
+  });
+
   it('allows independent machine progress when a workout set awaits a dependency', async () => {
     jest.mocked(syncNextPendingStart).mockResolvedValue({ state: 'idle' });
     jest
