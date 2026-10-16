@@ -8,6 +8,7 @@ on:
       - feat/m3-mob-012-remote-history-readmodel
       - feat/m3-mob-013-unified-history-readmodel
       - feat/m3-mob-014-bounded-remote-recovery
+      - feat/m3-mob-015-remote-history-drift-diagnostic
 
 permissions:
   contents: read
