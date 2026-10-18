@@ -194,7 +194,12 @@ export async function runIsolatedM3TransportQa(
   }
   if (finished.length === 1) {
     notify('Recuperando prueba previa; verificando ACK y PostgreSQL...');
-    return verifyIsolatedM3Finished(db, access, subject, finished[0]!.session_id);
+    return verifyIsolatedM3Finished(
+      db,
+      access,
+      subject,
+      finished[0]!.session_id,
+    );
   }
 
   let active = await getActiveLocalWorkout(db, access);

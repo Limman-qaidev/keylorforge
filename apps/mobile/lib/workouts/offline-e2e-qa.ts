@@ -89,7 +89,10 @@ export async function prepareOfflineM3Qa(
   if (!response.ok || (await response.json()) !== null) {
     throw new Error('QA: el servidor tiene una sesión activa; no interferir.');
   }
-  const page = await listExercises(creds.accessToken, { page: 1, pageSize: 100 });
+  const page = await listExercises(creds.accessToken, {
+    page: 1,
+    pageSize: 100,
+  });
   checkOwner(access, subject);
   const exercise = page.items.find((item) => item.measurement_type === 'reps');
   if (!exercise || !UUID.test(exercise.id)) {
@@ -159,7 +162,10 @@ export async function createOfflineM3Qa(
     let active = await getActiveLocalWorkout(db, access);
     if (!active) {
       active = await beginFreeWorkout(
-        db, access, secureWorkoutIds, deviceWorkoutClock,
+        db,
+        access,
+        secureWorkoutIds,
+        deviceWorkoutClock,
       );
     }
     sessionId = active.session_id;
@@ -169,7 +175,10 @@ export async function createOfflineM3Qa(
     }
     if (overview.totalSets === 0) {
       await recordFreeWorkoutSet(
-        db, access, secureWorkoutIds, deviceWorkoutClock,
+        db,
+        access,
+        secureWorkoutIds,
+        deviceWorkoutClock,
         {
           canonicalExerciseId: exerciseId,
           role: 'WORKING',
@@ -185,7 +194,8 @@ export async function createOfflineM3Qa(
   checkOwner(access, subject);
   const row = await db.getFirstAsync<{ count: number }>(
     "SELECT COUNT(*) AS count FROM local_workout_outbox WHERE subject = ? AND session_id = ? AND delivery_state = 'pending'",
-    subject, sessionId,
+    subject,
+    sessionId,
   );
   checkOwner(access, subject);
   if (!row || row.count !== 3) {
@@ -205,7 +215,5 @@ export async function reconcileOfflineM3Qa(
   if (existing.length !== 1 || existing[0]!.working_sets !== 1) {
     throw new Error('QA: falta una única sesión completada offline.');
   }
-  return verifyIsolatedM3Finished(
-    db, access, subject, existing[0]!.session_id,
-  );
+  return verifyIsolatedM3Finished(db, access, subject, existing[0]!.session_id);
 }
