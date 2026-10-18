@@ -30,6 +30,11 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
+      # TEMP QA diagnostic: use exact formatter output, remove before acceptance.
+      - name: Diagnose new QA formatting
+        run: |
+          ./node_modules/.bin/prettier --write app/workout-offline-qa.tsx lib/workouts/offline-e2e-qa.ts lib/workouts/remote-e2e-qa.ts
+          git diff -- app/workout-offline-qa.tsx lib/workouts/offline-e2e-qa.ts lib/workouts/remote-e2e-qa.ts
       - name: Check formatting
         run: npm run format:check
 
