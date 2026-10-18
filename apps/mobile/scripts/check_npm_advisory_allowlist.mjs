@@ -1,19 +1,12 @@
-// Temporary security-debt allowance for the Expo SDK 57 dependency tree.
+// Temporary security-debt allowance for five unpatched advisories in the Expo SDK 57 tree.
 // See GitHub issue #143. No new or critical advisory may pass this gate.
 // This is NOT a claim that the listed vulnerabilities are unexploitable.
 import { readFileSync } from 'node:fs';
 
 const acceptedByPackage = {
-  'brace-expansion': [
-    'GHSA-6j4f-fj2g-mc7p',
-    'GHSA-q2hr-2g5m-vwhr',
-    'GHSA-qhr7-859c-m2p7',
-  ],
   braces: ['GHSA-vfj7-8cjw-p6xm'],
-  compression: ['GHSA-vc2v-76pw-4v95'],
   'decode-uri-component': ['GHSA-vcc3-ghjq-m6fr'],
   'node-forge': ['GHSA-86w9-cpqp-85rv'],
-  'source-map-js': ['GHSA-68fv-2mgg-jv7q'],
   'sprintf-js': ['GHSA-hp3w-g68c-fv3c'],
   uuid: ['GHSA-w5hq-g745-h8pq'],
 };
