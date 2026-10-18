@@ -31,10 +31,12 @@ jobs:
         run: semgrep scan --config p/owasp-top-ten --error --json --output semgrep-report.json .
       - name: Explain baseline result
         if: always()
+        env:
+          SCAN_OUTCOME: ${{ steps.scan.outcome }}
         shell: sh
         run: |
           echo "### Semgrep CE — informative security baseline" >> "$GITHUB_STEP_SUMMARY"
-          echo "Outcome: ${{ steps.scan.outcome }}. Failed means findings or scanner errors; inspect report and runner logs." >> "$GITHUB_STEP_SUMMARY"
+          echo "Outcome: $SCAN_OUTCOME. Failed means findings or scanner errors; inspect report and runner logs." >> "$GITHUB_STEP_SUMMARY"
           echo "This is NOT independent human review, and a passing scan does NOT certify security." >> "$GITHUB_STEP_SUMMARY"
       - name: Preserve non-secret code findings for triage
         if: always()
@@ -60,9 +62,11 @@ jobs:
         run: npm audit --omit=dev --audit-level=high --json > npm-security-report.json
       - name: Explain baseline result
         if: always()
+        env:
+          AUDIT_OUTCOME: ${{ steps.audit.outcome }}
         run: |
           echo "### npm dependencies — informative security baseline" >> "$GITHUB_STEP_SUMMARY"
-          echo "Outcome: ${{ steps.audit.outcome }}. A failure can mean high/critical advisories or registry connectivity." >> "$GITHUB_STEP_SUMMARY"
+          echo "Outcome: $AUDIT_OUTCOME. A failure can mean high/critical advisories or registry connectivity." >> "$GITHUB_STEP_SUMMARY"
       - name: Preserve dependency advisory report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -92,9 +96,12 @@ jobs:
         run: pip-audit --no-deps -r database/constraints.txt -f json -o db-python-security-report.json
       - name: Explain baseline result
         if: always()
+        env:
+          API_AUDIT_OUTCOME: ${{ steps.api.outcome }}
+          DB_AUDIT_OUTCOME: ${{ steps.database.outcome }}
         run: |
           echo "### Python dependencies — informative security baseline" >> "$GITHUB_STEP_SUMMARY"
-          echo "API outcome: ${{ steps.api.outcome }}; database outcome: ${{ steps.database.outcome }}." >> "$GITHUB_STEP_SUMMARY"
+          echo "API outcome: $API_AUDIT_OUTCOME; database outcome: $DB_AUDIT_OUTCOME." >> "$GITHUB_STEP_SUMMARY"
           echo "Review findings and distinguish CVEs from resolver/index problems before making checks blocking." >> "$GITHUB_STEP_SUMMARY"
       - name: Preserve dependency advisory reports
         if: always()
