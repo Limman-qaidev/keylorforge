@@ -30,6 +30,11 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
+      # TEMP regression test formatter diagnostic; remove before acceptance.
+      - name: Format new offline QA regression before full checks
+        run: |
+          ./node_modules/.bin/prettier --write lib/workouts/__tests__/offline-e2e-qa.test.ts
+          git diff -- lib/workouts/__tests__/offline-e2e-qa.test.ts
       - name: Check formatting
         run: npm run format:check
 
