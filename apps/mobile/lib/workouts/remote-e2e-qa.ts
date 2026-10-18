@@ -132,7 +132,7 @@ async function drainAndRequireAck(
   }
 }
 
-async function verifyFinished(
+export async function verifyIsolatedM3Finished(
   db: SqliteWorkoutPort,
   access: StartSyncAccess,
   subject: string,
@@ -194,7 +194,7 @@ export async function runIsolatedM3TransportQa(
   }
   if (finished.length === 1) {
     notify('Recuperando prueba previa; verificando ACK y PostgreSQL...');
-    return verifyFinished(db, access, subject, finished[0]!.session_id);
+    return verifyIsolatedM3Finished(db, access, subject, finished[0]!.session_id);
   }
 
   let active = await getActiveLocalWorkout(db, access);
@@ -265,5 +265,5 @@ export async function runIsolatedM3TransportQa(
 
   notify('FINISH: completando sesión local y enviando snapshot...');
   await endFreeWorkout(db, access, secureWorkoutIds, deviceWorkoutClock);
-  return verifyFinished(db, access, subject, sessionId);
+  return verifyIsolatedM3Finished(db, access, subject, sessionId);
 }

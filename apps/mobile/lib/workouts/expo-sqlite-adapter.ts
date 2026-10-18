@@ -199,3 +199,34 @@ export function openRemoteE2eWorkoutDatabase(
   }
   return db;
 }
+
+/**
+ * An independent QA-only SQLite file for a genuine disconnected workout.
+ * Never touches production, existing remote E2E, preview, or diagnostic data.
+ */
+const offlineE2eDatabases = new Map<string, Promise<SqliteWorkoutPort>>();
+
+export function openOfflineE2eWorkoutDatabase(
+  subject: string,
+): Promise<SqliteWorkoutPort> {
+  if (!__DEV__) {
+    throw new Error('Offline transport QA is DEV-only.');
+  }
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      subject,
+    )
+  ) {
+    throw new Error('A valid authenticated subject is required.');
+  }
+  const name = `keylorforge-m3-offline-e2e-v1-${subject.toLowerCase()}.db`;
+  let db = offlineE2eDatabases.get(name);
+  if (!db) {
+    db = initializeNativeWorkoutDatabase(name).catch((error: unknown) => {
+      offlineE2eDatabases.delete(name);
+      throw error;
+    });
+    offlineE2eDatabases.set(name, db);
+  }
+  return db;
+}

@@ -96,6 +96,19 @@ function HomeScreen() {
         </Pressable>
       ) : null}
 
+      {__DEV__ ? (
+        <Pressable
+          accessibilityLabel="Abrir QA sin backend M3"
+          accessibilityRole="button"
+          onPress={() => router.push('/workout-offline-qa')}
+          style={styles.profileLink}
+        >
+          <Text style={styles.profileLinkText}>
+            QA M3 · Sin backend → reconexión (SQLite separada)
+          </Text>
+        </Pressable>
+      ) : null}
+
       <View style={styles.sectionHeader}>
         <Text accessibilityRole="header" style={styles.sectionTitle}>
           Tu actividad
