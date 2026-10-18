@@ -63,6 +63,16 @@ jobs:
       - name: Reject new or critical npm advisories
         working-directory: apps/mobile
         run: node scripts/check_npm_advisory_allowlist.mjs npm-security-report.json
+
+      # Temporary read-only CI workspace trial; never commit automatically.
+      - name: Inspect nonbreaking transitive npm fixes
+        working-directory: apps/mobile
+        run: |
+          npm audit fix --package-lock-only --ignore-scripts --no-fund --no-audit || true
+          echo "=== PATCH STATS ==="
+          git diff --stat -- package-lock.json
+          echo "=== PATCH (first 260 lines) ==="
+          git diff -- package-lock.json | head -260 || true
       - name: Explain baseline result
         if: always()
         env:
