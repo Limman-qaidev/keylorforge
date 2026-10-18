@@ -69,10 +69,10 @@ jobs:
         working-directory: apps/mobile
         run: |
           npm audit fix --package-lock-only --ignore-scripts --no-fund --no-audit || true
+          echo "=== PATCH TARGETS ==="
+          node -e 'const p=require("./package-lock.json").packages; for(const [key,val] of Object.entries(p)){if(["brace-expansion","compression","source-map-js"].some(n=>key.endsWith("node_modules/"+n))) console.log(JSON.stringify({path:key,version:val.version,resolved:val.resolved,integrity:val.integrity,dependencies:val.dependencies,engines:val.engines}));}'
           echo "=== PATCH STATS ==="
           git diff --stat -- package-lock.json
-          echo "=== PATCH (first 260 lines) ==="
-          git diff -- package-lock.json | head -260 || true
       - name: Explain baseline result
         if: always()
         env:
