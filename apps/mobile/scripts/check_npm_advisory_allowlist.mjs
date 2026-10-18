@@ -26,7 +26,9 @@ function validateAudit(report) {
     !report.vulnerabilities ||
     !report.metadata?.vulnerabilities
   ) {
-    throw new Error('npm audit produced an incomplete report or failed to scan');
+    throw new Error(
+      'npm audit produced an incomplete report or failed to scan',
+    );
   }
 
   const counts = report.metadata.vulnerabilities;
@@ -51,7 +53,9 @@ function validateAudit(report) {
   }
 
   if (counts.total > 0 && seen.size === 0) {
-    throw new Error('npm audit reported vulnerabilities without source advisories');
+    throw new Error(
+      'npm audit reported vulnerabilities without source advisories',
+    );
   }
   if (unknown.length > 0) {
     throw new Error(`New npm advisories need triage: ${unknown.join(', ')}`);

@@ -40,12 +40,6 @@ jobs:
       - name: Check formatting
         run: npm run format:check
 
-      - name: Show advisory script formatter delta on failure
-        if: failure()
-        run: |
-          ./node_modules/.bin/prettier --write scripts/check_npm_advisory_allowlist.mjs
-          git diff -- scripts/check_npm_advisory_allowlist.mjs
-
       - name: Run lint
         run: npm run lint
 
