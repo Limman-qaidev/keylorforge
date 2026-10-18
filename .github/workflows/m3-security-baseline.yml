@@ -1,0 +1,108 @@
+# Informational first-pass security baseline for KeylorForge.
+# No Codex, no tokens, no write permissions, no uploads of potentially exposed secrets.
+# Review findings before making this a required branch-protection check.
+name: M3 Security Baseline
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: m3-security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  semgrep:
+    name: Semgrep CE (OWASP)
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+      - name: Static code security scan
+        id: scan
+        continue-on-error: true
+        run: semgrep scan --config p/owasp-top-ten --error --json --output semgrep-report.json .
+      - name: Explain baseline result
+        if: always()
+        shell: sh
+        run: |
+          echo "### Semgrep CE — informative security baseline" >> "$GITHUB_STEP_SUMMARY"
+          echo "Outcome: ${{ steps.scan.outcome }}. Failed means findings or scanner errors; inspect report and runner logs." >> "$GITHUB_STEP_SUMMARY"
+          echo "This is NOT independent human review, and a passing scan does NOT certify security." >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve non-secret code findings for triage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m3-semgrep-owasp
+          path: semgrep-report.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+  mobile-dependencies:
+    name: npm production dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.14.0'
+      - name: Audit committed mobile lockfile
+        id: audit
+        continue-on-error: true
+        working-directory: apps/mobile
+        run: npm audit --omit=dev --audit-level=high --json > npm-security-report.json
+      - name: Explain baseline result
+        if: always()
+        run: |
+          echo "### npm dependencies — informative security baseline" >> "$GITHUB_STEP_SUMMARY"
+          echo "Outcome: ${{ steps.audit.outcome }}. A failure can mean high/critical advisories or registry connectivity." >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve dependency advisory report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m3-npm-advisories
+          path: apps/mobile/npm-security-report.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+  python-dependencies:
+    name: Python pinned dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install vulnerability checker
+        run: python -m pip install 'pip-audit>=2.9,<3'
+      - name: Audit API dependency constraints
+        id: api
+        continue-on-error: true
+        run: pip-audit --no-deps -r services/api/constraints.txt -f json -o api-python-security-report.json
+      - name: Audit database dependency constraints
+        id: database
+        continue-on-error: true
+        run: pip-audit --no-deps -r database/constraints.txt -f json -o db-python-security-report.json
+      - name: Explain baseline result
+        if: always()
+        run: |
+          echo "### Python dependencies — informative security baseline" >> "$GITHUB_STEP_SUMMARY"
+          echo "API outcome: ${{ steps.api.outcome }}; database outcome: ${{ steps.database.outcome }}." >> "$GITHUB_STEP_SUMMARY"
+          echo "Review findings and distinguish CVEs from resolver/index problems before making checks blocking." >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve dependency advisory reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m3-python-advisories
+          path: |
+            api-python-security-report.json
+            db-python-security-report.json
+          if-no-files-found: ignore
+          retention-days: 7
