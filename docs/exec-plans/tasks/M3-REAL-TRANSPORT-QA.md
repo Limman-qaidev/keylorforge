@@ -136,3 +136,45 @@ are **not yet accepted**; do not mark #170 resolved.
 - No product workout route is enabled; the former "datos aislados" previews
   remain local-only.
 - Draft PR only; explicit PO approval required before any merge or release.
+
+
+## New genuine no-backend QA: PR #171 (not the already-passed online E2E)
+
+Do **not** re-run the old `Ejecutar START → SET → FINISH → ACK` button.
+Use the new DEV-only home link **`QA M3 · Sin backend → reconexión (SQLite separada)`**.
+It stores data in **`keylorforge-m3-offline-e2e-v1-<subject>.db`**, never the
+pre-existing `remote-e2e-v1` or product/workout/preview SQLite databases.
+
+This is an explicitly staged physical test. All three operations preserve
+their ledger after a force-stop or app restart, and no stage resets data.
+
+1. **Online preparation:** with the existing FastAPI `:8001` test server, existing
+   Supabase TEST login, `adb reverse tcp:8001 tcp:8001`, and Metro `:8081`
+   reachable, open the new QA screen and press **`1 · Preparar online`**.
+   It requires `/_qa/m3-ready` to attest `keylorforge_m3_e2e`,
+   refuses an existing active remote session, and saves a real REPS exercise
+   UUID to the separate SQLite file. Expect `PREPARADA`.
+2. **Genuine disconnection:** run **`adb reverse --remove tcp:8001`** (do not
+   remove reverse 8081, do not stop Metro, uninstall or clear app data).
+   Optionally enable airplane mode; USB Metro can still serve the JS bundle.
+   Press **`2 · Crear entrenamiento SIN backend`**. The code **refuses to
+   run** if `GET /health` is still reachable on port 8001, even via USB.
+   It creates a new locally finished session with one WORKING set and requires
+   **three PENDING** START/SET/FINISH mutations, with **zero POSTs** sent.
+   Expect `OFFLINE REAL · 3 pendientes`.
+   Force-stop and reopen the app **with port 8001 still disconnected** and
+   press 2 again: it MUST report the same session ID and three pending rows
+   without duplicating them.
+3. **Reconnection:** disable airplane mode if used, restore
+   **`adb reverse tcp:8001 tcp:8001`**, then press
+   **`3 · Sincronizar y verificar`**. This demands the TEST database
+   preflight, sends the original three immutable mutations in causal order,
+   verifies SQLite ACK, one server-side completed workout with one set and no
+   active server workout. Expect `PASS · reconexión · 3 ACK · 1 serie`.
+   A repeated press checks the same record; it never creates a second workout.
+
+**If the UI signs out or fails during step 2:** STOP and record only the visible
+non-sensitive message. That is an auth offline-restoration finding for #170;
+do not circumvent authentication, reset Supabase storage or pretend the step passed.
+If any stage fails, keep the isolated outbox intact for root-cause review.
+**No Android acceptance is claimed until the Product Owner observes all steps.**

@@ -1,10 +1,7 @@
 import { requestApi } from '../../api/client';
 import { openOfflineE2eWorkoutDatabase } from '../expo-sqlite-adapter';
 import { beginFreeWorkout } from '../free-workout-flow';
-import {
-  createOfflineM3Qa,
-  reconcileOfflineM3Qa,
-} from '../offline-e2e-qa';
+import { createOfflineM3Qa, reconcileOfflineM3Qa } from '../offline-e2e-qa';
 import type { StartSyncAccess } from '../start-session-sync';
 
 jest.mock('../../api/client', () => ({
@@ -75,7 +72,9 @@ describe('strict offline M3 QA transport boundary', () => {
   });
 
   it('cannot create anything without a previously seeded exercise', async () => {
-    jest.mocked(requestApi).mockRejectedValueOnce(new Error('no route to backend'));
+    jest
+      .mocked(requestApi)
+      .mockRejectedValueOnce(new Error('no route to backend'));
     jest.mocked(openOfflineE2eWorkoutDatabase).mockResolvedValue({
       getFirstAsync: jest.fn().mockResolvedValue(null),
     } as never);
