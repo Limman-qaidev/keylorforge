@@ -40,13 +40,6 @@ jobs:
       - name: Check formatting
         run: npm run format:check
 
-      # Temporary non-secret diagnostic: print formatter delta when the check fails.
-      - name: Inspect formatting delta on failure
-        if: failure()
-        run: |
-          ./node_modules/.bin/prettier --write lib/auth/__tests__/social-auth.test.ts
-          git diff -- lib/auth/__tests__/social-auth.test.ts
-
       - name: Run lint
         run: npm run lint
 

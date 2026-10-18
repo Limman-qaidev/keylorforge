@@ -191,9 +191,9 @@ describe('social auth', () => {
   it('rejects an oversized provider callback before session installation', async () => {
     const client = createClient();
     const callbackUrl = `keylorforge://auth/oauth#access_token=${'x'.repeat(8200)}&refresh_token=r`;
-    jest.mocked(WebBrowser.openAuthSessionAsync).mockResolvedValue(
-      browserResult({ type: 'success', url: callbackUrl }),
-    );
+    jest
+      .mocked(WebBrowser.openAuthSessionAsync)
+      .mockResolvedValue(browserResult({ type: 'success', url: callbackUrl }));
 
     await expect(
       authenticateWithSocialProvider(client, 'google'),

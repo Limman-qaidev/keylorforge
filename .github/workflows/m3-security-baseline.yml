@@ -1,6 +1,6 @@
-# Informational first-pass security baseline for KeylorForge.
+# Security baseline: Semgrep and Python are blocking; known npm findings are allowlisted until remediated.
 # No Codex, no tokens, no write permissions, no uploads of potentially exposed secrets.
-# Review findings before making this a required branch-protection check.
+# This is a regression gate, not a declaration of production release safety.
 name: M3 Security Baseline
 
 on:
@@ -27,7 +27,6 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Static code security scan
         id: scan
-        continue-on-error: true
         run: semgrep scan --config p/owasp-top-ten --error --json --output semgrep-report.json .
       - name: Explain baseline result
         if: always()
@@ -60,6 +59,10 @@ jobs:
         continue-on-error: true
         working-directory: apps/mobile
         run: npm audit --omit=dev --audit-level=high --json > npm-security-report.json
+      # This check blocks new findings but retains the documented existing debt.
+      - name: Reject new or critical npm advisories
+        working-directory: apps/mobile
+        run: node scripts/check_npm_advisory_allowlist.mjs npm-security-report.json
       - name: Explain baseline result
         if: always()
         env:
@@ -88,11 +91,9 @@ jobs:
         run: python -m pip install 'pip-audit>=2.9,<3'
       - name: Audit API dependency constraints
         id: api
-        continue-on-error: true
         run: pip-audit --no-deps -r services/api/constraints.txt -f json -o api-python-security-report.json
       - name: Audit database dependency constraints
         id: database
-        continue-on-error: true
         run: pip-audit --no-deps -r database/constraints.txt -f json -o db-python-security-report.json
       - name: Explain baseline result
         if: always()
