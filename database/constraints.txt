@@ -13,7 +13,7 @@ pydantic==2.13.4
 pydantic_core==2.46.4
 pydantic-settings==2.10.1
 Pygments==2.21.0
-pytest==8.4.1
+pytest==9.0.3
 python-dotenv==1.2.3
 SQLAlchemy==2.0.42
 typing_extensions==4.16.0

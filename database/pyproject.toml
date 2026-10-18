@@ -16,7 +16,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-  "pytest==8.4.1",
+  "pytest==9.0.3",
 ]
 
 [tool.pytest.ini_options]
