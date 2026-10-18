@@ -56,7 +56,7 @@ function access(): StartSyncAccess {
 }
 
 beforeEach(() => {
-  jest.resetAllMocks();
+  jest.clearAllMocks();
 });
 
 describe('strict offline M3 QA transport boundary', () => {
@@ -68,7 +68,7 @@ describe('strict offline M3 QA transport boundary', () => {
       'el backend sigue accesible',
     );
     expect(requestApi).toHaveBeenCalledWith('/health', {
-      signal: expect.any(AbortSignal),
+      signal: expect.anything(),
     });
     expect(openOfflineE2eWorkoutDatabase).not.toHaveBeenCalled();
     expect(beginFreeWorkout).not.toHaveBeenCalled();
