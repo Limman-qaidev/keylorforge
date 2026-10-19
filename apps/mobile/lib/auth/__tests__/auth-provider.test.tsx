@@ -829,6 +829,44 @@ describe('AuthProvider', () => {
     );
   });
 
+  it('ignores a stale revoked refresh after another sign-in succeeds', async () => {
+    const { client } = createClient({
+      initialSession: session('previous-account-token'),
+    });
+    let rejectRefresh: ((error: Error) => void) | undefined;
+    jest.mocked(client.auth.refreshSession).mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          rejectRefresh = reject;
+        }),
+    );
+    const { getByText, getByTestId } = await render(
+      <AuthProvider client={client}>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    await expectPhase(getByTestId, 'signedIn');
+    await act(async () => {
+      fireEvent.press(getByText('refresh session'));
+    });
+    expect(client.auth.refreshSession).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      fireEvent.press(getByText('sign in'));
+    });
+    await waitFor(() => {
+      expect(getByTestId('access-token').props.children).toBe('access-token');
+    });
+
+    await act(async () => {
+      rejectRefresh?.(new Error('Invalid refresh token: session revoked'));
+    });
+    expect(getByTestId('phase').props.children).toBe('signedIn');
+    expect(getByTestId('access-token').props.children).toBe('access-token');
+    expect(getByTestId('feedback').props.children).toBe('');
+  });
+
   it('keeps the shell signed in after a successful token refresh', async () => {
     const auth = createClient({ initialSession: session() });
     const { getByTestId } = await render(
