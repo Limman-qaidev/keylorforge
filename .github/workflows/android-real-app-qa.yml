@@ -95,6 +95,12 @@ jobs:
           test -n "$aapt"
           "$aapt" dump badging "$apk" | grep -F "name='com.jonathansalgadonieto.keylorforge.qareal'"
           unzip -l "$apk" | grep -F 'assets/index.android.bundle'
+          # A release build without a valid signature cannot be installed for
+          # QA. Check the artifact itself, not merely Gradle's SUCCESS status.
+          apksigner=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)
+          test -n "$apksigner"
+          "$apksigner" verify "$apk"
+          sha256sum "$apk" | tee "$apk.sha256"
 
       - name: Upload real app QA APK (NOT the diagnostic smoke APK)
         uses: actions/upload-artifact@v4
