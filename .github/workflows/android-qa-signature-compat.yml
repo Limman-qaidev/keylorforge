@@ -1,0 +1,59 @@
+name: Android QA Signing Compatibility
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/android-qa-signature-compat.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  signing-compatibility:
+    name: signing-compatibility
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+    steps:
+      - name: Fetch both previously published, signed QA APKs
+        run: |
+          set -euo pipefail
+          mkdir -p old new
+          # The owner installed the QA real APK from the first run.
+          gh run download 39256208703 --repo "$GITHUB_REPOSITORY" \
+            --name keylorforge-qa-real-app-apk --dir old
+          # The newly integrated M3 screen is contained in this second run.
+          gh run download 39261383795 --repo "$GITHUB_REPOSITORY" \
+            --name keylorforge-qa-real-app-apk --dir new
+          test -s old/app-release.apk
+          test -s new/app-release.apk
+
+      - name: Verify APK integrity and compare signing certificates
+        run: |
+          set -euo pipefail
+          apksigner=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)
+          test -n "$apksigner"
+          for dir in old new; do
+            "$apksigner" verify "$dir/app-release.apk"
+            expected=$(cut -d' ' -f1 "$dir/app-release.apk.sha256")
+            actual=$(sha256sum "$dir/app-release.apk" | cut -d' ' -f1)
+            test -n "$expected"
+            test "$expected" = "$actual"
+          done
+          original=$("$apksigner" verify --print-certs old/app-release.apk |
+            sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -1)
+          updated=$("$apksigner" verify --print-certs new/app-release.apk |
+            sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -1)
+          test -n "$original"
+          test -n "$updated"
+          echo "Original installed QA certificate SHA-256: $original"
+          echo "M3 integrated QA certificate SHA-256: $updated"
+          if [[ "$original" != "$updated" ]]; then
+            echo "::error::APK signatures differ. NEVER uninstall or replace existing QA data."
+            exit 1
+          fi
+          echo "PASS: in-place APK update is signature-compatible; no data wipe required."
