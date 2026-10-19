@@ -1,17 +1,27 @@
 /**
- * Package-isolated release QA variant. Opt-in only; all ordinary Expo builds
- * retain app.json unchanged, including the original Android package.
+ * Opt-in, package-isolated Android QA builds. Neither variant overwrites the
+ * original KeylorForge installation or shares its Android private storage.
+ * Diagnostic smoke and real-app QA MUST NEVER use the same applicationId.
  */
 module.exports = ({ config }) => {
-  if (process.env.KEYLORFORGE_QA_STANDALONE !== '1') return config;
+  const smoke = process.env.KEYLORFORGE_QA_STANDALONE === '1';
+  const real = process.env.KEYLORFORGE_QA_REAL === '1';
+  if (smoke && real) {
+    throw new Error('QA smoke and QA real variants are mutually exclusive.');
+  }
+  if (!smoke && !real) return config;
 
   return {
     ...config,
-    name: 'KeylorForge QA Standalone',
-    scheme: 'keylorforge-qa-standalone',
+    name: real ? 'KeylorForge QA Real' : 'KeylorForge QA Standalone',
+    scheme: real ? 'keylorforge-qa-real' : 'keylorforge-qa-standalone',
     android: {
       ...config.android,
-      package: 'com.jonathansalgadonieto.keylorforge.qastandalone',
+      package: real
+        ? 'com.jonathansalgadonieto.keylorforge.qareal'
+        : 'com.jonathansalgadonieto.keylorforge.qastandalone',
+      // Do not intercept the primary app's auth callback intents. A verified
+      // QA account must already exist; signup/recovery deep links are not QA'd.
       intentFilters: [],
     },
   };
