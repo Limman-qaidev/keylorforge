@@ -41,13 +41,17 @@ jobs:
             "$apksigner" verify "$dir/app-release.apk"
             expected=$(cut -d' ' -f1 "$dir/app-release.apk.sha256")
             actual=$(sha256sum "$dir/app-release.apk" | cut -d' ' -f1)
-            test -n "$expected"
-            test "$expected" = "$actual"
+            echo "$dir expected artifact SHA-256: $expected"
+            echo "$dir downloaded artifact SHA-256: $actual"
+            if [[ -z "$expected" || "$expected" != "$actual" ]]; then
+              echo "::error::APK artifact checksum mismatch for $dir"
+              exit 1
+            fi
+            "$apksigner" verify --print-certs "$dir/app-release.apk" > "$dir/signing.txt"
+            cat "$dir/signing.txt"
           done
-          original=$("$apksigner" verify --print-certs old/app-release.apk |
-            sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -1)
-          updated=$("$apksigner" verify --print-certs new/app-release.apk |
-            sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -1)
+          original=$(grep -im1 'certificate SHA-256 digest:' old/signing.txt | sed 's/.*: *//')
+          updated=$(grep -im1 'certificate SHA-256 digest:' new/signing.txt | sed 's/.*: *//')
           test -n "$original"
           test -n "$updated"
           echo "Original installed QA certificate SHA-256: $original"
