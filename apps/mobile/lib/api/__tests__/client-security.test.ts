@@ -47,7 +47,14 @@ describe('Android QA release loopback exception', () => {
       [url, packageId, false, 'android'],
       [url, packageId, true, 'ios'],
     ] as const) {
-      expect(isAuthorizedQaLoopback(...candidate)).toBe(false);
+      expect(
+        isAuthorizedQaLoopback(
+          candidate[0],
+          candidate[1],
+          candidate[2],
+          candidate[3],
+        ),
+      ).toBe(false);
     }
   });
 
