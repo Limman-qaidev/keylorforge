@@ -43,10 +43,16 @@ try {
   assert.match(entry, /export default function IndexRoute/);
   assert.match(entry, /useAuth\(\)/);
   assert.doesNotMatch(entry, /KeylorForge QA Standalone/);
-  process.stdout.write('PASS: three isolated Android variants; real entry intact\n');
+  process.stdout.write('PASS: isolated Android variants\n');
 } finally {
-  if (originalSmoke === undefined) delete process.env.KEYLORFORGE_QA_STANDALONE;
-  else process.env.KEYLORFORGE_QA_STANDALONE = originalSmoke;
-  if (originalReal === undefined) delete process.env.KEYLORFORGE_QA_REAL;
-  else process.env.KEYLORFORGE_QA_REAL = originalReal;
+  if (originalSmoke === undefined) {
+    delete process.env.KEYLORFORGE_QA_STANDALONE;
+  } else {
+    process.env.KEYLORFORGE_QA_STANDALONE = originalSmoke;
+  }
+  if (originalReal === undefined) {
+    delete process.env.KEYLORFORGE_QA_REAL;
+  } else {
+    process.env.KEYLORFORGE_QA_REAL = originalReal;
+  }
 }
