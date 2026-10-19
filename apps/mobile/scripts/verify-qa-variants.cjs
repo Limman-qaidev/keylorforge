@@ -4,8 +4,8 @@ const { readFileSync } = require('node:fs');
 const { resolve } = require('node:path');
 
 const configFactory = require('../app.config.js');
-const read = (path) => readFileSync(resolve(__dirname, path), 'utf8');
-const base = JSON.parse(read('../app.json')).expo;
+const read = (path) => readFileSync(resolve(process.cwd(), path), 'utf8');
+const base = JSON.parse(read('app.json')).expo;
 const originalSmoke = process.env.KEYLORFORGE_QA_STANDALONE;
 const originalReal = process.env.KEYLORFORGE_QA_REAL;
 const mainId = 'com.jonathansalgadonieto.keylorforge';
@@ -39,7 +39,7 @@ try {
   assert.throws(() => variant(true, true), /mutually exclusive/);
 
   // A real QA build must not replace the application's original entrypoint.
-  const entry = read('../app/index.tsx');
+  const entry = read('app/index.tsx');
   assert.match(entry, /export default function IndexRoute/);
   assert.match(entry, /useAuth\(\)/);
   assert.doesNotMatch(entry, /KeylorForge QA Standalone/);
