@@ -20,16 +20,22 @@ const XML = `<?xml version="1.0" encoding="utf-8"?>
 `;
 
 module.exports = function withQaLoopbackCleartext(config) {
-  if (config.android?.package !== PACKAGE ||
-      config.extra?.m3RealQaWorkoutEnabled !== true) {
-    throw new Error('Local cleartext networking must be confined to QA Real Android.');
+  if (
+    config.android?.package !== PACKAGE ||
+    config.extra?.m3RealQaWorkoutEnabled !== true
+  ) {
+    throw new Error(
+      'Local cleartext networking must be confined to QA Real Android.',
+    );
   }
 
   config = withAndroidManifest(config, (mod) => {
     const app = mod.modResults.manifest.application?.[0];
     if (!app) throw new Error('QA Android manifest has no application element.');
     if (app.$['android:networkSecurityConfig']) {
-      throw new Error('QA network security policy must not override an existing policy.');
+      throw new Error(
+        'QA network security policy must not override an existing policy.',
+      );
     }
     app.$['android:networkSecurityConfig'] = '@xml/' + NAME;
     return mod;
