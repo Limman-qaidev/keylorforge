@@ -4,10 +4,7 @@
  */
 import { requestApi } from '@/lib/api/client';
 
-import {
-  isIsolatedRealWorkoutQa,
-  M3_QA_DATABASE,
-} from './qa-real-config';
+import { isIsolatedRealWorkoutQa, M3_QA_DATABASE } from './qa-real-config';
 
 const PREFLIGHT_TIMEOUT_MS = 8_000;
 
