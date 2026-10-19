@@ -9,8 +9,7 @@ import { getApiBaseUrl } from '@/lib/api/client';
 
 export const M3_QA_API = 'http://127.0.0.1:8001';
 export const M3_QA_DATABASE = 'keylorforge_m3_e2e';
-export const M3_QA_PACKAGE =
-  'com.jonathansalgadonieto.keylorforge.qareal';
+export const M3_QA_PACKAGE = 'com.jonathansalgadonieto.keylorforge.qareal';
 
 export function isIsolatedRealWorkoutQa(): boolean {
   return (
