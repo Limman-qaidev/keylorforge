@@ -19,6 +19,11 @@ module.exports = ({ config }) => {
       ...config.extra,
       m3RealQaWorkoutEnabled: real,
     },
+    // Only the disposable Android QA package gets an ADB-loopback exception.
+    // Production and diagnostic APKs retain platform network defaults.
+    plugins: real
+      ? [...(config.plugins ?? []), './plugins/with-qa-loopback-cleartext']
+      : config.plugins,
     android: {
       ...config.android,
       package: real

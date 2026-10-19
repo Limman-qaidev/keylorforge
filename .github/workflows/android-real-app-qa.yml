@@ -82,6 +82,17 @@ jobs:
       - name: Prebuild isolated QA native project
         run: npx expo prebuild --platform android --no-install
 
+      - name: Verify QA-only loopback network policy in generated Android resources
+        run: |
+          manifest=android/app/src/main/AndroidManifest.xml
+          policy=android/app/src/main/res/xml/keylorforge_qa_loopback_network.xml
+          test -s "$policy"
+          grep -F 'android:networkSecurityConfig="@xml/keylorforge_qa_loopback_network"' "$manifest"
+          grep -F '<base-config cleartextTrafficPermitted="false"' "$policy"
+          grep -F '<domain-config cleartextTrafficPermitted="true">' "$policy"
+          grep -F '<domain includeSubdomains="false">127.0.0.1</domain>' "$policy"
+          ! grep -Fq 'android:usesCleartextTraffic="true"' "$manifest"
+
       - name: Assemble release APK containing the REAL application JS
         run: |
           chmod +x android/gradlew
