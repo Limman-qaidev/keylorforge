@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - feat/m3-mob-010-local-finish-schema
   push:
     branches:
       - main
