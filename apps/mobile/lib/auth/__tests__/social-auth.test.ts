@@ -188,6 +188,22 @@ describe('social auth', () => {
     expect(client.auth.setSession).not.toHaveBeenCalled();
   });
 
+  it('rejects an oversized provider callback before session installation', async () => {
+    const client = createClient();
+    const callbackUrl = `keylorforge://auth/oauth#access_token=${'x'.repeat(8200)}&refresh_token=r`;
+    jest
+      .mocked(WebBrowser.openAuthSessionAsync)
+      .mockResolvedValue(browserResult({ type: 'success', url: callbackUrl }));
+
+    await expect(
+      authenticateWithSocialProvider(client, 'google'),
+    ).resolves.toEqual({
+      message: SOCIAL_AUTH_ERROR_MESSAGE,
+      status: 'error',
+    });
+    expect(client.auth.setSession).not.toHaveBeenCalled();
+  });
+
   it('sanitizes an OAuth callback provider error', async () => {
     const client = createClient();
     jest.mocked(WebBrowser.openAuthSessionAsync).mockResolvedValue(

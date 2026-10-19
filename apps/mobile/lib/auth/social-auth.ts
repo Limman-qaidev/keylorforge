@@ -66,6 +66,10 @@ function readUnambiguousParameter(
 }
 
 function parseCallbackTokenPair(url: string): TokenPair | null {
+  if (url.length > 8192) {
+    return null;
+  }
+
   try {
     const parsedUrl = new URL(url);
     if (
