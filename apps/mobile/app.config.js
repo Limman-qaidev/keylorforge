@@ -15,6 +15,10 @@ module.exports = ({ config }) => {
     ...config,
     name: real ? 'KeylorForge QA Real' : 'KeylorForge QA Standalone',
     scheme: real ? 'keylorforge-qa-real' : 'keylorforge-qa-standalone',
+    extra: {
+      ...config.extra,
+      m3RealQaWorkoutEnabled: real,
+    },
     android: {
       ...config.android,
       package: real
