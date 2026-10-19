@@ -53,6 +53,11 @@ describe('Android QA release loopback exception', () => {
 
   it('retains HTTPS enforcement outside the exact QA exception', () => {
     expect(() => normaliseBaseUrl(url, false)).toThrow('HTTPS in production');
-    expect(normaliseBaseUrl(url, isAuthorizedQaLoopback(url, packageId, true, 'android'))).toBe(url);
+    expect(
+      normaliseBaseUrl(
+        url,
+        isAuthorizedQaLoopback(url, packageId, true, 'android'),
+      ),
+    ).toBe(url);
   });
 });
