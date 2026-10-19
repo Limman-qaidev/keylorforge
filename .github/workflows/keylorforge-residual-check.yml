@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - feat/m3-mob-010-local-finish-schema
+      - feat/m3-mob-012-remote-history-readmodel
 
 permissions:
   contents: read
