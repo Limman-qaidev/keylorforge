@@ -37,8 +37,10 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Use preinstalled Android SDK (avoid deprecated sdkmanager tools)
+        run: |
+          test -n "$ANDROID_HOME"
+          test -d "$ANDROID_HOME/platforms"
 
       - name: Node 22
         uses: actions/setup-node@v4
