@@ -454,6 +454,36 @@ class WorkoutMutationReceipt(Base):
     )
 
 
+
+class WorkoutCompletionSnapshot(Base):
+    """Owner-scoped immutable completed Free Workout agenda and actual-set links."""
+
+    __tablename__ = "workout_completion_snapshots"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["session_id", "owner_user_id"],
+            ["workout_sessions.id", "workout_sessions.owner_user_id"],
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint(
+            "owner_user_id", "finish_mutation_id",
+            name="uq_workout_completion_owner_finish_mutation",
+        ),
+        Index(
+            "ix_workout_completion_owner_finished",
+            "owner_user_id", "finished_at",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    session_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False, unique=True)
+    owner_user_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    finish_mutation_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    finished_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    final_agenda: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+
+
+
 class WorkoutOccurrence(Base):
     """Actual performed exercise, created only together with its first set."""
 

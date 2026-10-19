@@ -12,6 +12,7 @@ from keylorforge_database.models import (
     MachineMutationReceipt,
     MachineProfile,
     WorkoutMutationReceipt,
+    WorkoutCompletionSnapshot,
     WorkoutOccurrence,
     WorkoutSession,
     WorkoutSet,
@@ -30,6 +31,11 @@ def purge_account_workout_data(session: Session, owner_user_id: UUID) -> None:
     session.execute(
         delete(WorkoutOccurrence).where(
             WorkoutOccurrence.owner_user_id == owner_user_id
+        )
+    )
+    session.execute(
+        delete(WorkoutCompletionSnapshot).where(
+            WorkoutCompletionSnapshot.owner_user_id == owner_user_id
         )
     )
     # Once performed sets are gone, machine setup and profile references

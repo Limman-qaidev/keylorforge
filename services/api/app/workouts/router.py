@@ -5,7 +5,8 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import AwareDatetime
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import (
@@ -14,6 +15,24 @@ from app.auth.dependencies import (
     require_active_application_user,
 )
 from app.auth.jwt_verifier import AuthenticatedPrincipal
+from app.workouts.cancel_schemas import (
+    CancelFreeWorkoutRequest,
+    CancelFreeWorkoutResponse,
+)
+from app.workouts.cancel_service import cancel_free_workout
+from app.workouts.finish_schemas import (
+    FinishFreeWorkoutRequest,
+    FinishFreeWorkoutResponse,
+)
+from app.workouts.finish_service import finish_free_workout
+from app.workouts.history_detail_service import (
+    CompletedWorkoutDetail,
+    get_completed_workout_detail,
+)
+from app.workouts.history_service import (
+    CompletedWorkoutHistoryPage,
+    list_authoritative_completed_workouts,
+)
 from app.workouts.schemas import StartFreeWorkoutRequest, WorkoutSessionResponse
 from app.workouts.service import get_active_free_workout, start_free_workout
 from app.workouts.set_schemas import (
@@ -51,6 +70,23 @@ def active_session(
     return get_active_free_workout(session=session, principal=principal)
 
 
+@router.get("/history", response_model=CompletedWorkoutHistoryPage)
+def completed_history(
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_authenticated_principal)],
+    session: Annotated[Session, Depends(get_database_session)],
+    limit: Annotated[int, Query(ge=1, le=50)] = 20,
+    before_finished_at: Annotated[AwareDatetime | None, Query()] = None,
+    before_session_id: Annotated[UUID | None, Query()] = None,
+) -> CompletedWorkoutHistoryPage:
+    return list_authoritative_completed_workouts(
+        session=session,
+        principal=principal,
+        limit=limit,
+        before_finished_at=before_finished_at,
+        before_session_id=before_session_id,
+    )
+
+
 @router.post(
     "/{session_id}/sets/first",
     response_model=ConfirmedSetResponse,
@@ -81,3 +117,49 @@ def confirm_additional_performed_set(
     if request.session_id != session_id:
         raise HTTPException(status_code=422, detail="session ID mismatch")
     return confirm_performed_set(session=session, principal=principal, request=request)
+
+
+@router.post(
+    "/{session_id}/finish",
+    response_model=FinishFreeWorkoutResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def finish_session(
+    session_id: UUID,
+    request: FinishFreeWorkoutRequest,
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_authenticated_principal)],
+    session: Annotated[Session, Depends(get_database_session)],
+) -> FinishFreeWorkoutResponse:
+    if request.session_id != session_id:
+        raise HTTPException(status_code=422, detail="session ID mismatch")
+    return finish_free_workout(session=session, principal=principal, request=request)
+
+
+@router.post(
+    "/{session_id}/cancel",
+    response_model=CancelFreeWorkoutResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def cancel_session(
+    session_id: UUID,
+    request: CancelFreeWorkoutRequest,
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_authenticated_principal)],
+    session: Annotated[Session, Depends(get_database_session)],
+) -> CancelFreeWorkoutResponse:
+    if request.session_id != session_id:
+        raise HTTPException(status_code=422, detail="session ID mismatch")
+    return cancel_free_workout(session=session, principal=principal, request=request)
+
+
+@router.get(
+    "/{session_id}/history-detail",
+    response_model=CompletedWorkoutDetail,
+)
+def completed_workout_detail(
+    session_id: UUID,
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_authenticated_principal)],
+    session: Annotated[Session, Depends(get_database_session)],
+) -> CompletedWorkoutDetail:
+    return get_completed_workout_detail(
+        session=session, principal=principal, session_id=session_id
+    )

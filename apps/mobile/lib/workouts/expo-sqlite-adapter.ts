@@ -17,6 +17,14 @@ import {
   LOCAL_WORKOUT_MACHINE_SCHEMA_VERSION,
 } from './local-machine-schema';
 import {
+  migrateWorkoutSchemaV3ToV4,
+  LOCAL_WORKOUT_FINISH_SCHEMA_VERSION,
+} from './local-finish-schema';
+import {
+  migrateWorkoutSchemaV4ToV5,
+  LOCAL_WORKOUT_CANCEL_SCHEMA_VERSION,
+} from './local-cancel-schema';
+import {
   initializeLocalWorkoutSchema,
   LOCAL_WORKOUT_SCHEMA_VERSION,
   type SqliteWorkoutPort,
@@ -44,7 +52,7 @@ async function initializeNativeWorkoutDatabase(
     if (!version || !Number.isInteger(version.user_version)) {
       throw new Error('Unable to read M3 SQLite schema version.');
     }
-    if (version.user_version > LOCAL_WORKOUT_MACHINE_SCHEMA_VERSION) {
+    if (version.user_version > LOCAL_WORKOUT_CANCEL_SCHEMA_VERSION) {
       throw new Error(
         'M3 SQLite schema is newer than this app. Update KeylorForge.',
       );
@@ -65,6 +73,12 @@ async function initializeNativeWorkoutDatabase(
     }
     if (version.user_version <= LOCAL_WORKOUT_PERFORMED_SCHEMA_VERSION) {
       await migrateWorkoutSchemaV2ToV3(db as SqliteWorkoutPort);
+    }
+    if (version.user_version <= LOCAL_WORKOUT_MACHINE_SCHEMA_VERSION) {
+      await migrateWorkoutSchemaV3ToV4(db as SqliteWorkoutPort);
+    }
+    if (version.user_version <= LOCAL_WORKOUT_FINISH_SCHEMA_VERSION) {
+      await migrateWorkoutSchemaV4ToV5(db as SqliteWorkoutPort);
     }
     // The SDK's SQLiteDatabase implements the three query methods and the
     // scoped withExclusiveTransactionAsync callback of SqliteWorkoutPort.
@@ -90,6 +104,38 @@ export function openLocalWorkoutDatabase(): Promise<SqliteWorkoutPort> {
 
 /** Isolated, development-only store for real-device SQLite smoke testing. */
 const diagnosticDatabases = new Map<string, Promise<SqliteWorkoutPort>>();
+const previewDatabases = new Map<string, Promise<SqliteWorkoutPort>>();
+
+/**
+ * Persistent, per-account UI preview database, distinct from BOTH the real
+ * workout store and previous developer diagnostics. Never reset user data.
+ */
+export function openPreviewWorkoutDatabase(
+  subject: string,
+): Promise<SqliteWorkoutPort> {
+  if (!__DEV__) {
+    throw new Error('Workout preview is unavailable in release builds.');
+  }
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      subject,
+    )
+  ) {
+    throw new Error('A valid authenticated subject is required.');
+  }
+  const databaseName = `keylorforge-m3-ui-preview-${subject.toLowerCase()}.db`;
+  let preview = previewDatabases.get(databaseName);
+  if (!preview) {
+    preview = initializeNativeWorkoutDatabase(databaseName).catch(
+      (error: unknown) => {
+        previewDatabases.delete(databaseName);
+        throw error;
+      },
+    );
+    previewDatabases.set(databaseName, preview);
+  }
+  return preview;
+}
 
 export function openDiagnosticWorkoutDatabase(
   subject: string,

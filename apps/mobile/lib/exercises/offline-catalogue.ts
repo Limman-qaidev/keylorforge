@@ -353,6 +353,41 @@ export async function searchOfflineExercises(
   };
 }
 
+/**
+ * Hydrate the entire committed public snapshot in ONE native SQLite read.
+ * The old page-loop repeatedly read/parsed/sorted every row for each page:
+ * O(N * ceil(N/100)) reads/decodes and substantial startup latency.
+ *
+ * Fail closed on a missing, incomplete or damaged cache; this never writes
+ * data and a concurrent refresh cannot expose a partially committed seed.
+ */
+export async function readOfflineExerciseSnapshot(
+  db: CatalogueSqlitePort,
+): Promise<{ items: ExerciseListItem[]; seededAtUtc: string } | null> {
+  const status = await offlineCatalogueStatus(db);
+  if (status.state === 'unseeded') return null;
+
+  const rows = await db.getAllAsync<CachedRow>(
+    'SELECT exercise_id, payload_json FROM public_exercise_cache WHERE locale = ?',
+    LOCALE,
+  );
+  if (rows.length !== status.total) {
+    throw new OfflineCatalogueError('corruptCache');
+  }
+  const items = rows.map(parseCachedRow);
+  try {
+    checkSnapshot(items);
+  } catch {
+    throw new OfflineCatalogueError('corruptCache');
+  }
+  items.sort(
+    (left, right) =>
+      left.name.localeCompare(right.name, 'es') ||
+      left.id.localeCompare(right.id),
+  );
+  return { items, seededAtUtc: status.seededAtUtc };
+}
+
 export async function resolveOfflineCanonicalExercise(
   db: CatalogueSqlitePort,
   rawId: string,

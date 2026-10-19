@@ -61,6 +61,37 @@ jobs:
       - name: Test
         run: pytest --junitxml=pytest-report.xml
 
-      - name: Verify PostgreSQL catalogue integration test executed
-        run: >-
-          python -c "import xml.etree.ElementTree as etree; root = etree.parse('pytest-report.xml').getroot(); cases = [case for case in root.iter('testcase') if case.get('name') == 'test_catalogue_repository_queries_run_against_postgresql']; assert len(cases) == 1, f'expected one PostgreSQL catalogue integration test, found {len(cases)}'; assert cases[0].find('skipped') is None, 'PostgreSQL catalogue integration test was skipped'"
+      # Tests can legitimately skip PostgreSQL locally, but NEVER in CI.
+      # The remote START -> SET -> FINISH/CANCEL owner/isolation/receipt gates
+      # must run against the actual service container on every PR.
+      - name: Enforce PostgreSQL workout integration acceptance
+        run: |
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          from collections import Counter
+
+          root = ET.parse("pytest-report.xml").getroot()
+          executed = {}
+          for case in root.iter("testcase"):
+              executed.setdefault(case.get("name"), []).append(case)
+
+          required = [
+              "test_catalogue_repository_queries_run_against_postgresql",
+              "test_free_session_start_resume_idempotency_isolation_and_purge",
+              "test_real_postgres_confirmations_are_owner_scoped_atomic_and_idempotent",
+              "test_postgres_finish_is_atomic_idempotent_and_owner_scoped",
+              "test_cancel_is_atomic_owner_scoped_and_preserves_sets",
+          ]
+          for name in required:
+              matches = executed.get(name, [])
+              assert len(matches) == 1, (
+                  f"Expected exactly one real PostgreSQL integration case {name}, "
+                  f"found {len(matches)}"
+              )
+              case = matches[0]
+              for unexpected in ("skipped", "failure", "error"):
+                  assert case.find(unexpected) is None, (
+                      f"PostgreSQL integration case {name} has {unexpected}"
+                  )
+          print(f"Verified {len(required)} real PostgreSQL integration gates")
+          PY
