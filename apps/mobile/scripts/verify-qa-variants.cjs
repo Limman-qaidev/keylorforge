@@ -29,6 +29,8 @@ try {
   const real = variant(false, true);
   assert.equal(smoke.android.package, smokeId);
   assert.equal(real.android.package, realId);
+  assert.equal(real.extra.m3RealQaWorkoutEnabled, true);
+  assert.equal(smoke.extra.m3RealQaWorkoutEnabled, false);
   assert.equal(smoke.scheme, 'keylorforge-qa-standalone');
   assert.equal(real.scheme, 'keylorforge-qa-real');
   assert.equal(smoke.android.intentFilters.length, 0);

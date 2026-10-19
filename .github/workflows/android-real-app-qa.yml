@@ -75,7 +75,8 @@ jobs:
             const c = JSON.parse(s);
             if (c.android.package !== 'com.jonathansalgadonieto.keylorforge.qareal' ||
                 c.scheme !== 'keylorforge-qa-real' ||
-                c.android.intentFilters.length !== 0) process.exit(1);
+                c.android.intentFilters.length !== 0 ||
+                c.extra?.m3RealQaWorkoutEnabled !== true) process.exit(1);
           });"
 
       - name: Prebuild isolated QA native project

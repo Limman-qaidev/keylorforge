@@ -4,6 +4,17 @@ import type { ReactNode } from 'react';
 import ProgressRoute from '../progress';
 import SocialRoute from '../social';
 import TrainRoute from '../train';
+import { isIsolatedRealWorkoutQa } from '@/lib/workouts/qa-real-config';
+
+jest.mock('@/lib/workouts/qa-real-config', () => ({
+  isIsolatedRealWorkoutQa: jest.fn(() => false),
+}));
+jest.mock('@/components/workouts/free-workout-experience', () => {
+  const { Text } = jest.requireActual('react-native');
+  return {
+    FreeWorkoutExperience: () => <Text>Entrenamiento M3 real</Text>,
+  };
+});
 
 jest.mock('@/components/auth/auth-guards', () => ({
   RequireAuthenticated: ({ children }: { children: ReactNode }) => children,
@@ -37,6 +48,13 @@ describe('authenticated product destinations', () => {
     const { getByText } = await render(<TrainRoute />);
 
     expect(getByText('Catálogo de ejercicios')).toBeTruthy();
+  });
+
+  it('routes only the isolated QA release to the actual workout UI', async () => {
+    jest.mocked(isIsolatedRealWorkoutQa).mockReturnValueOnce(true);
+    const { getByText, queryByText } = await render(<TrainRoute />);
+    expect(getByText('Entrenamiento M3 real')).toBeTruthy();
+    expect(queryByText('Catálogo de ejercicios')).toBeNull();
   });
 
   it('renders a truthful Social placeholder without fake rankings or friends', async () => {
