@@ -573,6 +573,15 @@ export function AuthProvider({
     try {
       response = await client.auth.refreshSession();
     } catch (error) {
+      // A refresh started by a previous account cannot invalidate a newly
+      // signed-in account, even when Supabase rejects with a terminal error.
+      if (
+        operationVersion !== sessionOperationVersion.current ||
+        hasExplicitLocalSignOut.current ||
+        signOutInProgress.current
+      ) {
+        return null;
+      }
       const refreshError =
         error instanceof Error ? error : new Error('session refresh failed');
       if (isTerminalSessionFailure(refreshError)) {

@@ -1,0 +1,88 @@
+name: Android Standalone QA APK
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/android-standalone-qa.yml
+      - apps/mobile/app.config.js
+      - apps/mobile/scripts/prepare-qa-standalone-smoke.mjs
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-standalone-apk:
+    name: isolated-standalone-apk
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: apps/mobile
+    env:
+      CI: 'true'
+      KEYLORFORGE_QA_STANDALONE: '1'
+      EXPO_PUBLIC_API_BASE_URL: http://127.0.0.1:8001
+      EXPO_PUBLIC_SUPABASE_URL: https://qa-standalone.invalid
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+      EXPO_PUBLIC_GOOGLE_AUTH_ENABLED: 'false'
+      EXPO_PUBLIC_APPLE_AUTH_ENABLED: 'false'
+    steps:
+      - name: Check out QA PR (clean runner)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Java 17
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Use preinstalled Android SDK (avoid deprecated sdkmanager tools)
+        run: |
+          test -n "$ANDROID_HOME"
+          test -d "$ANDROID_HOME/platforms"
+
+      - name: Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.14.0
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Generate isolated smoke screen in runner ONLY
+        run: node scripts/prepare-qa-standalone-smoke.mjs
+
+      - name: Verify distinct Android application ID before native generation
+        run: |
+          package=$(npx expo config --json | node -e "let s=''; process.stdin.on('data',d=>s+=d); process.stdin.on('end',()=>process.stdout.write(JSON.parse(s).android.package))")
+          test "$package" = 'com.jonathansalgadonieto.keylorforge.qastandalone'
+          test "$package" != 'com.jonathansalgadonieto.keylorforge'
+
+      - name: Generate native Android project (CI checkout only)
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Assemble release APK with embedded JS (no Metro)
+        run: |
+          chmod +x android/gradlew
+          cd android
+          ./gradlew :app:assembleRelease --no-daemon
+
+      - name: Verify APK package and offline JS bundle
+        run: |
+          apk=android/app/build/outputs/apk/release/app-release.apk
+          test -s "$apk"
+          aapt=$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)
+          test -n "$aapt"
+          "$aapt" dump badging "$apk" | grep -F "name='com.jonathansalgadonieto.keylorforge.qastandalone'"
+          unzip -l "$apk" | grep -F 'assets/index.android.bundle'
+
+      - name: Upload isolated APK (not the user's installed app)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: keylorforge-qa-standalone-apk
+          path: apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 7

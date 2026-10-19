@@ -1,4 +1,24 @@
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
+
 const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+const QA_LOCAL_URL = 'http://127.0.0.1:8001';
+const QA_ANDROID_PACKAGE = 'com.jonathansalgadonieto.keylorforge.qareal';
+
+/** QA may use ADB reverse, but no non-QA release may send bearer tokens over HTTP. */
+export function isAuthorizedQaLoopback(
+  url: string,
+  packageId: string | undefined,
+  qaEnabled: boolean,
+  platform: string,
+): boolean {
+  return (
+    platform === 'android' &&
+    packageId === QA_ANDROID_PACKAGE &&
+    qaEnabled === true &&
+    url === QA_LOCAL_URL
+  );
+}
 
 /**
  * Protected workout transports include bearer tokens. Production must never
@@ -24,7 +44,14 @@ export function normaliseBaseUrl(
 }
 
 export function getApiBaseUrl(): string | undefined {
-  return apiBaseUrl ? normaliseBaseUrl(apiBaseUrl) : undefined;
+  if (!apiBaseUrl) return undefined;
+  const qaLoopback = isAuthorizedQaLoopback(
+    apiBaseUrl,
+    Constants.expoConfig?.android?.package,
+    Constants.expoConfig?.extra?.m3RealQaWorkoutEnabled === true,
+    Platform.OS,
+  );
+  return normaliseBaseUrl(apiBaseUrl, __DEV__ || qaLoopback);
 }
 
 /**

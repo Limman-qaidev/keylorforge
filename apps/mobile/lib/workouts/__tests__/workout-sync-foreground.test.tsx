@@ -2,11 +2,19 @@ import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { AppState, type AppStateStatus } from 'react-native';
 
 import { getSupabaseClient } from '../../auth/supabase';
+import { isIsolatedRealWorkoutQa } from '../qa-real-config';
+import { confirmIsolatedQaWorkoutTarget } from '../qa-real-preflight';
 import { openLocalWorkoutDatabase } from '../expo-sqlite-adapter';
 import { drainWorkoutSync } from '../workout-sync-coordinator';
 import { useForegroundWorkoutSync } from '../workout-sync-foreground';
 
 jest.mock('../../auth/supabase', () => ({ getSupabaseClient: jest.fn() }));
+jest.mock('../qa-real-config', () => ({
+  isIsolatedRealWorkoutQa: jest.fn(() => false),
+}));
+jest.mock('../qa-real-preflight', () => ({
+  confirmIsolatedQaWorkoutTarget: jest.fn(),
+}));
 jest.mock('../expo-sqlite-adapter', () => ({
   openLocalWorkoutDatabase: jest.fn(),
 }));
@@ -24,6 +32,7 @@ describe('staged automatic foreground workout sync', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.mocked(isIsolatedRealWorkoutQa).mockReturnValue(false);
     unsubscribe = jest.fn();
     foreground = undefined;
     Object.defineProperty(AppState, 'currentState', {
@@ -92,6 +101,25 @@ describe('staged automatic foreground workout sync', () => {
     await act(async () => hook.unmount());
     expect(unsubscribe).toHaveBeenCalledTimes(1);
     expect(access.currentAuthenticatedSubject()).toBeNull();
+    expect(await access.acquireCurrentCredentials()).toBeNull();
+  });
+
+  it('rejects remote QA sync until the actual TEST database is authorized', async () => {
+    jest.mocked(isIsolatedRealWorkoutQa).mockReturnValue(true);
+    jest.mocked(confirmIsolatedQaWorkoutTarget).mockResolvedValue(false);
+    const hook = await renderHook(() => useForegroundWorkoutSync(OWNER));
+    await waitFor(() => expect(drainWorkoutSync).toHaveBeenCalledTimes(1));
+    const access = jest.mocked(drainWorkoutSync).mock.calls[0]![1];
+    expect(await access.acquireCurrentCredentials()).toBeNull();
+    expect(confirmIsolatedQaWorkoutTarget).toHaveBeenCalledWith(
+      'current-access-token',
+    );
+    jest.mocked(confirmIsolatedQaWorkoutTarget).mockResolvedValue(true);
+    expect(await access.acquireCurrentCredentials()).toEqual({
+      subject: OWNER,
+      accessToken: 'current-access-token',
+    });
+    hook.unmount();
     expect(await access.acquireCurrentCredentials()).toBeNull();
   });
 

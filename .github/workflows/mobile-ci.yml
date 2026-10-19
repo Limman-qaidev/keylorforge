@@ -34,6 +34,9 @@ jobs:
           cache: npm
           cache-dependency-path: apps/mobile/package-lock.json
 
+      - name: Verify production and QA Android variant isolation
+        run: node scripts/verify-qa-variants.cjs
+
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 

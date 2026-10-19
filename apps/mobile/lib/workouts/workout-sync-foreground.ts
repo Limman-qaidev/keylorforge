@@ -12,6 +12,8 @@ import { AppState, Platform } from 'react-native';
 import { getSupabaseClient } from '../auth/supabase';
 import { openLocalWorkoutDatabase } from './expo-sqlite-adapter';
 import { drainWorkoutSync } from './workout-sync-coordinator';
+import { isIsolatedRealWorkoutQa } from './qa-real-config';
+import { confirmIsolatedQaWorkoutTarget } from './qa-real-preflight';
 import type { StartSyncAccess } from './start-session-sync';
 
 const FOREGROUND_RETRY_MS = 90_000;
@@ -30,10 +32,17 @@ export function useForegroundWorkoutSync(subject: string | null): () => void {
           const { data, error } = await getSupabaseClient().auth.getSession();
           if (error || !mounted || data.session?.user.id !== subject)
             return null;
-          return {
-            subject,
-            accessToken: data.session.access_token,
-          };
+          const token = data.session.access_token;
+          // In the QA release every mutation must recheck the actual TEST
+          // PostgreSQL database. A failed check leaves the outbox untouched.
+          if (
+            isIsolatedRealWorkoutQa() &&
+            !(await confirmIsolatedQaWorkoutTarget(token))
+          ) {
+            return null;
+          }
+          if (!mounted) return null;
+          return { subject, accessToken: token };
         } catch {
           return null;
         }

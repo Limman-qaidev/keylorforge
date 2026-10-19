@@ -235,4 +235,62 @@ describe('bounded causal Workout M3 sync coordinator', () => {
     });
     expect(syncNextPendingConfirmedSet).toHaveBeenCalledTimes(1);
   });
+
+  it('stops on a lost START receipt, then resumes all causal operations exactly once', async () => {
+    const who = auth();
+    jest
+      .mocked(syncNextPendingStart)
+      .mockResolvedValueOnce({ state: 'retryable', reason: 'network' })
+      .mockResolvedValueOnce({ state: 'acknowledged', mutationId: OWNER })
+      .mockResolvedValue({ state: 'idle' });
+    jest
+      .mocked(syncNextPendingConfirmedSet)
+      .mockResolvedValueOnce({ state: 'acknowledged', mutationId: OTHER })
+      .mockResolvedValue({ state: 'idle' });
+    jest
+      .mocked(syncNextPendingFinish)
+      .mockResolvedValueOnce({ state: 'acknowledged', mutationId: OWNER })
+      .mockResolvedValue({ state: 'idle' });
+
+    expect(await drainWorkoutSync(db, who.access)).toEqual({
+      state: 'paused',
+      acknowledged: 0,
+      stage: 'start',
+      reason: 'network',
+    });
+    expect(syncNextPendingConfirmedSet).not.toHaveBeenCalled();
+    expect(syncNextPendingFinish).not.toHaveBeenCalled();
+
+    expect(await drainWorkoutSync(db, who.access)).toEqual({
+      state: 'idle',
+      acknowledged: 3,
+    });
+    expect(syncNextPendingConfirmedSet).toHaveBeenCalledTimes(3);
+    expect(syncNextPendingFinish).toHaveBeenCalledTimes(2);
+    expect(await drainWorkoutSync(db, who.access)).toEqual({
+      state: 'idle',
+      acknowledged: 0,
+    });
+  });
+
+  it('interrupts after a subject swap mid-request and releases the drain guard', async () => {
+    const who = auth();
+    jest.mocked(syncNextPendingStart).mockImplementationOnce(async () => {
+      who.switchTo(OTHER);
+      return { state: 'acknowledged', mutationId: OWNER };
+    });
+    await expect(drainWorkoutSync(db, who.access)).rejects.toThrow(
+      'notAuthenticated',
+    );
+    expect(syncNextPendingMachineCreate).not.toHaveBeenCalled();
+    expect(syncNextPendingConfirmedSet).not.toHaveBeenCalled();
+    expect(syncNextPendingFinish).not.toHaveBeenCalled();
+
+    // A new drain is not blocked by the previous owner's in-flight lock.
+    noWork();
+    expect(await drainWorkoutSync(db, who.access)).toEqual({
+      state: 'idle',
+      acknowledged: 0,
+    });
+  });
 });

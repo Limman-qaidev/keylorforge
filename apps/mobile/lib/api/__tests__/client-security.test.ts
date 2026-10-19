@@ -1,4 +1,4 @@
-import { normaliseBaseUrl } from '../client';
+import { isAuthorizedQaLoopback, normaliseBaseUrl } from '../client';
 
 describe('protected API URL configuration', () => {
   it.each([
@@ -30,5 +30,41 @@ describe('protected API URL configuration', () => {
     expect(() => normaliseBaseUrl('file:///etc/passwd', true)).toThrow(
       'must use HTTP or HTTPS',
     );
+  });
+});
+
+describe('Android QA release loopback exception', () => {
+  const packageId = 'com.jonathansalgadonieto.keylorforge.qareal';
+  const url = 'http://127.0.0.1:8001';
+
+  it('authorizes only an exact QA package, manifest flag and ADB loopback', () => {
+    expect(isAuthorizedQaLoopback(url, packageId, true, 'android')).toBe(true);
+    for (const candidate of [
+      ['http://192.168.1.22:8001', packageId, true, 'android'],
+      ['http://127.0.0.1:8000', packageId, true, 'android'],
+      ['https://evil.test', packageId, true, 'android'],
+      [url, 'com.jonathansalgadonieto.keylorforge', true, 'android'],
+      [url, packageId, false, 'android'],
+      [url, packageId, true, 'ios'],
+    ] as const) {
+      expect(
+        isAuthorizedQaLoopback(
+          candidate[0],
+          candidate[1],
+          candidate[2],
+          candidate[3],
+        ),
+      ).toBe(false);
+    }
+  });
+
+  it('retains HTTPS enforcement outside the exact QA exception', () => {
+    expect(() => normaliseBaseUrl(url, false)).toThrow('HTTPS in production');
+    expect(
+      normaliseBaseUrl(
+        url,
+        isAuthorizedQaLoopback(url, packageId, true, 'android'),
+      ),
+    ).toBe(url);
   });
 });

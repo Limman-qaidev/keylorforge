@@ -5,11 +5,13 @@ import { RequireAuthenticated } from '@/components/auth/auth-guards';
 import { ExerciseCatalogScreen } from '@/components/exercises/exercise-catalog-screen';
 import { AuthenticatedShell } from '@/components/navigation/authenticated-shell';
 import { FreeWorkoutExperience } from '@/components/workouts/free-workout-experience';
+import { isIsolatedRealWorkoutQa } from '@/lib/workouts/qa-real-config';
 
 /**
  * A deliberately explicit, development-only preview. The ordinary Entrenar
- * route remains the canonical catalogue in every production build.
- * The QA preview has a DIFFERENT SQLite file and never starts remote sync.
+ * route remains the canonical catalogue in ordinary production builds.
+ * Only the separately installed QA release mounts the real workout lifecycle.
+ * The DEV preview retains a separate SQLite and never starts remote sync.
  */
 export default function TrainRoute() {
   const [previewMode, setPreviewMode] = useState<'workout' | 'history' | null>(
@@ -17,10 +19,11 @@ export default function TrainRoute() {
   );
   const preview = previewMode !== null;
   const canPreview = __DEV__ && Platform.OS !== 'web';
+  const realQaWorkout = isIsolatedRealWorkoutQa();
   return (
     <RequireAuthenticated>
       <AuthenticatedShell activeDestination="train">
-        {canPreview ? (
+        {canPreview && !realQaWorkout ? (
           <View style={{ paddingHorizontal: 16, paddingVertical: 8 }}>
             <Pressable
               accessibilityRole="button"
@@ -48,7 +51,9 @@ export default function TrainRoute() {
             ) : null}
           </View>
         ) : null}
-        {canPreview && preview ? (
+        {realQaWorkout ? (
+          <FreeWorkoutExperience />
+        ) : canPreview && preview ? (
           <FreeWorkoutExperience
             isolatedPreview
             initialMode={previewMode === 'history' ? 'history' : 'catalogue'}
