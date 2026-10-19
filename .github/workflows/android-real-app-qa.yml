@@ -1,0 +1,105 @@
+name: Android Real App QA APK (isolated)
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/android-real-app-qa.yml
+      - apps/mobile/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-app-release:
+    name: isolated-real-app-release
+    # Missing QA Supabase variables means SKIPPED, never a misleading build
+    # against placeholder credentials. Never expose variables to fork PRs.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        vars.KEYLORFORGE_QA_SUPABASE_URL != '' &&
+        vars.KEYLORFORGE_QA_SUPABASE_PUBLISHABLE_KEY != ''
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: apps/mobile
+    env:
+      CI: 'true'
+      KEYLORFORGE_QA_REAL: '1'
+      EXPO_PUBLIC_API_BASE_URL: http://127.0.0.1:8001
+      EXPO_PUBLIC_SUPABASE_URL: ${{ vars.KEYLORFORGE_QA_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.KEYLORFORGE_QA_SUPABASE_PUBLISHABLE_KEY }}
+      EXPO_PUBLIC_GOOGLE_AUTH_ENABLED: 'false'
+      EXPO_PUBLIC_APPLE_AUTH_ENABLED: 'false'
+    steps:
+      - name: Checkout real application sources
+        uses: actions/checkout@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Validate QA-only configuration and genuine app entrypoint
+        run: |
+          node scripts/verify-qa-variants.cjs
+          case "$EXPO_PUBLIC_SUPABASE_URL" in
+            https://*) ;;
+            *) echo 'Missing/invalid QA Supabase HTTPS URL'; exit 1 ;;
+          esac
+          test -n "$EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+          test -f app/index.tsx
+          ! grep -q 'KeylorForge QA Standalone' app/index.tsx
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Validate final resolved Android package (not just JS config)
+        run: |
+          npx expo config --json | node -e "
+          let s = '';
+          process.stdin.on('data', d => s += d);
+          process.stdin.on('end', () => {
+            const c = JSON.parse(s);
+            if (c.android.package !== 'com.jonathansalgadonieto.keylorforge.qareal' ||
+                c.scheme !== 'keylorforge-qa-real' ||
+                c.android.intentFilters.length !== 0) process.exit(1);
+          });"
+
+      - name: Prebuild isolated QA native project
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Assemble release APK containing the REAL application JS
+        run: |
+          chmod +x android/gradlew
+          cd android
+          ./gradlew :app:assembleRelease --no-daemon
+
+      - name: Verify package isolation and offline JS bundle
+        run: |
+          apk=android/app/build/outputs/apk/release/app-release.apk
+          test -s "$apk"
+          aapt=$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)
+          test -n "$aapt"
+          "$aapt" dump badging "$apk" | grep -F "name='com.jonathansalgadonieto.keylorforge.qareal'"
+          unzip -l "$apk" | grep -F 'assets/index.android.bundle'
+
+      - name: Upload real app QA APK (NOT the diagnostic smoke APK)
+        uses: actions/upload-artifact@v4
+        with:
+          name: keylorforge-qa-real-app-apk
+          path: apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 7
