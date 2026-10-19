@@ -3,7 +3,10 @@
  * The app config adds this plugin exclusively for the distinct .qareal ID.
  * Main production and diagnostic variants NEVER receive this policy.
  */
-const { withAndroidManifest, withDangerousMod } = require('expo/config-plugins');
+const {
+  withAndroidManifest,
+  withDangerousMod,
+} = require('expo/config-plugins');
 const { mkdir, writeFile } = require('node:fs/promises');
 const path = require('node:path');
 
@@ -31,7 +34,8 @@ module.exports = function withQaLoopbackCleartext(config) {
 
   config = withAndroidManifest(config, (mod) => {
     const app = mod.modResults.manifest.application?.[0];
-    if (!app) throw new Error('QA Android manifest has no application element.');
+    if (!app)
+      throw new Error('QA Android manifest has no application element.');
     if (app.$['android:networkSecurityConfig']) {
       throw new Error(
         'QA network security policy must not override an existing policy.',
