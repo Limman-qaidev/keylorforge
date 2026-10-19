@@ -5,7 +5,10 @@
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 
-if (process.env.CI !== 'true' || process.env.KEYLORFORGE_QA_STANDALONE !== '1') {
+if (
+  process.env.CI !== 'true' ||
+  process.env.KEYLORFORGE_QA_STANDALONE !== '1'
+) {
   throw new Error('Isolated standalone smoke may only prepare in opt-in CI.');
 }
 
@@ -15,7 +18,9 @@ if (
   !original.includes('export default function IndexRoute()') ||
   !original.includes('SessionRestoring')
 ) {
-  throw new Error('App entry changed; refusing to replace it in the CI checkout.');
+  throw new Error(
+    'App entry changed; refusing to replace it in the CI checkout.',
+  );
 }
 
 writeFileSync(
