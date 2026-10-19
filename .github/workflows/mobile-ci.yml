@@ -2,6 +2,13 @@ name: Mobile CI
 
 on:
   pull_request:
+    branches:
+      - main
+      - feat/m3-mob-010-local-finish-schema
+      - feat/m3-mob-012-remote-history-readmodel
+      - feat/m3-mob-013-unified-history-readmodel
+      - feat/m3-mob-014-bounded-remote-recovery
+      - feat/m3-mob-015-remote-history-drift-diagnostic
   push:
     branches:
       - main
@@ -18,16 +25,16 @@ jobs:
         working-directory: apps/mobile
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22.14.0
           cache: npm
           cache-dependency-path: apps/mobile/package-lock.json
 
-      - name: Verify original and isolated QA Android application IDs
+      - name: Verify production and QA Android variant isolation
         run: node scripts/verify-qa-variants.cjs
 
       - name: Install dependencies
