@@ -106,6 +106,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: keylorforge-qa-real-app-apk
-          path: apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+          path: |
+            apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+            apps/mobile/android/app/build/outputs/apk/release/app-release.apk.sha256
           if-no-files-found: error
           retention-days: 7
