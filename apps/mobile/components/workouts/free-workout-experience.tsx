@@ -75,13 +75,15 @@ function Button({
       onPress={onPress}
       style={[
         styles.button,
-        secondary && (dark ? styles.secondaryButtonDark : styles.secondaryButton),
+        secondary &&
+          (dark ? styles.secondaryButtonDark : styles.secondaryButton),
       ]}
     >
       <Text
         style={[
           styles.buttonText,
-          secondary && (dark ? styles.secondaryTextDark : styles.secondaryText),
+          secondary &&
+            (dark ? styles.secondaryTextDark : styles.secondaryText),
         ]}
       >
         {title}
@@ -671,20 +673,31 @@ function FreeWorkoutSessionExperience({
         contentContainerStyle={[styles.page, styles.pageDark]}
         style={styles.darkScroll}
       >
-        <Text style={[styles.eyebrow, styles.eyebrowDark]}>KEYLORFORGE · ENTRENAR</Text>
-        <Text accessibilityRole="header" style={[styles.heading, styles.headingDark]}>
+        <Text style={[styles.eyebrow, styles.eyebrowDark]}>
+          KEYLORFORGE · ENTRENAR
+        </Text>
+        <Text
+          accessibilityRole="header"
+          style={[styles.heading, styles.headingDark]}
+        >
           Entrenamiento activo
         </Text>
         <Text style={[styles.caption, styles.captionDark]}>
           {overview.totalSets} series confirmadas
         </Text>
         {overview.exercises.map((entry) => (
-          <View key={entry.occurrence_id} style={[styles.item, styles.itemDark]}>
+          <View
+            key={entry.occurrence_id}
+            style={[styles.item, styles.itemDark]}
+          >
             <Text style={[styles.itemTitle, styles.itemTitleDark]}>
               {nameOf(entry.canonical_exercise_id)}
             </Text>
             {entry.sets.map((set, index) => (
-              <Text key={set.set_id} style={[styles.caption, styles.captionDark]}>
+              <Text
+                key={set.set_id}
+                style={[styles.caption, styles.captionDark]}
+              >
                 {index + 1}.{' '}
                 {set.set_role === 'WORKING' ? 'Trabajo' : 'Calentamiento'} ·{' '}
                 {set.measurement_type === 'reps'
@@ -705,7 +718,10 @@ function FreeWorkoutSessionExperience({
           </Text>
         ) : null}
         {error ? (
-          <Text accessibilityLiveRegion="polite" style={[styles.error, styles.errorDark]}>
+          <Text
+            accessibilityLiveRegion="polite"
+            style={[styles.error, styles.errorDark]}
+          >
             {error}
           </Text>
         ) : null}
