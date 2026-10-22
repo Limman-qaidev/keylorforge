@@ -6,7 +6,7 @@
 
 **Product owner-approved visual baseline:** [original approved product board](../keylorforge-ui-reference/keylorforge-ui-foundation-v1.png), [original M1 reference](../keylorforge-ui-reference/keylorforge-m1-reference-v1.png), [original auth reference](../keylorforge-ui-reference/keylorforge-auth-reference-v1.png) and [visual implementation contract](../KEYLORFORGE_VISUAL_FOUNDATION.md).
 
-> The original illustrations may still show the historical *KeylorFit* wordmark; the live app and these new mockups use **KeylorForge**, with the real G4 symbol taken from `brand/`.
+> The original illustrations still show a historical product wordmark; the live app and these new mockups use **KeylorForge**, with the real G4 symbol taken from `brand/`.
 
 ## Board 1 — M3: workout experience
 
