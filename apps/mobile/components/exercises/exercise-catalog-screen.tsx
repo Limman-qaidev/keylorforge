@@ -207,11 +207,17 @@ type ExerciseCardProps = {
   exercise: ExerciseListItem;
   onOpen: (exerciseId: string) => void;
   onQuickAdd?: (exercise: ExerciseListItem) => void;
+  compact?: boolean;
 };
 
-function ExerciseCard({ exercise, onOpen, onQuickAdd }: ExerciseCardProps) {
+function ExerciseCard({
+  exercise,
+  onOpen,
+  onQuickAdd,
+  compact = false,
+}: ExerciseCardProps) {
   return (
-    <View style={styles.exerciseRow}>
+    <View style={[styles.exerciseRow, compact && styles.exerciseRowCompact]}>
       <Pressable
         accessibilityLabel={'Abrir ' + exercise.name}
         accessibilityRole="button"
@@ -227,12 +233,22 @@ function ExerciseCard({ exercise, onOpen, onQuickAdd }: ExerciseCardProps) {
           {' · '}
           {metadataLabel(exercise.category, CATEGORY_LABELS)}
         </Text>
-        <Text style={styles.exerciseSecondary}>
-          {referenceNames(exercise.primary_muscles)}
-        </Text>
-        <Text style={styles.exerciseSecondary}>
-          {referenceNames(exercise.equipment)}
-        </Text>
+        {compact ? (
+          <Text style={styles.exerciseSecondary} numberOfLines={1}>
+            {referenceNames(exercise.primary_muscles)}
+            {' · '}
+            {referenceNames(exercise.equipment)}
+          </Text>
+        ) : (
+          <>
+            <Text style={styles.exerciseSecondary}>
+              {referenceNames(exercise.primary_muscles)}
+            </Text>
+            <Text style={styles.exerciseSecondary}>
+              {referenceNames(exercise.equipment)}
+            </Text>
+          </>
+        )}
       </Pressable>
       {onQuickAdd ? (
         <Pressable
@@ -601,6 +617,7 @@ export function ExerciseCatalogScreen({
             setLocalLimit(30);
           }}
           placeholder="Ejercicio o movimiento…"
+          placeholderTextColor="#728097"
           returnKeyType="search"
           style={styles.searchInput}
           value={searchDraft}
@@ -824,6 +841,7 @@ export function ExerciseCatalogScreen({
           exercise={item}
           onOpen={setSelectedExerciseId}
           onQuickAdd={onChooseExercise}
+          compact={compact}
         />
       )}
       style={styles.container}
@@ -969,6 +987,12 @@ const styles = StyleSheet.create({
     minHeight: 112,
     paddingHorizontal: 16,
     paddingVertical: 14,
+  },
+  exerciseRowCompact: {
+    minHeight: 78,
+    marginTop: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   exerciseSecondary: {
     color: '#66758c',
