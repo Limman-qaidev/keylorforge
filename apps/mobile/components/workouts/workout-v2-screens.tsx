@@ -19,6 +19,7 @@ import {
 import type { ExerciseDetail } from '@/lib/exercises/catalog-api';
 import type {
   ActiveFreeWorkoutOverview,
+  ActiveExerciseSummary,
   ActiveSetSummary,
 } from '@/lib/workouts/active-workout-overview';
 import type {
@@ -130,15 +131,15 @@ function SetLedger({ sets }: { sets: ActiveSetSummary[] }) {
 export function WorkoutHubV2({
   onBegin,
   onHistory,
+  onExplore,
   busy,
   error,
-  children,
 }: {
   onBegin: () => void;
   onHistory: () => void;
+  onExplore: () => void;
   busy: boolean;
   error: string | null;
-  children: ReactNode;
 }) {
   return (
     <View style={styles.lightRoot}>
@@ -189,9 +190,24 @@ export function WorkoutHubV2({
             {error}
           </Text>
         ) : null}
-        <SectionLabel>EXPLORAR EJERCICIOS</SectionLabel>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onExplore}
+          disabled={busy}
+          style={styles.historyShortcut}
+        >
+          <View style={styles.shortcutIcon}>
+            <Text style={styles.shortcutGlyph}>⌕</Text>
+          </View>
+          <View style={styles.shortcutBody}>
+            <Text style={styles.shortcutTitle}>Explorar ejercicios</Text>
+            <Text style={styles.shortcutCaption}>
+              Abre el catálogo solo cuando lo necesites.
+            </Text>
+          </View>
+          <Text style={styles.shortcutArrow}>›</Text>
+        </Pressable>
       </View>
-      <View style={styles.catalogueSpace}>{children}</View>
     </View>
   );
 }
@@ -201,7 +217,8 @@ export function ActiveWorkoutV2({
   nameOf,
   busy,
   error,
-  onAdd,
+  onAddExercise,
+  onAddSet,
   onHistory,
   onFinish,
   onCancel,
@@ -210,7 +227,8 @@ export function ActiveWorkoutV2({
   nameOf: (id: string) => string;
   busy: boolean;
   error: string | null;
-  onAdd: () => void;
+  onAddExercise: () => void;
+  onAddSet: (exercise: ActiveExerciseSummary) => void;
   onHistory: () => void;
   onFinish: () => void;
   onCancel: () => void;
@@ -262,10 +280,11 @@ export function ActiveWorkoutV2({
             accessibilityRole="button"
             accessibilityState={{ disabled: busy }}
             disabled={busy}
-            onPress={onAdd}
+            onPress={() => onAddSet(entry)}
+            accessibilityLabel={'Añadir serie a ' + nameOf(entry.canonical_exercise_id)}
             style={styles.addInline}
           >
-            <Text style={styles.addInlineText}>+ Añadir otra serie</Text>
+            <Text style={styles.addInlineText}>+ Añadir serie</Text>
           </Pressable>
         </View>
       ))}
@@ -285,8 +304,8 @@ export function ActiveWorkoutV2({
         </Text>
       ) : null}
       <Action
-        label="Añadir ejercicio o serie"
-        onPress={onAdd}
+        label="Añadir ejercicio"
+        onPress={onAddExercise}
         disabled={busy}
       />
       <View style={styles.spacerSmall} />
@@ -357,7 +376,7 @@ export function RegisterSetV2({
   onConfirm,
   onBack,
 }: {
-  chosen: ExerciseDetail;
+  chosen: Pick<ExerciseDetail, 'id' | 'name' | 'measurement_type'>;
   role: Role;
   onRole: (next: Role) => void;
   quantity: string;
@@ -509,9 +528,11 @@ export function RegisterSetV2({
 export function ExercisePickerV2({
   onBack,
   children,
+  title = 'Añadir ejercicio',
 }: {
   onBack: () => void;
   children: ReactNode;
+  title?: string;
 }) {
   return (
     <View style={styles.lightRoot}>
@@ -524,7 +545,7 @@ export function ExercisePickerV2({
           <Text style={styles.pickerBackText}>‹ Volver al entrenamiento</Text>
         </Pressable>
         <Text accessibilityRole="header" style={styles.pickerTitle}>
-          Añadir ejercicio
+          {title}
         </Text>
         <Text style={styles.pickerSubtitle}>
           Busca en el catálogo y elige qué vas a realizar.
