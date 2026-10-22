@@ -17,6 +17,10 @@ import {
 } from 'react-native';
 
 import type { ExerciseDetail } from '@/lib/exercises/catalog-api';
+import {
+  REST_PRESETS_SECONDS,
+  type RestPresetSeconds,
+} from '@/lib/workouts/rest-timer';
 import type {
   ActiveFreeWorkoutOverview,
   ActiveExerciseSummary,
@@ -219,6 +223,11 @@ export function ActiveWorkoutV2({
   error,
   onAddExercise,
   onAddSet,
+  restRemainingSeconds,
+  restPresetSeconds,
+  onRestPreset,
+  onRestAdjust,
+  onRestDismiss,
   onHistory,
   onFinish,
   onCancel,
@@ -229,6 +238,11 @@ export function ActiveWorkoutV2({
   error: string | null;
   onAddExercise: () => void;
   onAddSet: (exercise: ActiveExerciseSummary) => void;
+  restRemainingSeconds: number;
+  restPresetSeconds: RestPresetSeconds;
+  onRestPreset: (seconds: RestPresetSeconds) => void;
+  onRestAdjust: (seconds: number) => void;
+  onRestDismiss: () => void;
   onHistory: () => void;
   onFinish: () => void;
   onCancel: () => void;
@@ -242,6 +256,48 @@ export function ActiveWorkoutV2({
       <Text style={styles.subtitleDark}>
         Controla tus series. Sigue avanzando.
       </Text>
+      {restRemainingSeconds > 0 ? (
+        <View style={styles.restBox}>
+          <View style={styles.restHead}>
+            <View>
+              <Text style={styles.restEyebrow}>DESCANSO EN CURSO</Text>
+              <Text accessibilityRole="timer" style={styles.restCountdown}>
+                {String(Math.floor(restRemainingSeconds / 60)).padStart(2, '0')}
+                :
+                {String(restRemainingSeconds % 60).padStart(2, '0')}
+              </Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Omitir descanso"
+              onPress={onRestDismiss}
+              style={styles.restDismiss}
+            >
+              <Text style={styles.restDismissText}>Omitir</Text>
+            </Pressable>
+          </View>
+          <View style={styles.restActions}>
+            <Pressable accessibilityRole="button" onPress={() => onRestAdjust(-15)} style={styles.restAdjust}>
+              <Text style={styles.restAdjustText}>−15 s</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => onRestAdjust(15)} style={styles.restAdjust}>
+              <Text style={styles.restAdjustText}>+15 s</Text>
+            </Pressable>
+            {REST_PRESETS_SECONDS.map((seconds) => (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Descanso ${seconds} segundos`}
+                accessibilityState={{ selected: restPresetSeconds === seconds }}
+                key={seconds}
+                onPress={() => onRestPreset(seconds)}
+                style={[styles.restPreset, restPresetSeconds === seconds && styles.restPresetSelected]}
+              >
+                <Text style={styles.restAdjustText}>{seconds}s</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      ) : null}
       <View style={styles.summaryRow}>
         <View style={styles.summaryBlock}>
           <Text style={styles.summaryNumber}>{overview.exercises.length}</Text>
@@ -696,6 +752,28 @@ export function WorkoutHistoryDetailV2({
 }
 
 const styles = StyleSheet.create({
+  restBox: {
+    backgroundColor: '#102C45',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#00D1C1',
+    padding: 16,
+    gap: 12,
+  },
+  restHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  restEyebrow: { color: '#00D1C1', fontSize: 10, fontWeight: '900', letterSpacing: 1.4 },
+  restCountdown: { color: '#FFFFFF', fontSize: 36, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  restDismiss: { padding: 10 },
+  restDismissText: { color: '#AFC7D9', fontSize: 13, fontWeight: '800' },
+  restActions: { flexDirection: 'row', alignItems: 'center', gap: 7, flexWrap: 'wrap' },
+  restAdjust: { backgroundColor: '#193750', borderRadius: 9, paddingHorizontal: 10, paddingVertical: 9 },
+  restPreset: { borderRadius: 9, borderWidth: 1, borderColor: '#38526C', paddingHorizontal: 9, paddingVertical: 8 },
+  restPresetSelected: { borderColor: '#00D1C1', backgroundColor: '#145B60' },
+  restAdjustText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   lightRoot: { flex: 1, backgroundColor: '#F5F8FC' },
   lightPage: { padding: 20, paddingBottom: 50, gap: 14 },
   hubIntro: { paddingHorizontal: 20, paddingTop: 20, gap: 10 },
