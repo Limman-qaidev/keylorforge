@@ -221,6 +221,8 @@ export function ActiveWorkoutV2({
   nameOf,
   busy,
   error,
+  focusedExerciseId,
+  onFocusExercise,
   onAddExercise,
   onAddSet,
   restRemainingSeconds,
@@ -228,6 +230,7 @@ export function ActiveWorkoutV2({
   onRestPreset,
   onRestAdjust,
   onRestDismiss,
+  nowMilliseconds,
   onHistory,
   onFinish,
   onCancel,
@@ -236,6 +239,8 @@ export function ActiveWorkoutV2({
   nameOf: (id: string) => string;
   busy: boolean;
   error: string | null;
+  focusedExerciseId: string | null;
+  onFocusExercise: (exerciseId: string) => void;
   onAddExercise: () => void;
   onAddSet: (exercise: ActiveExerciseSummary) => void;
   restRemainingSeconds: number;
@@ -243,28 +248,85 @@ export function ActiveWorkoutV2({
   onRestPreset: (seconds: RestPresetSeconds) => void;
   onRestAdjust: (seconds: number) => void;
   onRestDismiss: () => void;
+  nowMilliseconds: number;
   onHistory: () => void;
   onFinish: () => void;
   onCancel: () => void;
 }) {
+  const focused =
+    overview.exercises.find(
+      (entry) => entry.canonical_exercise_id === focusedExerciseId,
+    ) ?? overview.exercises[overview.exercises.length - 1];
+  const otherExercises = overview.exercises.filter(
+    (entry) => entry.occurrence_id !== focused?.occurrence_id,
+  );
+  const elapsed = Math.max(
+    0,
+    Math.floor(
+      (nowMilliseconds - Date.parse(overview.session.started_at_utc)) / 1000,
+    ),
+  );
+  const elapsedClock = `${String(Math.floor(elapsed / 60)).padStart(2, '0')}:${String(elapsed % 60).padStart(2, '0')}`;
+  const restClock = `${String(Math.floor(restRemainingSeconds / 60)).padStart(2, '0')}:${String(restRemainingSeconds % 60).padStart(2, '0')}`;
+
   return (
     <ScrollView style={styles.darkRoot} contentContainerStyle={styles.darkPage}>
-      <Text style={styles.brandEyebrowDark}>KEYLORFORGE / EN CURSO</Text>
+      <View style={styles.workoutTitleRow}>
+        <Text style={styles.brandEyebrowDark}>ENTRENAMIENTO ACTIVO</Text>
+        <Text style={styles.workoutElapsed}>{elapsedClock}</Text>
+      </View>
       <Text accessibilityRole="header" style={styles.headingDark}>
         Entrenamiento activo
       </Text>
       <Text style={styles.subtitleDark}>
-        Controla tus series. Sigue avanzando.
+        Entrenamiento libre · {overview.totalSets} series confirmadas
       </Text>
+      <SectionLabel dark>EJERCICIOS REALIZADOS</SectionLabel>
+      {focused ? (
+        <View style={styles.exerciseCard}>
+          <View style={styles.exerciseTop}>
+            <View style={styles.exerciseSymbol}>
+              <Text style={styles.exerciseSymbolText}>K</Text>
+            </View>
+            <View style={styles.exerciseHeadingWrap}>
+              <Text style={styles.exerciseTitle}>
+                {nameOf(focused.canonical_exercise_id)}
+              </Text>
+              <Text style={styles.exerciseMeta}>
+                Ejercicio actual · {focused.sets.length} series
+              </Text>
+            </View>
+          </View>
+          <SetLedger sets={focused.sets} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              'Añadir serie a ' + nameOf(focused.canonical_exercise_id)
+            }
+            accessibilityState={{ disabled: busy }}
+            disabled={busy}
+            onPress={() => onAddSet(focused)}
+            style={styles.addInline}
+          >
+            <Text style={styles.addInlineText}>+ Añadir serie</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <View style={styles.emptyActive}>
+          <Text style={styles.emptyActiveTitle}>Tu sesión está en marcha</Text>
+          <Text style={styles.emptyActiveText}>
+            Selecciona tu primer ejercicio para registrar una serie.
+          </Text>
+        </View>
+      )}
+
       {restRemainingSeconds > 0 ? (
         <View style={styles.restBox}>
           <View style={styles.restHead}>
             <View>
-              <Text style={styles.restEyebrow}>DESCANSO EN CURSO</Text>
+              <Text style={styles.restEyebrow}>DESCANSO</Text>
               <Text accessibilityRole="timer" style={styles.restCountdown}>
-                {String(Math.floor(restRemainingSeconds / 60)).padStart(2, '0')}
-                :
-                {String(restRemainingSeconds % 60).padStart(2, '0')}
+                {restClock}
               </Text>
             </View>
             <Pressable
@@ -277,10 +339,18 @@ export function ActiveWorkoutV2({
             </Pressable>
           </View>
           <View style={styles.restActions}>
-            <Pressable accessibilityRole="button" onPress={() => onRestAdjust(-15)} style={styles.restAdjust}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => onRestAdjust(-15)}
+              style={styles.restAdjust}
+            >
               <Text style={styles.restAdjustText}>−15 s</Text>
             </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => onRestAdjust(15)} style={styles.restAdjust}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => onRestAdjust(15)}
+              style={styles.restAdjust}
+            >
               <Text style={styles.restAdjustText}>+15 s</Text>
             </Pressable>
             {REST_PRESETS_SECONDS.map((seconds) => (
@@ -290,7 +360,10 @@ export function ActiveWorkoutV2({
                 accessibilityState={{ selected: restPresetSeconds === seconds }}
                 key={seconds}
                 onPress={() => onRestPreset(seconds)}
-                style={[styles.restPreset, restPresetSeconds === seconds && styles.restPresetSelected]}
+                style={[
+                  styles.restPreset,
+                  restPresetSeconds === seconds && styles.restPresetSelected,
+                ]}
               >
                 <Text style={styles.restAdjustText}>{seconds}s</Text>
               </Pressable>
@@ -298,61 +371,32 @@ export function ActiveWorkoutV2({
           </View>
         </View>
       ) : null}
-      <View style={styles.summaryRow}>
-        <View style={styles.summaryBlock}>
-          <Text style={styles.summaryNumber}>{overview.exercises.length}</Text>
-          <Text style={styles.summaryCaption}>EJERCICIOS</Text>
-        </View>
-        <View style={styles.summaryBlock}>
-          <Text style={styles.summaryNumber}>{overview.totalSets}</Text>
-          <Text style={styles.summaryCaption}>SERIES</Text>
-        </View>
-        <View style={styles.summaryBlock}>
-          <Text style={styles.summaryNumber}>{overview.workingSets}</Text>
-          <Text style={styles.summaryCaption}>TRABAJO</Text>
-        </View>
-      </View>
-      <Text style={styles.countCaption}>
-        {overview.totalSets} series confirmadas
-      </Text>
-      <SectionLabel dark>EJERCICIOS REALIZADOS</SectionLabel>
-      {overview.exercises.map((entry, index) => (
-        <View key={entry.occurrence_id} style={styles.exerciseCard}>
-          <View style={styles.exerciseTop}>
-            <View style={styles.exerciseSymbol}>
-              <Text style={styles.exerciseSymbolText}>{index + 1}</Text>
-            </View>
-            <View style={styles.exerciseHeadingWrap}>
-              <Text style={styles.exerciseTitle}>
-                {nameOf(entry.canonical_exercise_id)}
-              </Text>
-              <Text style={styles.exerciseMeta}>
-                {entry.sets.length} series realizadas
-              </Text>
-            </View>
-          </View>
-          <SetLedger sets={entry.sets} />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ disabled: busy }}
-            disabled={busy}
-            onPress={() => onAddSet(entry)}
-            accessibilityLabel={'Añadir serie a ' + nameOf(entry.canonical_exercise_id)}
-            style={styles.addInline}
-          >
-            <Text style={styles.addInlineText}>+ Añadir serie</Text>
-          </Pressable>
-        </View>
-      ))}
-      {overview.exercises.length === 0 ? (
-        <View style={styles.emptyActive}>
-          <Text style={styles.emptyActiveTitle}>
-            Tu sesión ya está en marcha
-          </Text>
-          <Text style={styles.emptyActiveText}>
-            Elige un ejercicio y confirma tu primera serie.
-          </Text>
-        </View>
+
+      {otherExercises.length > 0 ? (
+        <>
+          <SectionLabel dark>OTROS EJERCICIOS</SectionLabel>
+          {otherExercises.map((entry) => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={
+                'Seleccionar ' + nameOf(entry.canonical_exercise_id)
+              }
+              key={entry.occurrence_id}
+              onPress={() => onFocusExercise(entry.canonical_exercise_id)}
+              style={styles.otherExercise}
+            >
+              <View style={styles.exerciseHeadingWrap}>
+                <Text style={styles.exerciseTitle}>
+                  {nameOf(entry.canonical_exercise_id)}
+                </Text>
+                <Text style={styles.exerciseMeta}>
+                  {entry.sets.length} series confirmadas
+                </Text>
+              </View>
+              <Text style={styles.otherExerciseArrow}>›</Text>
+            </Pressable>
+          ))}
+        </>
       ) : null}
       {error ? (
         <Text accessibilityLiveRegion="polite" style={styles.errorDark}>
@@ -364,7 +408,6 @@ export function ActiveWorkoutV2({
         onPress={onAddExercise}
         disabled={busy}
       />
-      <View style={styles.spacerSmall} />
       <Action
         label="Finalizar entrenamiento"
         onPress={onFinish}
@@ -752,6 +795,21 @@ export function WorkoutHistoryDetailV2({
 }
 
 const styles = StyleSheet.create({
+  workoutTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  workoutElapsed: { color: '#FFFFFF', fontWeight: '900', fontSize: 16 },
+  otherExercise: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 14,
+    backgroundColor: '#0D2137',
+    padding: 16,
+    marginTop: 4,
+  },
+  otherExerciseArrow: { color: '#00D1C1', fontSize: 26, fontWeight: '800' },
   restBox: {
     backgroundColor: '#102C45',
     borderRadius: 18,
