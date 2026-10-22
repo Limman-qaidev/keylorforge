@@ -232,6 +232,9 @@ function FreeWorkoutSessionExperience({
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [chosen, setChosen] = useState<Pick<ExerciseDetail, 'id' | 'name' | 'measurement_type'> | null>(null);
+  const [focusedExerciseId, setFocusedExerciseId] = useState<string | null>(
+    null,
+  );
   const [role, setRole] = useState<Role>('WORKING');
   const [quantity, setQuantity] = useState('');
   const [load, setLoad] = useState('');
@@ -567,6 +570,7 @@ function FreeWorkoutSessionExperience({
   };
 
   const addSetToExercise = (exercise: ActiveExerciseSummary) => {
+    setFocusedExerciseId(exercise.canonical_exercise_id);
     const previous = exercise.sets[exercise.sets.length - 1];
     if (!previous) return;
     const cached = snapshot?.items.find(
@@ -592,7 +596,10 @@ function FreeWorkoutSessionExperience({
     setMode('set');
   };
 
-  const choose = (exercise: Pick<ExerciseDetail, 'id' | 'name' | 'measurement_type'>) => {
+  const choose = (
+    exercise: Pick<ExerciseDetail, 'id' | 'name' | 'measurement_type'>,
+  ) => {
+    setFocusedExerciseId(exercise.id);
     setChosen(exercise);
     setRole('WORKING');
     setQuantity('');
@@ -712,6 +719,9 @@ function FreeWorkoutSessionExperience({
         error={error}
         onAddExercise={() => setMode('picker')}
         onAddSet={addSetToExercise}
+        focusedExerciseId={focusedExerciseId}
+        onFocusExercise={setFocusedExerciseId}
+        nowMilliseconds={clockMilliseconds}
         restRemainingSeconds={remainingRest}
         restPresetSeconds={restSeconds}
         onRestPreset={selectRestSeconds}
