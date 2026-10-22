@@ -211,13 +211,13 @@ type ExerciseCardProps = {
 
 function ExerciseCard({ exercise, onOpen, onQuickAdd }: ExerciseCardProps) {
   return (
-    <Pressable
-      accessibilityLabel={'Abrir ' + exercise.name}
-      accessibilityRole="button"
-      onPress={() => onOpen(exercise.id)}
-      style={({ pressed }) => [styles.exerciseRow, pressed && styles.pressed]}
-    >
-      <View style={styles.exerciseMain}>
+    <View style={styles.exerciseRow}>
+      <Pressable
+        accessibilityLabel={'Abrir ' + exercise.name}
+        accessibilityRole="button"
+        onPress={() => onOpen(exercise.id)}
+        style={({ pressed }) => [styles.exerciseMain, pressed && styles.pressed]}
+      >
         <Text style={styles.exerciseName}>{exercise.name}</Text>
         <Text style={styles.exerciseMeta}>
           {measurementLabel(exercise.measurement_type)}
@@ -230,7 +230,7 @@ function ExerciseCard({ exercise, onOpen, onQuickAdd }: ExerciseCardProps) {
         <Text style={styles.exerciseSecondary}>
           {referenceNames(exercise.equipment)}
         </Text>
-      </View>
+      </Pressable>
       {onQuickAdd ? (
         <Pressable
           accessibilityRole="button"
@@ -243,7 +243,7 @@ function ExerciseCard({ exercise, onOpen, onQuickAdd }: ExerciseCardProps) {
       ) : (
         <Text accessible={false} style={styles.chevron}>›</Text>
       )}
-    </Pressable>
+    </View>
   );
 }
 
