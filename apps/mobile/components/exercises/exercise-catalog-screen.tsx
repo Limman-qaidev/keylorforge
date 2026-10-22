@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -23,6 +23,7 @@ import {
   listMuscles,
 } from '@/lib/exercises/catalog-api';
 import { useCachedExerciseCatalogue } from '@/lib/exercises/use-cached-exercise-catalogue';
+import { rankExerciseMatches } from '@/lib/exercises/search-ranking';
 
 type AuthenticatedRequestContext = {
   accessToken: string;
@@ -80,13 +81,6 @@ function measurementLabel(value: string): string {
     time: 'Tiempo',
   };
   return labels[value] ?? value;
-}
-
-function fold(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLocaleLowerCase('es');
 }
 
 function roleLabel(value: string): string {
@@ -212,9 +206,10 @@ function FilterRow({ label, onSelect, options, selectedId }: FilterRowProps) {
 type ExerciseCardProps = {
   exercise: ExerciseListItem;
   onOpen: (exerciseId: string) => void;
+  onQuickAdd?: (exercise: ExerciseListItem) => void;
 };
 
-function ExerciseCard({ exercise, onOpen }: ExerciseCardProps) {
+function ExerciseCard({ exercise, onOpen, onQuickAdd }: ExerciseCardProps) {
   return (
     <Pressable
       accessibilityLabel={'Abrir ' + exercise.name}
@@ -236,9 +231,18 @@ function ExerciseCard({ exercise, onOpen }: ExerciseCardProps) {
           {referenceNames(exercise.equipment)}
         </Text>
       </View>
-      <Text accessible={false} style={styles.chevron}>
-        ›
-      </Text>
+      {onQuickAdd ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={'Elegir ' + exercise.name}
+          onPress={() => onQuickAdd(exercise)}
+          style={styles.quickAdd}
+        >
+          <Text style={styles.quickAddText}>+ Elegir</Text>
+        </Pressable>
+      ) : (
+        <Text accessible={false} style={styles.chevron}>›</Text>
+      )}
     </Pressable>
   );
 }
@@ -338,14 +342,25 @@ function DetailView({ detail, onBack, onChoose }: DetailViewProps) {
 
 export function ExerciseCatalogScreen({
   onChooseExercise,
+  compact = false,
 }: {
-  onChooseExercise?: (exercise: ExerciseDetail) => void;
+  onChooseExercise?: (exercise: Pick<ExerciseDetail, 'id' | 'name' | 'measurement_type'>) => void;
+  compact?: boolean;
 } = {}) {
   const { invalidateSession, refreshSession, session } = useAuth();
   const accessToken = session?.access_token ?? null;
   const { snapshot, initialized } = useCachedExerciseCatalogue(session);
   const [searchDraft, setSearchDraft] = useState('');
   const [search, setSearch] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  useEffect(() => {
+    // Native snapshot filters immediately; API fallback debounces requests.
+    const timer = setTimeout(() => {
+      setSearch(searchDraft.trim());
+      setLocalLimit(30);
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [searchDraft]);
   const [primaryMuscleId, setPrimaryMuscleId] = useState<string | null>(null);
   const [equipmentId, setEquipmentId] = useState<string | null>(null);
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(
@@ -363,15 +378,14 @@ export function ExerciseCatalogScreen({
   const onlineEnabled = requestContext !== null && initialized && !snapshot;
   const locallyMatched = useMemo(() => {
     if (!snapshot) return [];
-    const query = fold(search.trim());
-    return snapshot.items.filter(
+    const filtered = snapshot.items.filter(
       (item) =>
-        (!query || fold(item.name).includes(query)) &&
         (!primaryMuscleId ||
           item.primary_muscles.some((ref) => ref.id === primaryMuscleId)) &&
         (!equipmentId || item.equipment.some((ref) => ref.id === equipmentId)),
     );
-  }, [snapshot, search, primaryMuscleId, equipmentId]);
+    return rankExerciseMatches(filtered, searchDraft);
+  }, [snapshot, searchDraft, primaryMuscleId, equipmentId]);
 
   const musclesQuery = useQuery({
     enabled: onlineEnabled,
@@ -531,7 +545,7 @@ export function ExerciseCatalogScreen({
       ? 0
       : (exercisesQuery.data?.pages[0]?.total ?? 0);
   const hasActiveFilters =
-    Boolean(search) || primaryMuscleId !== null || equipmentId !== null;
+    Boolean(searchDraft.trim()) || primaryMuscleId !== null || equipmentId !== null;
 
   const resetFilters = () => {
     setSearchDraft('');
@@ -555,13 +569,17 @@ export function ExerciseCatalogScreen({
 
   const header = (
     <View>
-      <Text style={styles.eyebrow}>KEYLORFORGE · ENTRENAR</Text>
-      <Text accessibilityRole="header" style={styles.title}>
-        Catálogo de ejercicios
-      </Text>
-      <Text style={styles.subtitle}>
-        Busca y filtra el catálogo canónico de KeylorForge.
-      </Text>
+      {!compact ? (
+        <>
+          <Text style={styles.eyebrow}>KEYLORFORGE · ENTRENAR</Text>
+          <Text accessibilityRole="header" style={styles.title}>
+            Catálogo de ejercicios
+          </Text>
+          <Text style={styles.subtitle}>
+            Busca y filtra el catálogo canónico de KeylorForge.
+          </Text>
+        </>
+      ) : null}
 
       <View style={styles.searchRow}>
         <TextInput
@@ -572,23 +590,38 @@ export function ExerciseCatalogScreen({
             setSearch(searchDraft.trim());
             setLocalLimit(30);
           }}
-          placeholder="Buscar por nombre"
+          placeholder="Ejercicio o movimiento…"
           returnKeyType="search"
           style={styles.searchInput}
           value={searchDraft}
         />
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            setSearch(searchDraft.trim());
-            setLocalLimit(30);
-          }}
-          style={styles.searchButton}
-        >
-          <Text style={styles.searchButtonText}>Buscar</Text>
-        </Pressable>
+        {!compact ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              setSearch(searchDraft.trim());
+              setLocalLimit(30);
+            }}
+            style={styles.searchButton}
+          >
+            <Text style={styles.searchButtonText}>Buscar</Text>
+          </Pressable>
+        ) : null}
       </View>
 
+      {compact ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setShowFilters((value) => !value)}
+          style={styles.compactFilters}
+        >
+          <Text style={styles.compactFiltersText}>
+            {showFilters ? 'Ocultar filtros' : 'Filtrar por músculo o equipo'}
+          </Text>
+        </Pressable>
+      ) : null}
+      {(!compact || showFilters) ? (
+        <>
       <FilterRow
         label="Músculo"
         onSelect={(id) => {
@@ -607,6 +640,9 @@ export function ExerciseCatalogScreen({
         options={snapshot?.equipment ?? equipmentQuery.data ?? []}
         selectedId={equipmentId}
       />
+
+        </>
+      ) : null}
 
       {filterError ? (
         <View style={styles.inlineError}>
@@ -746,7 +782,11 @@ export function ExerciseCatalogScreen({
       }
       ListHeaderComponent={header}
       renderItem={({ item }) => (
-        <ExerciseCard exercise={item} onOpen={setSelectedExerciseId} />
+        <ExerciseCard
+          exercise={item}
+          onOpen={setSelectedExerciseId}
+          onQuickAdd={onChooseExercise}
+        />
       )}
       style={styles.container}
     />
@@ -754,6 +794,18 @@ export function ExerciseCatalogScreen({
 }
 
 const styles = StyleSheet.create({
+  quickAdd: {
+    minHeight: 44,
+    minWidth: 82,
+    borderRadius: 10,
+    backgroundColor: '#075BFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+  },
+  quickAddText: { color: '#FFFFFF', fontWeight: '800', fontSize: 12 },
+  compactFilters: { paddingVertical: 12, paddingHorizontal: 4 },
+  compactFiltersText: { color: '#075BFF', fontWeight: '700', fontSize: 13 },
   backButton: {
     alignSelf: 'flex-start',
     minHeight: 48,
