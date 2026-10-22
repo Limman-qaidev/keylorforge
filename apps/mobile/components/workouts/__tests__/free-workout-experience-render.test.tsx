@@ -1,5 +1,5 @@
 import { act, render, userEvent, waitFor } from '@testing-library/react-native';
-import { Alert } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
 
 import { FreeWorkoutExperience } from '../free-workout-experience';
 import { useAuth } from '@/lib/auth/auth-provider';
@@ -217,7 +217,10 @@ describe('staged real Free Workout UI', () => {
       const screen = await render(<FreeWorkoutExperience isolatedPreview />);
       await screen.findByText('Iniciar entrenamiento libre');
       await user.press(screen.getByText('Iniciar entrenamiento libre'));
-      await screen.findByText('Entrenamiento activo');
+      const activeHeading = await screen.findByText('Entrenamiento activo');
+      expect(StyleSheet.flatten(activeHeading.props.style)).toMatchObject({
+        color: '#ffffff',
+      });
       await user.press(screen.getByText('Añadir ejercicio o serie'));
       await user.press(await screen.findByText('Elegir Press de banca'));
       await user.type(await screen.findByLabelText('Cantidad realizada'), '8');
