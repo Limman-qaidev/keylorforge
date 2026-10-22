@@ -380,7 +380,7 @@ export function RegisterSetV2({
       style={styles.darkRoot}
       contentContainerStyle={styles.darkPage}
     >
-      <Text style={styles.brandEyebrowDark}>KEYLORFORGE / ENTRENAR</Text>
+      <Text style={styles.brandEyebrowDark}>REGISTRAR SERIE</Text>
       <Text style={styles.headingDark}>Registrar serie</Text>
       <Text accessibilityRole="header" style={styles.setExerciseTitle}>
         {chosen.name}
