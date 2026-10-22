@@ -286,7 +286,9 @@ export function ActiveWorkoutV2({
         <View style={styles.exerciseCard}>
           <View style={styles.exerciseTop}>
             <View style={styles.exerciseSymbol}>
-              <Text style={styles.exerciseSymbolText}>K</Text>
+              <Text style={styles.exerciseSymbolText}>
+                {overview.exercises.indexOf(focused) + 1}
+              </Text>
             </View>
             <View style={styles.exerciseHeadingWrap}>
               <Text style={styles.exerciseTitle}>
