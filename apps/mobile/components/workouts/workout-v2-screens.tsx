@@ -96,11 +96,7 @@ function SetValue({ set }: { set: ActiveSetSummary }) {
   return <Text style={styles.setValue}>{total}</Text>;
 }
 
-function SetLedger({
-  sets,
-}: {
-  sets: ActiveSetSummary[];
-}) {
+function SetLedger({ sets }: { sets: ActiveSetSummary[] }) {
   return (
     <View style={styles.ledger}>
       <View style={styles.ledgerHeader}>
@@ -278,7 +274,9 @@ export function ActiveWorkoutV2({
       ))}
       {overview.exercises.length === 0 ? (
         <View style={styles.emptyActive}>
-          <Text style={styles.emptyActiveTitle}>Tu sesión ya está en marcha</Text>
+          <Text style={styles.emptyActiveTitle}>
+            Tu sesión ya está en marcha
+          </Text>
           <Text style={styles.emptyActiveText}>
             Elige un ejercicio y confirma tu primera serie.
           </Text>
