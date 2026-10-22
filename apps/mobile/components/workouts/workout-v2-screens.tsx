@@ -421,18 +421,27 @@ export function ActiveWorkoutV2({
           Necesitas confirmar al menos una serie de trabajo para finalizar.
         </Text>
       ) : null}
-      <Action
-        label="Ver historial"
-        onPress={onHistory}
-        disabled={busy}
-        variant="dark"
-      />
-      <Action
-        label="Cancelar entrenamiento"
-        onPress={onCancel}
-        disabled={busy}
-        variant="danger"
-      />
+
+      <View style={styles.workoutSecondaryActions}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: busy }}
+          disabled={busy}
+          onPress={onHistory}
+          style={styles.workoutSecondaryPressable}
+        >
+          <Text style={styles.workoutSecondaryLabel}>Ver historial</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: busy }}
+          disabled={busy}
+          onPress={onCancel}
+          style={styles.workoutSecondaryPressable}
+        >
+          <Text style={styles.workoutDangerLabel}>Cancelar entrenamiento</Text>
+        </Pressable>
+      </View>
     </ScrollView>
   );
 }
@@ -498,15 +507,23 @@ export function RegisterSetV2({
     <ScrollView
       keyboardShouldPersistTaps="handled"
       style={styles.darkRoot}
-      contentContainerStyle={styles.darkPage}
+      contentContainerStyle={styles.setPage}
     >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ disabled: busy }}
+        disabled={busy}
+        onPress={onBack}
+        style={styles.setBack}
+      >
+        <Text style={styles.setBackText}>‹ Volver sin guardar</Text>
+      </Pressable>
       <Text style={styles.brandEyebrowDark}>REGISTRAR SERIE</Text>
-      <Text style={styles.headingDark}>Registrar serie</Text>
       <Text accessibilityRole="header" style={styles.setExerciseTitle}>
         {chosen.name}
       </Text>
       <Text style={styles.subtitleDark}>
-        La serie solo se guarda cuando pulses «Confirmar serie».
+        Confirma cada serie para guardarla.
       </Text>
       <SectionLabel dark>TIPO DE SERIE</SectionLabel>
       <View style={styles.roleRow}>
@@ -600,12 +617,6 @@ export function RegisterSetV2({
           />
         </View>
       ) : null}
-      <View style={styles.disclosure}>
-        <Text style={styles.disclosureHeading}>REGISTRO INMEDIATO</Text>
-        <Text style={styles.disclosureBody}>
-          Tu serie se conserva en el teléfono incluso sin conexión.
-        </Text>
-      </View>
       {error ? (
         <Text accessibilityLiveRegion="polite" style={styles.errorDark}>
           {error}
@@ -615,12 +626,6 @@ export function RegisterSetV2({
         label={busy ? 'Guardando…' : 'Confirmar serie'}
         onPress={onConfirm}
         disabled={busy}
-      />
-      <Action
-        label="Volver sin guardar"
-        onPress={onBack}
-        disabled={busy}
-        variant="dark"
       />
     </ScrollView>
   );
@@ -1000,7 +1005,24 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   darkRoot: { flex: 1, backgroundColor: '#061524' },
-  darkPage: { padding: 20, paddingBottom: 55, gap: 13, minHeight: '100%' },
+  darkPage: { padding: 20, paddingBottom: 110, gap: 12, minHeight: '100%' },
+  setPage: { padding: 20, paddingBottom: 120, gap: 10 },
+  setBack: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' },
+  setBackText: { color: '#9FB1C4', fontSize: 14, fontWeight: '800' },
+  workoutSecondaryActions: {
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+  },
+  workoutSecondaryPressable: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingVertical: 7,
+    paddingHorizontal: 4,
+  },
+  workoutSecondaryLabel: { color: '#9FB1C4', fontSize: 13, fontWeight: '700' },
+  workoutDangerLabel: { color: '#E5A8B0', fontSize: 13, fontWeight: '700' },
   brandEyebrowDark: {
     color: '#00BDAF',
     fontWeight: '900',
@@ -1108,12 +1130,12 @@ const styles = StyleSheet.create({
   spacerSmall: { height: 3 },
   helperDark: { color: '#9FB1C4', fontSize: 12, lineHeight: 17 },
   setExerciseTitle: { color: '#FFFFFF', fontSize: 22, fontWeight: '800' },
-  roleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8 },
+  roleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   roleChip: {
     borderRadius: 10,
     backgroundColor: '#193750',
-    minHeight: 46,
-    paddingHorizontal: 17,
+    minHeight: 42,
+    paddingHorizontal: 14,
     justifyContent: 'center',
   },
   roleChipSelected: { backgroundColor: '#075BFF' },
@@ -1123,18 +1145,18 @@ const styles = StyleSheet.create({
   metricField: {
     flex: 1,
     minWidth: 0,
-    padding: 14,
+    padding: 12,
     backgroundColor: '#0D2137',
-    borderRadius: 16,
-    gap: 5,
+    borderRadius: 13,
+    gap: 4,
   },
   metricLabel: { color: '#9FB1C4', fontSize: 10, fontWeight: '800' },
   metricInput: {
-    fontSize: 35,
+    fontSize: 30,
     color: '#FFFFFF',
     fontWeight: '900',
     padding: 0,
-    minHeight: 57,
+    minHeight: 47,
   },
   metricUnit: { color: '#9FB1C4', fontWeight: '700', fontSize: 12 },
   disclosure: {
