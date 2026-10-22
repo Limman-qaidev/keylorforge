@@ -11,14 +11,20 @@ import {
   Alert,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 
 import { ExerciseCatalogScreen } from '@/components/exercises/exercise-catalog-screen';
+import {
+  ActiveWorkoutV2,
+  ExercisePickerV2,
+  RegisterSetV2,
+  WorkoutHistoryDetailV2,
+  WorkoutHistoryV2,
+  WorkoutHubV2,
+} from '@/components/workouts/workout-v2-screens';
 import { useAuth } from '@/lib/auth/auth-provider';
 import type { ExerciseDetail } from '@/lib/exercises/catalog-api';
 import { useCachedExerciseCatalogue } from '@/lib/exercises/use-cached-exercise-catalogue';
@@ -465,393 +471,109 @@ function FreeWorkoutSessionExperience({
 
   if (mode === 'picker') {
     return (
-      <View style={styles.root}>
-        <View style={styles.toolbar}>
-          <Button
-            title="Volver al entrenamiento"
-            secondary
-            onPress={() => setMode('catalogue')}
-          />
-        </View>
+      <ExercisePickerV2 onBack={() => setMode('catalogue')}>
         <ExerciseCatalogScreen onChooseExercise={choose} />
-      </View>
+      </ExercisePickerV2>
     );
   }
 
   if (mode === 'set' && chosen) {
-    const measurement = chosen.measurement_type as Measurement;
     return (
-      <ScrollView
-        contentContainerStyle={styles.page}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text style={styles.eyebrow}>REGISTRAR SERIE</Text>
-        <Text accessibilityRole="header" style={styles.heading}>
-          {chosen.name}
-        </Text>
-        <Text style={styles.caption}>
-          La serie solo se guarda cuando pulses «Confirmar serie».
-        </Text>
-        <Text style={styles.label}>Tipo de serie</Text>
-        <View style={styles.inline}>
-          <Button
-            title="Trabajo"
-            secondary={role !== 'WORKING'}
-            onPress={() => setRole('WORKING')}
-          />
-          <Button
-            title="Calentamiento"
-            secondary={role !== 'WARMUP'}
-            onPress={() => setRole('WARMUP')}
-          />
-        </View>
-        <Text style={styles.label}>
-          {measurement === 'time'
-            ? 'Duración (segundos)'
-            : measurement === 'distance'
-              ? 'Distancia'
-              : 'Repeticiones'}
-        </Text>
-        <TextInput
-          accessibilityLabel="Cantidad realizada"
-          keyboardType="decimal-pad"
-          onChangeText={setQuantity}
-          placeholder="Cantidad realizada"
-          style={styles.input}
-          value={quantity}
-        />
-        {measurement === 'distance' ? (
-          <View style={styles.inline}>
-            <Button
-              title="Metros"
-              secondary={distanceUnit !== 'm'}
-              onPress={() => setDistanceUnit('m')}
-            />
-            <Button
-              title="Kilómetros"
-              secondary={distanceUnit !== 'km'}
-              onPress={() => setDistanceUnit('km')}
-            />
-          </View>
-        ) : null}
-        {measurement === 'reps' ? (
-          <>
-            <Text style={styles.label}>Carga total (opcional)</Text>
-            <TextInput
-              accessibilityLabel="Carga total opcional"
-              keyboardType="decimal-pad"
-              onChangeText={setLoad}
-              placeholder="Sin carga"
-              style={styles.input}
-              value={load}
-            />
-            <View style={styles.inline}>
-              <Button
-                title="kg"
-                secondary={unit !== 'kg'}
-                onPress={() => setUnit('kg')}
-              />
-              <Button
-                title="lb"
-                secondary={unit !== 'lb'}
-                onPress={() => setUnit('lb')}
-              />
-            </View>
-          </>
-        ) : null}
-        {error ? (
-          <Text accessibilityLiveRegion="polite" style={styles.error}>
-            {error}
-          </Text>
-        ) : null}
-        <Button
-          title={busy ? 'Guardando…' : 'Confirmar serie'}
-          onPress={confirmSet}
-          disabled={busy}
-        />
-        <Button
-          title="Volver sin guardar"
-          secondary
-          disabled={busy}
-          onPress={() => {
-            setChosen(null);
-            setMode('picker');
-          }}
-        />
-      </ScrollView>
+      <RegisterSetV2
+        chosen={chosen}
+        role={role}
+        onRole={setRole}
+        quantity={quantity}
+        onQuantity={setQuantity}
+        load={load}
+        onLoad={setLoad}
+        unit={unit}
+        onUnit={setUnit}
+        distanceUnit={distanceUnit}
+        onDistanceUnit={setDistanceUnit}
+        busy={busy}
+        error={error}
+        onConfirm={confirmSet}
+        onBack={() => {
+          setChosen(null);
+          setMode('picker');
+        }}
+      />
     );
   }
 
   if (mode === 'history-detail') {
     return (
-      <ScrollView contentContainerStyle={styles.page}>
-        <Button
-          title="Volver al historial"
-          secondary
-          onPress={() => setMode('history')}
-        />
-        <Text style={styles.eyebrow}>ENTRENAMIENTO FINALIZADO</Text>
-        <Text accessibilityRole="header" style={styles.heading}>
-          {selectedHistory?.local_date ?? 'Detalle del entrenamiento'}
-        </Text>
-        {detailLoading ? (
-          <ActivityIndicator accessibilityLabel="Cargando detalle del entrenamiento" />
-        ) : detailError ? (
-          <Text accessibilityLiveRegion="polite" style={styles.error}>
-            {detailError}
-          </Text>
-        ) : historyDetail ? (
-          <>
-            <Text style={styles.caption}>
-              {historyDetail.entry.total_sets} series confirmadas ·{' '}
-              {historyDetail.entry.working_sets} de trabajo
-            </Text>
-            {historyDetail.exercises.map((exercise) => (
-              <View key={exercise.occurrence_id} style={styles.item}>
-                <Text style={styles.itemTitle}>
-                  {nameOf(exercise.canonical_exercise_id)}
-                </Text>
-                {exercise.sets.map((set, index) => (
-                  <Text key={set.set_id} style={styles.caption}>
-                    {index + 1}.{' '}
-                    {set.set_role === 'WORKING' ? 'Trabajo' : 'Calentamiento'} ·{' '}
-                    {set.measurement_type === 'reps'
-                      ? `${set.reps} rep`
-                      : set.measurement_type === 'time'
-                        ? `${set.duration_seconds} s`
-                        : `${set.distance_decimal} ${set.distance_unit}`}
-                    {set.load_decimal !== null
-                      ? ` · ${set.load_decimal} ${set.load_unit}`
-                      : ''}
-                  </Text>
-                ))}
-              </View>
-            ))}
-          </>
-        ) : null}
-      </ScrollView>
+      <WorkoutHistoryDetailV2
+        selectedHistory={selectedHistory}
+        historyDetail={historyDetail}
+        detailLoading={detailLoading}
+        detailError={detailError}
+        nameOf={nameOf}
+        onBack={() => setMode('history')}
+      />
     );
   }
 
   if (mode === 'history') {
     return (
-      <ScrollView contentContainerStyle={styles.page}>
-        <Text style={styles.eyebrow}>MIS ENTRENAMIENTOS</Text>
-        <Text accessibilityRole="header" style={styles.heading}>
-          Historial
-        </Text>
-        {history.map((item) => (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Ver entrenamiento del ${item.local_date}`}
-            key={item.session_id}
-            onPress={() => openHistoryDetail(item)}
-            style={styles.item}
-          >
-            <Text style={styles.itemTitle}>{item.local_date}</Text>
-            <Text>
-              {item.total_sets} series · {item.working_sets} de trabajo
-            </Text>
-            <Text style={styles.caption}>Ver ejercicios y series ›</Text>
-          </Pressable>
-        ))}
-        {history.length === 0 ? (
-          <Text>Todavía no hay entrenamientos finalizados.</Text>
-        ) : null}
-        <Button
-          title={overview ? 'Volver al entrenamiento' : 'Volver a Entrenar'}
-          secondary
-          onPress={() => setMode('catalogue')}
-        />
-      </ScrollView>
+      <WorkoutHistoryV2
+        history={history}
+        overview={overview}
+        onOpen={openHistoryDetail}
+        onBack={() => setMode('catalogue')}
+      />
     );
   }
 
   if (overview) {
     return (
-      <ScrollView
-        contentContainerStyle={[styles.page, styles.pageDark]}
-        style={styles.darkScroll}
-      >
-        <Text style={[styles.eyebrow, styles.eyebrowDark]}>
-          KEYLORFORGE · ENTRENAR
-        </Text>
-        <Text
-          accessibilityRole="header"
-          style={[styles.heading, styles.headingDark]}
-        >
-          Entrenamiento activo
-        </Text>
-        <Text style={[styles.caption, styles.captionDark]}>
-          {overview.totalSets} series confirmadas
-        </Text>
-        {overview.exercises.map((entry) => (
-          <View
-            key={entry.occurrence_id}
-            style={[styles.item, styles.itemDark]}
-          >
-            <Text style={[styles.itemTitle, styles.itemTitleDark]}>
-              {nameOf(entry.canonical_exercise_id)}
-            </Text>
-            {entry.sets.map((set, index) => (
-              <Text
-                key={set.set_id}
-                style={[styles.caption, styles.captionDark]}
-              >
-                {index + 1}.{' '}
-                {set.set_role === 'WORKING' ? 'Trabajo' : 'Calentamiento'} ·{' '}
-                {set.measurement_type === 'reps'
-                  ? `${set.reps} rep`
-                  : set.measurement_type === 'time'
-                    ? `${set.duration_seconds} s`
-                    : `${set.distance_decimal} ${set.distance_unit}`}
-                {set.load_decimal !== null
-                  ? ` · ${set.load_decimal} ${set.load_unit}`
-                  : ''}
-              </Text>
-            ))}
-          </View>
-        ))}
-        {overview.exercises.length === 0 ? (
-          <Text style={[styles.caption, styles.captionDark]}>
-            Elige un ejercicio y confirma tu primera serie.
-          </Text>
-        ) : null}
-        {error ? (
-          <Text
-            accessibilityLiveRegion="polite"
-            style={[styles.error, styles.errorDark]}
-          >
-            {error}
-          </Text>
-        ) : null}
-        <Button
-          dark
-          title="Añadir ejercicio o serie"
-          disabled={busy}
-          onPress={() => setMode('picker')}
-        />
-        <Button
-          dark
-          title="Ver historial"
-          secondary
-          disabled={busy}
-          onPress={() => setMode('history')}
-        />
-        <Button
-          dark
-          title="Finalizar entrenamiento"
-          secondary
-          disabled={busy || overview.workingSets < 1}
-          onPress={finish}
-        />
-        <Button
-          dark
-          title="Cancelar entrenamiento"
-          secondary
-          disabled={busy}
-          onPress={cancel}
-        />
-        {overview.workingSets === 0 ? (
-          <Text style={[styles.caption, styles.captionDark]}>
-            Necesitas confirmar al menos una serie de trabajo para finalizar.
-          </Text>
-        ) : null}
-      </ScrollView>
+      <ActiveWorkoutV2
+        overview={overview}
+        nameOf={nameOf}
+        busy={busy}
+        error={error}
+        onAdd={() => setMode('picker')}
+        onHistory={() => setMode('history')}
+        onFinish={finish}
+        onCancel={cancel}
+      />
     );
   }
 
   return (
-    <View style={styles.root}>
-      <View style={styles.toolbar}>
-        <Button
-          title="Iniciar entrenamiento libre"
-          onPress={begin}
-          disabled={busy}
-        />
-        <Button
-          title="Ver historial"
-          secondary
-          disabled={busy}
-          onPress={() => setMode('history')}
-        />
-      </View>
-      {error ? (
-        <Text accessibilityLiveRegion="polite" style={styles.error}>
-          {error}
-        </Text>
-      ) : null}
+    <WorkoutHubV2
+      onBegin={begin}
+      onHistory={() => setMode('history')}
+      busy={busy}
+      error={error}
+    >
       <ExerciseCatalogScreen />
-    </View>
+    </WorkoutHubV2>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f6f8fc' },
-  darkScroll: { backgroundColor: '#061524' },
-  page: { padding: 20, paddingBottom: 64, gap: 12 },
-  pageDark: { backgroundColor: '#061524', minHeight: '100%' },
   center: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
     padding: 24,
     gap: 12,
-  },
-  toolbar: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    backgroundColor: '#F5F8FC',
   },
   button: {
-    backgroundColor: '#075bff',
+    minHeight: 48,
     borderRadius: 12,
+    backgroundColor: '#075BFF',
     paddingHorizontal: 18,
     paddingVertical: 14,
-    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },
   buttonText: { color: '#ffffff', fontWeight: '700' },
-  secondaryButton: { backgroundColor: '#e7efff' },
-  secondaryText: { color: '#075bff' },
+  secondaryButton: { backgroundColor: '#EAF2FF' },
+  secondaryText: { color: '#075BFF' },
   secondaryButtonDark: { backgroundColor: '#193750' },
   secondaryTextDark: { color: '#ffffff' },
-  eyebrow: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#526074',
-    letterSpacing: 1,
-  },
-  heading: { fontSize: 26, fontWeight: '800', color: '#12213a' },
-  headingDark: { color: '#ffffff' },
-  eyebrowDark: { color: '#9fb1c4' },
-  captionDark: { color: '#b8c8d8' },
-  label: { fontWeight: '700', fontSize: 15, color: '#12213a', marginTop: 8 },
-  caption: { fontSize: 14, color: '#54657e', lineHeight: 22 },
-  error: { color: '#b42318', fontSize: 14, padding: 12 },
-  errorDark: { color: '#ffb4a8' },
-  inline: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  input: {
-    borderWidth: 1,
-    borderColor: '#cbd6e4',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    minHeight: 48,
-    fontSize: 17,
-  },
-  item: {
-    padding: 16,
-    borderRadius: 14,
-    backgroundColor: '#fff',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: '#e8edf5',
-  },
-  itemTitle: { fontWeight: '700', fontSize: 17, color: '#12213a' },
-  itemDark: { backgroundColor: '#0d2137', borderColor: '#193750' },
-  itemTitleDark: { color: '#ffffff' },
 });
