@@ -216,13 +216,16 @@ describe('staged real Free Workout UI', () => {
     try {
       const screen = await render(<FreeWorkoutExperience isolatedPreview />);
       await screen.findByText('Iniciar entrenamiento libre');
+      expect(screen.getByText('Tu entrenamiento, sin distracciones.')).toBeTruthy();
       await user.press(screen.getByText('Iniciar entrenamiento libre'));
       const activeHeading = await screen.findByText('Entrenamiento activo');
+      expect(screen.getByText('EJERCICIOS REALIZADOS')).toBeTruthy();
       expect(StyleSheet.flatten(activeHeading.props.style)).toMatchObject({
         color: '#ffffff',
       });
       await user.press(screen.getByText('Añadir ejercicio o serie'));
       await user.press(await screen.findByText('Elegir Press de banca'));
+      expect(screen.getByText('REGISTRA LO QUE HAS HECHO')).toBeTruthy();
       await user.type(await screen.findByLabelText('Cantidad realizada'), '8');
       await user.type(screen.getByLabelText('Carga total opcional'), '25');
       await user.press(screen.getByText('Confirmar serie'));
@@ -231,6 +234,7 @@ describe('staged real Free Workout UI', () => {
       await user.press(screen.getByText('Finalizar entrenamiento'));
       await waitFor(() => expect(endFreeWorkout).toHaveBeenCalledTimes(1));
       await screen.findByText('Historial');
+      expect(screen.getByText('SESIONES FINALIZADAS')).toBeTruthy();
       expect(screen.getByText('1 series · 1 de trabajo')).toBeTruthy();
       expect(alert).toHaveBeenCalledTimes(1);
       expect(cancelFreeWorkout).not.toHaveBeenCalled();
