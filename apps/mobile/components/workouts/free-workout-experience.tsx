@@ -592,7 +592,7 @@ function FreeWorkoutSessionExperience({
     setMode('set');
   };
 
-  const choose = (exercise: ExerciseDetail) => {
+  const choose = (exercise: Pick<ExerciseDetail, 'id' | 'name' | 'measurement_type'>) => {
     setChosen(exercise);
     setRole('WORKING');
     setQuantity('');
@@ -652,7 +652,7 @@ function FreeWorkoutSessionExperience({
   if (mode === 'picker') {
     return (
       <ExercisePickerV2 onBack={() => setMode('catalogue')}>
-        <ExerciseCatalogScreen onChooseExercise={choose} />
+        <ExerciseCatalogScreen onChooseExercise={choose} compact />
       </ExercisePickerV2>
     );
   }
