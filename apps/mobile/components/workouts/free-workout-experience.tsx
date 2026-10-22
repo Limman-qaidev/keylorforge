@@ -75,15 +75,15 @@ function Button({
       onPress={onPress}
       style={[
         styles.button,
-        secondary &&
-          (dark ? styles.secondaryButtonDark : styles.secondaryButton),
+        secondary && styles.secondaryButton,
+        dark && secondary && styles.secondaryButtonDark,
       ]}
     >
       <Text
         style={[
           styles.buttonText,
-          secondary &&
-            (dark ? styles.secondaryTextDark : styles.secondaryText),
+          secondary && styles.secondaryText,
+          dark && secondary && styles.secondaryTextDark,
         ]}
       >
         {title}
