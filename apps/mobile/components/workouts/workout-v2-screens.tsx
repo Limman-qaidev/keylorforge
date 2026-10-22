@@ -216,10 +216,7 @@ export function ActiveWorkoutV2({
   onCancel: () => void;
 }) {
   return (
-    <ScrollView
-      style={styles.darkRoot}
-      contentContainerStyle={styles.darkPage}
-    >
+    <ScrollView style={styles.darkRoot} contentContainerStyle={styles.darkPage}>
       <Text style={styles.brandEyebrowDark}>KEYLORFORGE / EN CURSO</Text>
       <Text accessibilityRole="header" style={styles.headingDark}>
         Entrenamiento activo
@@ -618,19 +615,13 @@ export function WorkoutHistoryDetailV2({
       style={styles.lightRoot}
       contentContainerStyle={styles.lightPage}
     >
-      <Action
-        label="Volver al historial"
-        onPress={onBack}
-        variant="subtle"
-      />
+      <Action label="Volver al historial" onPress={onBack} variant="subtle" />
       <Text style={styles.brandEyebrow}>ENTRENAMIENTO FINALIZADO</Text>
       <Text accessibilityRole="header" style={styles.lightHeading}>
         {selectedHistory?.local_date ?? 'Detalle del entrenamiento'}
       </Text>
       {detailLoading ? (
-        <ActivityIndicator
-          accessibilityLabel="Cargando detalle del entrenamiento"
-        />
+        <ActivityIndicator accessibilityLabel="Cargando detalle del entrenamiento" />
       ) : detailError ? (
         <Text accessibilityLiveRegion="polite" style={styles.errorLight}>
           {detailError}
@@ -667,9 +658,7 @@ export function WorkoutHistoryDetailV2({
                   <View key={set.set_id} style={styles.detailSetRow}>
                     <Text style={styles.detailSetKind}>
                       {index + 1}.{' '}
-                      {set.set_role === 'WORKING'
-                        ? 'Trabajo'
-                        : 'Calentamiento'}
+                      {set.set_role === 'WORKING' ? 'Trabajo' : 'Calentamiento'}
                     </Text>
                     <Text style={styles.detailSetResult}>
                       {performed + load}
