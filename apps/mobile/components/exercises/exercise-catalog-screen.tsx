@@ -612,6 +612,31 @@ export function ExerciseCatalogScreen({
         ) : null}
       </View>
 
+      {compact && onChooseExercise && snapshot && searchDraft.trim().length >= 2 && locallyMatched.length > 0 ? (
+        <View style={styles.suggestions}>
+          <Text style={styles.suggestionHeading}>SUGERENCIAS</Text>
+          <ScrollView
+            horizontal
+            keyboardShouldPersistTaps="always"
+            showsHorizontalScrollIndicator={false}
+          >
+            {locallyMatched.slice(0, 3).map((item) => (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={'Sugerencia ' + item.name}
+                key={item.id}
+                onPress={() => onChooseExercise(item)}
+                style={styles.suggestionChip}
+              >
+                <Text style={styles.suggestionText} numberOfLines={1}>
+                  {item.name}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      ) : null}
+
       {compact ? (
         <Pressable
           accessibilityRole="button"
@@ -796,6 +821,18 @@ export function ExerciseCatalogScreen({
 }
 
 const styles = StyleSheet.create({
+  suggestions: { gap: 8, paddingVertical: 8 },
+  suggestionHeading: { color: '#66758C', fontSize: 10, fontWeight: '800' },
+  suggestionChip: {
+    backgroundColor: '#EAF2FF',
+    borderRadius: 10,
+    maxWidth: 200,
+    minHeight: 44,
+    paddingHorizontal: 13,
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  suggestionText: { color: '#075BFF', fontWeight: '700', fontSize: 13 },
   quickAdd: {
     minHeight: 44,
     minWidth: 82,
