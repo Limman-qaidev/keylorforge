@@ -314,9 +314,9 @@ describe('staged real Free Workout UI', () => {
       expect.anything(),
       entry,
     );
-    await user.press(screen.getByText('Volver al historial'));
+    await user.press(screen.getByText(/Volver al historial/));
     expect(screen.getByText('Historial')).toBeTruthy();
-    await user.press(screen.getByText('Volver a Entrenar'));
+    await user.press(screen.getByText(/Volver a Entrenar/));
     expect(screen.getByText('Ver historial')).toBeTruthy();
     await user.press(screen.getByText('Ver historial'));
     expect(screen.getByText('Historial')).toBeTruthy();
@@ -368,7 +368,7 @@ describe('staged real Free Workout UI', () => {
     expect(
       await screen.findByText('No se pudo recuperar el detalle'),
     ).toBeTruthy();
-    await user.press(screen.getByText('Volver al historial'));
+    await user.press(screen.getByText(/Volver al historial/));
     expect(screen.getByText('Historial')).toBeTruthy();
     expect(recordFreeWorkoutSet).not.toHaveBeenCalled();
     expect(endFreeWorkout).not.toHaveBeenCalled();
