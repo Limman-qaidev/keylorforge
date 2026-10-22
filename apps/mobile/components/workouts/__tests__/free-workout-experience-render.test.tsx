@@ -216,7 +216,9 @@ describe('staged real Free Workout UI', () => {
     try {
       const screen = await render(<FreeWorkoutExperience isolatedPreview />);
       await screen.findByText('Iniciar entrenamiento libre');
-      expect(screen.getByText('Tu entrenamiento, sin distracciones.')).toBeTruthy();
+      expect(
+        screen.getByText('Tu entrenamiento, sin distracciones.'),
+      ).toBeTruthy();
       await user.press(screen.getByText('Iniciar entrenamiento libre'));
       const activeHeading = await screen.findByText('Entrenamiento activo');
       expect(screen.getByText('EJERCICIOS REALIZADOS')).toBeTruthy();
