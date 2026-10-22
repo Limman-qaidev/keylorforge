@@ -663,8 +663,18 @@ export function ExercisePickerV2({
 }
 
 const SHORT_MONTHS = [
-  'ene', 'feb', 'mar', 'abr', 'may', 'jun',
-  'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+  'ene',
+  'feb',
+  'mar',
+  'abr',
+  'may',
+  'jun',
+  'jul',
+  'ago',
+  'sep',
+  'oct',
+  'nov',
+  'dic',
 ];
 
 function readableWorkoutDate(localDate: string): string {
@@ -723,7 +733,8 @@ export function WorkoutHistoryV2({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={
-              'Ver entrenamiento del ' + item.local_date +
+              'Ver entrenamiento del ' +
+              item.local_date +
               (time ? ' a las ' + time : '')
             }
             key={item.session_id}
@@ -732,7 +743,8 @@ export function WorkoutHistoryV2({
           >
             <View style={styles.historyCardTop}>
               <Text style={styles.historyDate}>
-                {date}{time ? ' · ' + time : ''}
+                {date}
+                {time ? ' · ' + time : ''}
               </Text>
               <Text style={styles.historyStatus}>FINALIZADO</Text>
             </View>
