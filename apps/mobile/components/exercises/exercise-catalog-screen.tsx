@@ -344,7 +344,9 @@ export function ExerciseCatalogScreen({
   onChooseExercise,
   compact = false,
 }: {
-  onChooseExercise?: (exercise: Pick<ExerciseDetail, 'id' | 'name' | 'measurement_type'>) => void;
+  onChooseExercise?: (
+    exercise: Pick<ExerciseDetail, 'id' | 'name' | 'measurement_type'>,
+  ) => void;
   compact?: boolean;
 } = {}) {
   const { invalidateSession, refreshSession, session } = useAuth();
@@ -353,6 +355,13 @@ export function ExerciseCatalogScreen({
   const [searchDraft, setSearchDraft] = useState('');
   const [search, setSearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [primaryMuscleId, setPrimaryMuscleId] = useState<string | null>(null);
+  const [equipmentId, setEquipmentId] = useState<string | null>(null);
+  const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(
+    null,
+  );
+  const [localLimit, setLocalLimit] = useState(30);
+
   useEffect(() => {
     // Native snapshot filters immediately; API fallback debounces requests.
     const timer = setTimeout(() => {
@@ -361,12 +370,6 @@ export function ExerciseCatalogScreen({
     }, 200);
     return () => clearTimeout(timer);
   }, [searchDraft]);
-  const [primaryMuscleId, setPrimaryMuscleId] = useState<string | null>(null);
-  const [equipmentId, setEquipmentId] = useState<string | null>(null);
-  const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(
-    null,
-  );
-  const [localLimit, setLocalLimit] = useState(30);
 
   const requestContext = useMemo<AuthenticatedRequestContext | null>(() => {
     if (!accessToken) {
@@ -620,27 +623,26 @@ export function ExerciseCatalogScreen({
           </Text>
         </Pressable>
       ) : null}
-      {(!compact || showFilters) ? (
+      {!compact || showFilters ? (
         <>
-      <FilterRow
-        label="Músculo"
-        onSelect={(id) => {
-          setPrimaryMuscleId(id);
-          setLocalLimit(30);
-        }}
-        options={snapshot?.muscles ?? musclesQuery.data ?? []}
-        selectedId={primaryMuscleId}
-      />
-      <FilterRow
-        label="Equipamiento"
-        onSelect={(id) => {
-          setEquipmentId(id);
-          setLocalLimit(30);
-        }}
-        options={snapshot?.equipment ?? equipmentQuery.data ?? []}
-        selectedId={equipmentId}
-      />
-
+          <FilterRow
+            label="Músculo"
+            onSelect={(id) => {
+              setPrimaryMuscleId(id);
+              setLocalLimit(30);
+            }}
+            options={snapshot?.muscles ?? musclesQuery.data ?? []}
+            selectedId={primaryMuscleId}
+          />
+          <FilterRow
+            label="Equipamiento"
+            onSelect={(id) => {
+              setEquipmentId(id);
+              setLocalLimit(30);
+            }}
+            options={snapshot?.equipment ?? equipmentQuery.data ?? []}
+            selectedId={equipmentId}
+          />
         </>
       ) : null}
 
