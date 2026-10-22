@@ -1,0 +1,55 @@
+# Temporary one-off formatter for the M3 UX review branch.
+# Delete immediately after its push; does not alter domain state or CI gates.
+name: M3 UX Prettier repair (temporary)
+on:
+  push:
+    paths:
+      - .github/workflows/temporary-format-m3-ux.yml
+permissions:
+  contents: write
+jobs:
+  fix-format:
+    if: github.ref == 'refs/heads/feat/m3-ux-v2-dark-active-workout'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out PR branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: true
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.14.0
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - name: Install pinned dependencies
+        working-directory: apps/mobile
+        run: npm ci --no-audit --no-fund
+      - name: Format only the modified M3 UX files
+        working-directory: apps/mobile
+        run: |
+          npx --no-install prettier --write \
+            components/exercises/exercise-catalog-screen.tsx \
+            components/workouts/__tests__/free-workout-experience-render.test.tsx \
+            components/workouts/free-workout-experience.tsx \
+            components/workouts/workout-v2-screens.tsx \
+            lib/exercises/__tests__/search-ranking.test.ts \
+            lib/exercises/search-ranking.ts \
+            lib/workouts/__tests__/rest-timer.test.ts \
+            lib/workouts/rest-timer.ts
+      - name: Commit only formatting changes on this review branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add apps/mobile/components/exercises/exercise-catalog-screen.tsx \
+            apps/mobile/components/workouts/__tests__/free-workout-experience-render.test.tsx \
+            apps/mobile/components/workouts/free-workout-experience.tsx \
+            apps/mobile/components/workouts/workout-v2-screens.tsx \
+            apps/mobile/lib/exercises/__tests__/search-ranking.test.ts \
+            apps/mobile/lib/exercises/search-ranking.ts \
+            apps/mobile/lib/workouts/__tests__/rest-timer.test.ts \
+            apps/mobile/lib/workouts/rest-timer.ts
+          if ! git diff --cached --quiet; then
+            git commit -m 'style(m3-ux): apply project Prettier to touched code'
+            git push origin HEAD:feat/m3-ux-v2-dark-active-workout
+          fi
