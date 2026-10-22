@@ -5,9 +5,16 @@
     "version": "0.1.0",
     "scheme": "keylorforge",
     "orientation": "portrait",
+    "icon": "./assets/icons/keylorforge-app-icon.png",
     "userInterfaceStyle": "automatic",
     "android": {
       "package": "com.jonathansalgadonieto.keylorforge",
+      "icon": "./assets/icons/keylorforge-app-icon.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icons/keylorforge-adaptive-foreground.png",
+        "backgroundColor": "#075BFF",
+        "monochromeImage": "./assets/icons/keylorforge-adaptive-monochrome.png"
+      },
       "intentFilters": [
         {
           "action": "VIEW",
