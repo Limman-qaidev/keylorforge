@@ -331,11 +331,11 @@ function FreeWorkoutSessionExperience({
     currentControl?.dismissed || clockMilliseconds === 0
       ? 0
       : remainingRestSeconds(
-        recentSet,
-        restSeconds,
-        clockMilliseconds,
-        currentControl?.adjustmentSeconds ?? 0,
-      );
+          recentSet,
+          restSeconds,
+          clockMilliseconds,
+          currentControl?.adjustmentSeconds ?? 0,
+        );
 
   const saveRestControl = (value: RestControl) => {
     setRestControl(value);
