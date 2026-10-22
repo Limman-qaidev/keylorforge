@@ -31,6 +31,7 @@ import { useCachedExerciseCatalogue } from '@/lib/exercises/use-cached-exercise-
 import {
   readActiveFreeWorkoutOverview,
   type ActiveFreeWorkoutOverview,
+  type ActiveExerciseSummary,
 } from '@/lib/workouts/active-workout-overview';
 import {
   beginFreeWorkout,
@@ -56,7 +57,7 @@ import {
   secureWorkoutIds,
 } from '@/lib/workouts/native-workout-platform';
 
-type Mode = 'catalogue' | 'picker' | 'set' | 'history' | 'history-detail';
+type Mode = 'catalogue' | 'explore' | 'picker' | 'set' | 'history' | 'history-detail';
 type Measurement = 'reps' | 'time' | 'distance';
 type Role = 'WORKING' | 'WARMUP';
 
@@ -215,7 +216,7 @@ function FreeWorkoutSessionExperience({
     useState<FinishedWorkoutDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
-  const [chosen, setChosen] = useState<ExerciseDetail | null>(null);
+  const [chosen, setChosen] = useState<Pick<ExerciseDetail, 'id' | 'name' | 'measurement_type'> | null>(null);
   const [role, setRole] = useState<Role>('WORKING');
   const [quantity, setQuantity] = useState('');
   const [load, setLoad] = useState('');
@@ -314,9 +315,8 @@ function FreeWorkoutSessionExperience({
         deviceWorkoutClock,
         request,
       );
-      setChosen(null);
-      setQuantity('');
-      setLoad('');
+      // Keep exercise context. The engine reuses its canonical occurrence.
+      // Returning to the active workout does not reopen the catalogue.
       setMode('catalogue');
     });
   };
@@ -423,6 +423,32 @@ function FreeWorkoutSessionExperience({
       });
   };
 
+  const addSetToExercise = (exercise: ActiveExerciseSummary) => {
+    const previous = exercise.sets[exercise.sets.length - 1];
+    if (!previous) return;
+    const cached = snapshot?.items.find(
+      (item) => item.id === exercise.canonical_exercise_id,
+    );
+    setChosen({
+      id: exercise.canonical_exercise_id,
+      name: cached?.name ?? 'Ejercicio registrado',
+      measurement_type: previous.measurement_type,
+    });
+    setRole(previous.set_role);
+    setQuantity(
+      previous.measurement_type === 'reps'
+        ? String(previous.reps ?? '')
+        : previous.measurement_type === 'time'
+          ? String(previous.duration_seconds ?? '')
+          : String(previous.distance_decimal ?? ''),
+    );
+    setLoad(previous.load_decimal ?? '');
+    setUnit(previous.load_unit === 'lb' ? 'lb' : 'kg');
+    setDistanceUnit(previous.distance_unit === 'km' ? 'km' : 'm');
+    setError(null);
+    setMode('set');
+  };
+
   const choose = (exercise: ExerciseDetail) => {
     setChosen(exercise);
     setRole('WORKING');
@@ -469,6 +495,17 @@ function FreeWorkoutSessionExperience({
     );
   }
 
+  if (mode === 'explore') {
+    return (
+      <ExercisePickerV2
+        title="Explorar ejercicios"
+        onBack={() => setMode('catalogue')}
+      >
+        <ExerciseCatalogScreen />
+      </ExercisePickerV2>
+    );
+  }
+
   if (mode === 'picker') {
     return (
       <ExercisePickerV2 onBack={() => setMode('catalogue')}>
@@ -494,10 +531,7 @@ function FreeWorkoutSessionExperience({
         busy={busy}
         error={error}
         onConfirm={confirmSet}
-        onBack={() => {
-          setChosen(null);
-          setMode('picker');
-        }}
+        onBack={() => setMode('catalogue')}
       />
     );
   }
@@ -533,7 +567,8 @@ function FreeWorkoutSessionExperience({
         nameOf={nameOf}
         busy={busy}
         error={error}
-        onAdd={() => setMode('picker')}
+        onAddExercise={() => setMode('picker')}
+        onAddSet={addSetToExercise}
         onHistory={() => setMode('history')}
         onFinish={finish}
         onCancel={cancel}
@@ -547,9 +582,8 @@ function FreeWorkoutSessionExperience({
       onHistory={() => setMode('history')}
       busy={busy}
       error={error}
-    >
-      <ExerciseCatalogScreen />
-    </WorkoutHubV2>
+      onExplore={() => setMode('explore')}
+    />
   );
 }
 
