@@ -12,7 +12,10 @@
         {
           "action": "VIEW",
           "autoVerify": false,
-          "category": ["BROWSABLE", "DEFAULT"],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ],
           "data": [
             {
               "scheme": "keylorforge",
@@ -31,11 +34,20 @@
             }
           ]
         }
-      ]
+      ],
+      "icon": "./assets/icons/keylorforge-app-icon.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icons/keylorforge-adaptive-foreground.png",
+        "backgroundColor": "#075BFF",
+        "monochromeImage": "./assets/icons/keylorforge-adaptive-monochrome.png"
+      }
     },
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router"
+    ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "icon": "./assets/icons/keylorforge-app-icon.png"
   }
 }
