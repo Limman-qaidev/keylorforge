@@ -6,9 +6,11 @@
  * explicitly confirms a set. All written state uses the real SQLite store.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   Platform,
   Pressable,
   StyleSheet,
@@ -51,6 +53,12 @@ import {
   openPreviewWorkoutDatabase,
 } from '@/lib/workouts/expo-sqlite-adapter';
 import { useForegroundWorkoutSync } from '@/lib/workouts/workout-sync-foreground';
+import {
+  latestConfirmedSet,
+  remainingRestSeconds,
+  REST_PRESETS_SECONDS,
+  type RestPresetSeconds,
+} from '@/lib/workouts/rest-timer';
 import type { LocalSubjectAccess } from '@/lib/workouts/local-store';
 import {
   deviceWorkoutClock,
@@ -60,6 +68,13 @@ import {
 type Mode = 'catalogue' | 'explore' | 'picker' | 'set' | 'history' | 'history-detail';
 type Measurement = 'reps' | 'time' | 'distance';
 type Role = 'WORKING' | 'WARMUP';
+
+type RestControl = {
+  sessionId: string;
+  setId: string;
+  adjustmentSeconds: number;
+  dismissed: boolean;
+};
 
 function Button({
   title,
@@ -226,6 +241,134 @@ function FreeWorkoutSessionExperience({
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  const [restSeconds, setRestSeconds] = useState<RestPresetSeconds>(90);
+  const [restControl, setRestControl] = useState<RestControl | null>(null);
+  const [clockMilliseconds, setClockMilliseconds] = useState(Date.now());
+
+  // Settings are local, scoped to the authenticated subject, and never synced
+  // with workout data. Only a confirmed set timestamp starts the countdown.
+  useEffect(() => {
+    setRestSeconds(90);
+    setRestControl(null);
+    if (!subject) return;
+    let live = true;
+    void Promise.all([
+      AsyncStorage.getItem(`keylorforge:rest:preset:v1:${subject}`),
+      AsyncStorage.getItem(`keylorforge:rest:control:v1:${subject}`),
+    ]).then(([preset, control]) => {
+      if (!live) return;
+      const seconds = Number(preset);
+      if (
+        preset !== null &&
+        REST_PRESETS_SECONDS.some((item) => item === seconds)
+      ) {
+        setRestSeconds(seconds as RestPresetSeconds);
+      }
+      if (control) {
+        try {
+          const stored: unknown = JSON.parse(control);
+          if (
+            stored &&
+            typeof stored === 'object' &&
+            'sessionId' in stored &&
+            'setId' in stored &&
+            'adjustmentSeconds' in stored &&
+            'dismissed' in stored
+          ) {
+            const value = stored as RestControl;
+            if (
+              typeof value.sessionId === 'string' &&
+              typeof value.setId === 'string' &&
+              Number.isInteger(value.adjustmentSeconds) &&
+              Math.abs(value.adjustmentSeconds) <= 3600 &&
+              typeof value.dismissed === 'boolean'
+            ) {
+              setRestControl(value);
+            }
+          }
+        } catch {
+          // Invalid optional rest UI metadata does not affect workout records.
+        }
+      }
+    }).catch(() => {
+      // Rest preferences are optional; confirmed set data remains authoritative.
+    });
+    return () => { live = false; };
+  }, [subject]);
+
+  useEffect(() => {
+    if (!overview) return;
+    setClockMilliseconds(Date.now());
+    const ticker = setInterval(() => setClockMilliseconds(Date.now()), 1000);
+    const appState = AppState.addEventListener('change', (state) => {
+      if (state === 'active') setClockMilliseconds(Date.now());
+    });
+    return () => {
+      clearInterval(ticker);
+      appState.remove();
+    };
+  }, [overview?.session.session_id]);
+
+  const recentSet = latestConfirmedSet(overview);
+  const currentControl =
+    restControl?.sessionId === overview?.session.session_id &&
+    restControl?.setId === recentSet?.set_id
+      ? restControl
+      : null;
+  const remainingRest =
+    currentControl?.dismissed
+      ? 0
+      : remainingRestSeconds(
+          recentSet,
+          restSeconds,
+          clockMilliseconds,
+          currentControl?.adjustmentSeconds ?? 0,
+        );
+
+  const saveRestControl = (value: RestControl) => {
+    setRestControl(value);
+    if (subject) {
+      void AsyncStorage.setItem(
+        `keylorforge:rest:control:v1:${subject}`,
+        JSON.stringify(value),
+      ).catch(() => {});
+    }
+  };
+
+  const adjustRest = (seconds: number) => {
+    if (!overview || !recentSet || remainingRest === 0) return;
+    saveRestControl({
+      sessionId: overview.session.session_id,
+      setId: recentSet.set_id,
+      adjustmentSeconds: Math.max(
+        -3600,
+        Math.min(3600, (currentControl?.adjustmentSeconds ?? 0) + seconds),
+      ),
+      dismissed: false,
+    });
+    setClockMilliseconds(Date.now());
+  };
+
+  const dismissRest = () => {
+    if (!overview || !recentSet) return;
+    saveRestControl({
+      sessionId: overview.session.session_id,
+      setId: recentSet.set_id,
+      adjustmentSeconds: currentControl?.adjustmentSeconds ?? 0,
+      dismissed: true,
+    });
+  };
+
+  const selectRestSeconds = (seconds: RestPresetSeconds) => {
+    setRestSeconds(seconds);
+    setClockMilliseconds(Date.now());
+    if (subject) {
+      void AsyncStorage.setItem(
+        `keylorforge:rest:preset:v1:${subject}`,
+        String(seconds),
+      ).catch(() => {});
+    }
+  };
 
   const reload = useCallback(async () => {
     const expectedSubject = subjectRef.current;
@@ -569,6 +712,11 @@ function FreeWorkoutSessionExperience({
         error={error}
         onAddExercise={() => setMode('picker')}
         onAddSet={addSetToExercise}
+        restRemainingSeconds={remainingRest}
+        restPresetSeconds={restSeconds}
+        onRestPreset={selectRestSeconds}
+        onRestAdjust={adjustRest}
+        onRestDismiss={dismissRest}
         onHistory={() => setMode('history')}
         onFinish={finish}
         onCancel={cancel}
