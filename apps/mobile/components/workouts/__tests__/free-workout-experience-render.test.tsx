@@ -303,7 +303,7 @@ describe('staged real Free Workout UI', () => {
     expect(await screen.findByText('Historial')).toBeTruthy();
     await user.press(
       screen.getByRole('button', {
-        name: 'Ver entrenamiento del 2026-10-09',
+        name: /Ver entrenamiento del 2026-10-09 a las/,
       }),
     );
     expect(await screen.findByText('ENTRENAMIENTO FINALIZADO')).toBeTruthy();
@@ -329,7 +329,7 @@ describe('staged real Free Workout UI', () => {
     expect(await reopened.findByText('Historial')).toBeTruthy();
     expect(
       reopened.getByRole('button', {
-        name: 'Ver entrenamiento del 2026-10-09',
+        name: /Ver entrenamiento del 2026-10-09 a las/,
       }),
     ).toBeTruthy();
     expect(beginFreeWorkout).not.toHaveBeenCalled();
@@ -362,7 +362,7 @@ describe('staged real Free Workout UI', () => {
     await screen.findByText('Historial');
     await user.press(
       screen.getByRole('button', {
-        name: 'Ver entrenamiento del 2026-10-09',
+        name: /Ver entrenamiento del 2026-10-09 a las/,
       }),
     );
     expect(
