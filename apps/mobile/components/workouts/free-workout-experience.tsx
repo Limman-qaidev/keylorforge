@@ -59,11 +59,13 @@ function Button({
   onPress,
   disabled,
   secondary = false,
+  dark = false,
 }: {
   title: string;
   onPress: () => void;
   disabled?: boolean;
   secondary?: boolean;
+  dark?: boolean;
 }) {
   return (
     <Pressable
@@ -71,9 +73,17 @@ function Button({
       accessibilityState={{ disabled: !!disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={[styles.button, secondary && styles.secondaryButton]}
+      style={[
+        styles.button,
+        secondary && (dark ? styles.secondaryButtonDark : styles.secondaryButton),
+      ]}
     >
-      <Text style={[styles.buttonText, secondary && styles.secondaryText]}>
+      <Text
+        style={[
+          styles.buttonText,
+          secondary && (dark ? styles.secondaryTextDark : styles.secondaryText),
+        ]}
+      >
         {title}
       </Text>
     </Pressable>
@@ -657,21 +667,24 @@ function FreeWorkoutSessionExperience({
 
   if (overview) {
     return (
-      <ScrollView contentContainerStyle={styles.page}>
-        <Text style={styles.eyebrow}>KEYLORFORGE · ENTRENAR</Text>
-        <Text accessibilityRole="header" style={styles.heading}>
+      <ScrollView
+        contentContainerStyle={[styles.page, styles.pageDark]}
+        style={styles.darkScroll}
+      >
+        <Text style={[styles.eyebrow, styles.eyebrowDark]}>KEYLORFORGE · ENTRENAR</Text>
+        <Text accessibilityRole="header" style={[styles.heading, styles.headingDark]}>
           Entrenamiento activo
         </Text>
-        <Text style={styles.caption}>
+        <Text style={[styles.caption, styles.captionDark]}>
           {overview.totalSets} series confirmadas
         </Text>
         {overview.exercises.map((entry) => (
-          <View key={entry.occurrence_id} style={styles.item}>
-            <Text style={styles.itemTitle}>
+          <View key={entry.occurrence_id} style={[styles.item, styles.itemDark]}>
+            <Text style={[styles.itemTitle, styles.itemTitleDark]}>
               {nameOf(entry.canonical_exercise_id)}
             </Text>
             {entry.sets.map((set, index) => (
-              <Text key={set.set_id} style={styles.caption}>
+              <Text key={set.set_id} style={[styles.caption, styles.captionDark]}>
                 {index + 1}.{' '}
                 {set.set_role === 'WORKING' ? 'Trabajo' : 'Calentamiento'} ·{' '}
                 {set.measurement_type === 'reps'
@@ -687,40 +700,44 @@ function FreeWorkoutSessionExperience({
           </View>
         ))}
         {overview.exercises.length === 0 ? (
-          <Text style={styles.caption}>
+          <Text style={[styles.caption, styles.captionDark]}>
             Elige un ejercicio y confirma tu primera serie.
           </Text>
         ) : null}
         {error ? (
-          <Text accessibilityLiveRegion="polite" style={styles.error}>
+          <Text accessibilityLiveRegion="polite" style={[styles.error, styles.errorDark]}>
             {error}
           </Text>
         ) : null}
         <Button
+          dark
           title="Añadir ejercicio o serie"
           disabled={busy}
           onPress={() => setMode('picker')}
         />
         <Button
+          dark
           title="Ver historial"
           secondary
           disabled={busy}
           onPress={() => setMode('history')}
         />
         <Button
+          dark
           title="Finalizar entrenamiento"
           secondary
           disabled={busy || overview.workingSets < 1}
           onPress={finish}
         />
         <Button
+          dark
           title="Cancelar entrenamiento"
           secondary
           disabled={busy}
           onPress={cancel}
         />
         {overview.workingSets === 0 ? (
-          <Text style={styles.caption}>
+          <Text style={[styles.caption, styles.captionDark]}>
             Necesitas confirmar al menos una serie de trabajo para finalizar.
           </Text>
         ) : null}
@@ -755,7 +772,9 @@ function FreeWorkoutSessionExperience({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#f6f8fc' },
+  darkScroll: { backgroundColor: '#061524' },
   page: { padding: 20, paddingBottom: 64, gap: 12 },
+  pageDark: { backgroundColor: '#061524', minHeight: '100%' },
   center: {
     flex: 1,
     justifyContent: 'center',
@@ -782,6 +801,8 @@ const styles = StyleSheet.create({
   buttonText: { color: '#ffffff', fontWeight: '700' },
   secondaryButton: { backgroundColor: '#e7efff' },
   secondaryText: { color: '#075bff' },
+  secondaryButtonDark: { backgroundColor: '#193750' },
+  secondaryTextDark: { color: '#ffffff' },
   eyebrow: {
     fontSize: 12,
     fontWeight: '700',
@@ -789,9 +810,13 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   heading: { fontSize: 26, fontWeight: '800', color: '#12213a' },
+  headingDark: { color: '#ffffff' },
+  eyebrowDark: { color: '#9fb1c4' },
+  captionDark: { color: '#b8c8d8' },
   label: { fontWeight: '700', fontSize: 15, color: '#12213a', marginTop: 8 },
   caption: { fontSize: 14, color: '#54657e', lineHeight: 22 },
   error: { color: '#b42318', fontSize: 14, padding: 12 },
+  errorDark: { color: '#ffb4a8' },
   inline: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   input: {
     borderWidth: 1,
@@ -811,4 +836,6 @@ const styles = StyleSheet.create({
     borderColor: '#e8edf5',
   },
   itemTitle: { fontWeight: '700', fontSize: 17, color: '#12213a' },
+  itemDark: { backgroundColor: '#0d2137', borderColor: '#193750' },
+  itemTitleDark: { color: '#ffffff' },
 });
