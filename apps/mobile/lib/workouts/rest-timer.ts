@@ -19,7 +19,8 @@ export function latestConfirmedSet(
     for (const set of exercise.sets) {
       if (
         latest === null ||
-        Date.parse(set.completed_at_utc) > Date.parse(latest.completed_at_utc) ||
+        Date.parse(set.completed_at_utc) >
+          Date.parse(latest.completed_at_utc) ||
         (set.completed_at_utc === latest.completed_at_utc &&
           set.set_id > latest.set_id)
       ) {

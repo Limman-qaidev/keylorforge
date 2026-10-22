@@ -445,46 +445,56 @@ describe('staged real Free Workout UI', () => {
       session,
       totalSets: 1,
       workingSets: 1,
-      exercises: [{
-        occurrence_id: 'c226a777-d460-4d5f-bad6-f75667a9d022',
-        canonical_exercise_id: exerciseId,
-        actual_order: 0,
-        agenda_item_id: null,
-        sets: [{
-          set_id: '1b428bd6-781d-44ec-8609-57af594a5511',
-          set_role: 'WORKING',
-          measurement_type: 'reps',
-          reps: 8,
-          duration_seconds: null,
-          distance_decimal: null,
-          distance_unit: null,
-          load_decimal: '25',
-          load_unit: 'kg',
-          completed_at_utc: '2026-10-09T15:00:00.000Z',
-        }],
-      }],
+      exercises: [
+        {
+          occurrence_id: 'c226a777-d460-4d5f-bad6-f75667a9d022',
+          canonical_exercise_id: exerciseId,
+          actual_order: 0,
+          agenda_item_id: null,
+          sets: [
+            {
+              set_id: '1b428bd6-781d-44ec-8609-57af594a5511',
+              set_role: 'WORKING',
+              measurement_type: 'reps',
+              reps: 8,
+              duration_seconds: null,
+              distance_decimal: null,
+              distance_unit: null,
+              load_decimal: '25',
+              load_unit: 'kg',
+              completed_at_utc: '2026-10-09T15:00:00.000Z',
+            },
+          ],
+        },
+      ],
     });
     const user = userEvent.setup();
     const screen = await render(<FreeWorkoutExperience isolatedPreview />);
     expect(await screen.findByText('Entrenamiento activo')).toBeTruthy();
-    await user.press(screen.getByRole('button', {
-      name: 'Añadir serie a Press de banca',
-    }));
+    await user.press(
+      screen.getByRole('button', {
+        name: 'Añadir serie a Press de banca',
+      }),
+    );
     expect(screen.queryByText('CATÁLOGO CANÓNICO')).toBeNull();
     expect(screen.getByLabelText('Cantidad realizada').props.value).toBe('8');
-    expect(screen.getByLabelText('Carga total opcional').props.value).toBe('25');
+    expect(screen.getByLabelText('Carga total opcional').props.value).toBe(
+      '25',
+    );
     await user.press(screen.getByText('Confirmar serie'));
-    await waitFor(() => expect(recordFreeWorkoutSet).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.anything(),
-      expect.anything(),
-      expect.anything(),
-      expect.objectContaining({
-        canonicalExerciseId: exerciseId,
-        measurement: { measurementType: 'reps', reps: 8 },
-        load: { decimal: '25', unit: 'kg', entrySemantics: 'total' },
-      }),
-    ));
+    await waitFor(() =>
+      expect(recordFreeWorkoutSet).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+        expect.objectContaining({
+          canonicalExerciseId: exerciseId,
+          measurement: { measurementType: 'reps', reps: 8 },
+          load: { decimal: '25', unit: 'kg', entrySemantics: 'total' },
+        }),
+      ),
+    );
     expect(screen.queryByText('CATÁLOGO CANÓNICO')).toBeNull();
   });
 

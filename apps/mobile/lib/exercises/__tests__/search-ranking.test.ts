@@ -1,8 +1,5 @@
 import type { ExerciseListItem } from '../catalog-api';
-import {
-  normalizeExerciseQuery,
-  rankExerciseMatches,
-} from '../search-ranking';
+import { normalizeExerciseQuery, rankExerciseMatches } from '../search-ranking';
 
 const item = (id: string, name: string): ExerciseListItem => ({
   id,
@@ -25,12 +22,18 @@ describe('canonical exercise discovery', () => {
   it('normalizes case, accent, whitespace and punctuation', () => {
     expect(normalizeExerciseQuery('  BÍCEPS  ')).toBe('biceps');
     expect(normalizeExerciseQuery('Curl--de   bíceps')).toBe('curl de biceps');
-    expect(rankExerciseMatches(catalogue, 'biceps').map((v) => v.id)).toEqual(['2']);
+    expect(rankExerciseMatches(catalogue, 'biceps').map((v) => v.id)).toEqual([
+      '2',
+    ]);
   });
 
   it('recovers one-letter omissions and ranks exact prefixes before typos', () => {
-    expect(rankExerciseMatches(catalogue, 'sentadila').map((v) => v.id)).toEqual(['1', '4']);
-    expect(rankExerciseMatches(catalogue, 'sentadilla').map((v) => v.id)).toEqual(['1', '4']);
+    expect(
+      rankExerciseMatches(catalogue, 'sentadila').map((v) => v.id),
+    ).toEqual(['1', '4']);
+    expect(
+      rankExerciseMatches(catalogue, 'sentadilla').map((v) => v.id),
+    ).toEqual(['1', '4']);
   });
 
   it('avoids broad fuzzy matches for short queries and preserves canonical IDs', () => {

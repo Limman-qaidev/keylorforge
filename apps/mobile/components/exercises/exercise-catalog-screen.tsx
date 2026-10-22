@@ -216,7 +216,10 @@ function ExerciseCard({ exercise, onOpen, onQuickAdd }: ExerciseCardProps) {
         accessibilityLabel={'Abrir ' + exercise.name}
         accessibilityRole="button"
         onPress={() => onOpen(exercise.id)}
-        style={({ pressed }) => [styles.exerciseMain, pressed && styles.pressed]}
+        style={({ pressed }) => [
+          styles.exerciseMain,
+          pressed && styles.pressed,
+        ]}
       >
         <Text style={styles.exerciseName}>{exercise.name}</Text>
         <Text style={styles.exerciseMeta}>
@@ -241,7 +244,9 @@ function ExerciseCard({ exercise, onOpen, onQuickAdd }: ExerciseCardProps) {
           <Text style={styles.quickAddText}>+ Elegir</Text>
         </Pressable>
       ) : (
-        <Text accessible={false} style={styles.chevron}>›</Text>
+        <Text accessible={false} style={styles.chevron}>
+          ›
+        </Text>
       )}
     </View>
   );
@@ -548,7 +553,9 @@ export function ExerciseCatalogScreen({
       ? 0
       : (exercisesQuery.data?.pages[0]?.total ?? 0);
   const hasActiveFilters =
-    Boolean(searchDraft.trim()) || primaryMuscleId !== null || equipmentId !== null;
+    Boolean(searchDraft.trim()) ||
+    primaryMuscleId !== null ||
+    equipmentId !== null;
 
   const resetFilters = () => {
     setSearchDraft('');
@@ -612,7 +619,11 @@ export function ExerciseCatalogScreen({
         ) : null}
       </View>
 
-      {compact && onChooseExercise && snapshot && searchDraft.trim().length >= 2 && locallyMatched.length > 0 ? (
+      {compact &&
+      onChooseExercise &&
+      snapshot &&
+      searchDraft.trim().length >= 2 &&
+      locallyMatched.length > 0 ? (
         <View style={styles.suggestions}>
           <Text style={styles.suggestionHeading}>SUGERENCIAS</Text>
           <ScrollView

@@ -65,7 +65,8 @@ import {
   secureWorkoutIds,
 } from '@/lib/workouts/native-workout-platform';
 
-type Mode = 'catalogue' | 'explore' | 'picker' | 'set' | 'history' | 'history-detail';
+type Mode =
+  'catalogue' | 'explore' | 'picker' | 'set' | 'history' | 'history-detail';
 type Measurement = 'reps' | 'time' | 'distance';
 type Role = 'WORKING' | 'WARMUP';
 
@@ -231,7 +232,10 @@ function FreeWorkoutSessionExperience({
     useState<FinishedWorkoutDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
-  const [chosen, setChosen] = useState<Pick<ExerciseDetail, 'id' | 'name' | 'measurement_type'> | null>(null);
+  const [chosen, setChosen] = useState<Pick<
+    ExerciseDetail,
+    'id' | 'name' | 'measurement_type'
+  > | null>(null);
   const [focusedExerciseId, setFocusedExerciseId] = useState<string | null>(
     null,
   );
@@ -258,45 +262,49 @@ function FreeWorkoutSessionExperience({
     void Promise.all([
       AsyncStorage.getItem(`keylorforge:rest:preset:v1:${subject}`),
       AsyncStorage.getItem(`keylorforge:rest:control:v1:${subject}`),
-    ]).then(([preset, control]) => {
-      if (!live) return;
-      const seconds = Number(preset);
-      if (
-        preset !== null &&
-        REST_PRESETS_SECONDS.some((item) => item === seconds)
-      ) {
-        setRestSeconds(seconds as RestPresetSeconds);
-      }
-      if (control) {
-        try {
-          const stored: unknown = JSON.parse(control);
-          if (
-            stored &&
-            typeof stored === 'object' &&
-            'sessionId' in stored &&
-            'setId' in stored &&
-            'adjustmentSeconds' in stored &&
-            'dismissed' in stored
-          ) {
-            const value = stored as RestControl;
-            if (
-              typeof value.sessionId === 'string' &&
-              typeof value.setId === 'string' &&
-              Number.isInteger(value.adjustmentSeconds) &&
-              Math.abs(value.adjustmentSeconds) <= 3600 &&
-              typeof value.dismissed === 'boolean'
-            ) {
-              setRestControl(value);
-            }
-          }
-        } catch {
-          // Invalid optional rest UI metadata does not affect workout records.
+    ])
+      .then(([preset, control]) => {
+        if (!live) return;
+        const seconds = Number(preset);
+        if (
+          preset !== null &&
+          REST_PRESETS_SECONDS.some((item) => item === seconds)
+        ) {
+          setRestSeconds(seconds as RestPresetSeconds);
         }
-      }
-    }).catch(() => {
-      // Rest preferences are optional; confirmed set data remains authoritative.
-    });
-    return () => { live = false; };
+        if (control) {
+          try {
+            const stored: unknown = JSON.parse(control);
+            if (
+              stored &&
+              typeof stored === 'object' &&
+              'sessionId' in stored &&
+              'setId' in stored &&
+              'adjustmentSeconds' in stored &&
+              'dismissed' in stored
+            ) {
+              const value = stored as RestControl;
+              if (
+                typeof value.sessionId === 'string' &&
+                typeof value.setId === 'string' &&
+                Number.isInteger(value.adjustmentSeconds) &&
+                Math.abs(value.adjustmentSeconds) <= 3600 &&
+                typeof value.dismissed === 'boolean'
+              ) {
+                setRestControl(value);
+              }
+            }
+          } catch {
+            // Invalid optional rest UI metadata does not affect workout records.
+          }
+        }
+      })
+      .catch(() => {
+        // Rest preferences are optional; confirmed set data remains authoritative.
+      });
+    return () => {
+      live = false;
+    };
   }, [subject]);
 
   useEffect(() => {
@@ -318,15 +326,14 @@ function FreeWorkoutSessionExperience({
     restControl?.setId === recentSet?.set_id
       ? restControl
       : null;
-  const remainingRest =
-    currentControl?.dismissed
-      ? 0
-      : remainingRestSeconds(
-          recentSet,
-          restSeconds,
-          clockMilliseconds,
-          currentControl?.adjustmentSeconds ?? 0,
-        );
+  const remainingRest = currentControl?.dismissed
+    ? 0
+    : remainingRestSeconds(
+        recentSet,
+        restSeconds,
+        clockMilliseconds,
+        currentControl?.adjustmentSeconds ?? 0,
+      );
 
   const saveRestControl = (value: RestControl) => {
     setRestControl(value);

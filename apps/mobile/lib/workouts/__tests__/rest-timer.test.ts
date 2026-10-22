@@ -1,7 +1,4 @@
-import {
-  latestConfirmedSet,
-  remainingRestSeconds,
-} from '../rest-timer';
+import { latestConfirmedSet, remainingRestSeconds } from '../rest-timer';
 import type { ActiveFreeWorkoutOverview } from '../active-workout-overview';
 
 const createSet = (
@@ -25,19 +22,34 @@ describe('M3 live rest timing', () => {
   it('derives elapsed time from a persisted UTC timestamp after backgrounding', () => {
     const performed = createSet('a', '2026-10-22T15:00:00.000Z');
     expect(
-      remainingRestSeconds(performed, 90, Date.parse('2026-10-22T15:00:35.000Z')),
+      remainingRestSeconds(
+        performed,
+        90,
+        Date.parse('2026-10-22T15:00:35.000Z'),
+      ),
     ).toBe(55);
     expect(
-      remainingRestSeconds(performed, 90, Date.parse('2026-10-22T15:00:35.000Z'), 15),
+      remainingRestSeconds(
+        performed,
+        90,
+        Date.parse('2026-10-22T15:00:35.000Z'),
+        15,
+      ),
     ).toBe(70);
     expect(
-      remainingRestSeconds(performed, 90, Date.parse('2026-10-22T15:03:00.000Z')),
+      remainingRestSeconds(
+        performed,
+        90,
+        Date.parse('2026-10-22T15:03:00.000Z'),
+      ),
     ).toBe(0);
   });
 
   it('never starts rest from warm-up or absent sets', () => {
     const warmup = createSet('a', '2026-10-22T15:00:00.000Z', 'WARMUP');
-    expect(remainingRestSeconds(warmup, 90, Date.parse('2026-10-22T15:00:05.000Z'))).toBe(0);
+    expect(
+      remainingRestSeconds(warmup, 90, Date.parse('2026-10-22T15:00:05.000Z')),
+    ).toBe(0);
     expect(remainingRestSeconds(null, 90, Date.now())).toBe(0);
   });
 
@@ -45,10 +57,7 @@ describe('M3 live rest timing', () => {
     const earlier = createSet('a', '2026-10-22T15:00:00.000Z');
     const latest = createSet('b', '2026-10-22T15:05:00.000Z', 'WARMUP');
     const overview = {
-      exercises: [
-        { sets: [latest] },
-        { sets: [earlier] },
-      ],
+      exercises: [{ sets: [latest] }, { sets: [earlier] }],
     } as unknown as ActiveFreeWorkoutOverview;
     expect(latestConfirmedSet(overview)).toBe(latest);
   });
