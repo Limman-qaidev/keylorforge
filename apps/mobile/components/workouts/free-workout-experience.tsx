@@ -327,9 +327,10 @@ function FreeWorkoutSessionExperience({
     restControl?.setId === recentSet?.set_id
       ? restControl
       : null;
-  const remainingRest = currentControl?.dismissed || clockMilliseconds === 0
-    ? 0
-    : remainingRestSeconds(
+  const remainingRest =
+    currentControl?.dismissed || clockMilliseconds === 0
+      ? 0
+      : remainingRestSeconds(
         recentSet,
         restSeconds,
         clockMilliseconds,
