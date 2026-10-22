@@ -250,13 +250,11 @@ function FreeWorkoutSessionExperience({
   const [error, setError] = useState<string | null>(null);
   const [restSeconds, setRestSeconds] = useState<RestPresetSeconds>(90);
   const [restControl, setRestControl] = useState<RestControl | null>(null);
-  const [clockMilliseconds, setClockMilliseconds] = useState(Date.now());
+  const [clockMilliseconds, setClockMilliseconds] = useState<number>(0);
 
   // Settings are local, scoped to the authenticated subject, and never synced
   // with workout data. Only a confirmed set timestamp starts the countdown.
   useEffect(() => {
-    setRestSeconds(90);
-    setRestControl(null);
     if (!subject) return;
     let live = true;
     void Promise.all([
@@ -307,18 +305,21 @@ function FreeWorkoutSessionExperience({
     };
   }, [subject]);
 
+  const activeSessionId = overview?.session.session_id;
   useEffect(() => {
-    if (!overview) return;
-    setClockMilliseconds(Date.now());
-    const ticker = setInterval(() => setClockMilliseconds(Date.now()), 1000);
+    if (!activeSessionId) return;
+    const tick = () => setClockMilliseconds(Date.now());
+    const initialTick = setTimeout(tick, 0);
+    const ticker = setInterval(tick, 1000);
     const appState = AppState.addEventListener('change', (state) => {
-      if (state === 'active') setClockMilliseconds(Date.now());
+      if (state === 'active') tick();
     });
     return () => {
+      clearTimeout(initialTick);
       clearInterval(ticker);
       appState.remove();
     };
-  }, [overview?.session.session_id]);
+  }, [activeSessionId]);
 
   const recentSet = latestConfirmedSet(overview);
   const currentControl =
@@ -326,7 +327,7 @@ function FreeWorkoutSessionExperience({
     restControl?.setId === recentSet?.set_id
       ? restControl
       : null;
-  const remainingRest = currentControl?.dismissed
+  const remainingRest = currentControl?.dismissed || clockMilliseconds === 0
     ? 0
     : remainingRestSeconds(
         recentSet,
