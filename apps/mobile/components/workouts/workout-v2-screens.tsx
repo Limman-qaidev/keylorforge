@@ -657,6 +657,28 @@ export function ExercisePickerV2({
   );
 }
 
+const SHORT_MONTHS = [
+  'ene', 'feb', 'mar', 'abr', 'may', 'jun',
+  'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+];
+
+function readableWorkoutDate(localDate: string): string {
+  const [year, month, day] = localDate.split('-');
+  const name = SHORT_MONTHS[Number(month) - 1];
+  return name ? `${Number(day)} ${name} ${year}` : localDate;
+}
+
+function readableWorkoutTime(finishedAtUtc: string): string {
+  const date = new Date(finishedAtUtc);
+  return Number.isFinite(date.getTime())
+    ? date.toLocaleTimeString('es-ES', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      })
+    : '';
+}
+
 export function WorkoutHistoryV2({
   history,
   overview,
@@ -671,35 +693,56 @@ export function WorkoutHistoryV2({
   return (
     <ScrollView
       style={styles.lightRoot}
-      contentContainerStyle={styles.lightPage}
+      contentContainerStyle={styles.historyPage}
     >
-      <Text style={styles.brandEyebrow}>KEYLORFORGE / REGISTRO</Text>
+      <Pressable
+        accessibilityRole="button"
+        onPress={onBack}
+        style={styles.inlineBack}
+      >
+        <Text style={styles.inlineBackText}>
+          ‹ {overview ? 'Volver al entrenamiento' : 'Volver a Entrenar'}
+        </Text>
+      </Pressable>
       <Text accessibilityRole="header" style={styles.lightHeading}>
         Historial
       </Text>
       <Text style={styles.lightSubtitle}>
-        Todo lo que has entrenado, organizado por sesiones.
+        Consulta tus sesiones y las series registradas.
       </Text>
       <SectionLabel>SESIONES FINALIZADAS</SectionLabel>
-      {history.map((item) => (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={'Ver entrenamiento del ' + item.local_date}
-          key={item.session_id}
-          onPress={() => onOpen(item)}
-          style={styles.historyCard}
-        >
-          <View style={styles.historyCardTop}>
-            <Text style={styles.historyDate}>{item.local_date}</Text>
-            <Text style={styles.historyStatus}>✓ FINALIZADO</Text>
-          </View>
-          <Text style={styles.historyName}>Entrenamiento libre</Text>
-          <Text style={styles.historySummary}>
-            {item.total_sets} series · {item.working_sets} de trabajo
-          </Text>
-          <Text style={styles.historyLink}>Ver ejercicios y series ›</Text>
-        </Pressable>
-      ))}
+      {history.map((item) => {
+        const date = readableWorkoutDate(item.local_date);
+        const time = readableWorkoutTime(item.finished_at_utc);
+        return (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              'Ver entrenamiento del ' + item.local_date +
+              (time ? ' a las ' + time : '')
+            }
+            key={item.session_id}
+            onPress={() => onOpen(item)}
+            style={styles.historyCard}
+          >
+            <View style={styles.historyCardTop}>
+              <Text style={styles.historyDate}>
+                {date}{time ? ' · ' + time : ''}
+              </Text>
+              <Text style={styles.historyStatus}>FINALIZADO</Text>
+            </View>
+            <View style={styles.historyBodyRow}>
+              <View style={styles.historyBodyMain}>
+                <Text style={styles.historyName}>Entrenamiento libre</Text>
+                <Text style={styles.historySummary}>
+                  {item.total_sets} series · {item.working_sets} de trabajo
+                </Text>
+              </View>
+              <Text style={styles.historyArrow}>›</Text>
+            </View>
+          </Pressable>
+        );
+      })}
       {history.length === 0 ? (
         <View style={styles.emptyLight}>
           <Text style={styles.emptyLightTitle}>Aquí empieza tu progreso</Text>
@@ -708,11 +751,6 @@ export function WorkoutHistoryV2({
           </Text>
         </View>
       ) : null}
-      <Action
-        label={overview ? 'Volver al entrenamiento' : 'Volver a Entrenar'}
-        onPress={onBack}
-        variant="light"
-      />
     </ScrollView>
   );
 }
@@ -732,16 +770,30 @@ export function WorkoutHistoryDetailV2({
   nameOf: (id: string) => string;
   onBack: () => void;
 }) {
+  const entry = historyDetail?.entry ?? selectedHistory;
   return (
     <ScrollView
       style={styles.lightRoot}
-      contentContainerStyle={styles.lightPage}
+      contentContainerStyle={styles.historyPage}
     >
-      <Action label="Volver al historial" onPress={onBack} variant="subtle" />
+      <Pressable
+        accessibilityRole="button"
+        onPress={onBack}
+        style={styles.inlineBack}
+      >
+        <Text style={styles.inlineBackText}>‹ Volver al historial</Text>
+      </Pressable>
       <Text style={styles.brandEyebrow}>ENTRENAMIENTO FINALIZADO</Text>
-      <Text accessibilityRole="header" style={styles.lightHeading}>
-        {selectedHistory?.local_date ?? 'Detalle del entrenamiento'}
+      <Text accessibilityRole="header" style={styles.historyDetailHeading}>
+        Detalle del entrenamiento
       </Text>
+      {entry ? (
+        <Text style={styles.lightSubtitle}>
+          {readableWorkoutDate(entry.local_date)}
+          {' · '}
+          {readableWorkoutTime(entry.finished_at_utc)}
+        </Text>
+      ) : null}
       {detailLoading ? (
         <ActivityIndicator accessibilityLabel="Cargando detalle del entrenamiento" />
       ) : detailError ? (
@@ -751,14 +803,18 @@ export function WorkoutHistoryDetailV2({
       ) : historyDetail ? (
         <>
           <View style={styles.detailSummary}>
-            <Text style={styles.detailStat}>
-              {historyDetail.entry.total_sets}
-            </Text>
-            <Text style={styles.detailStatLabel}>SERIES CONFIRMADAS</Text>
-            <Text style={styles.detailStat}>
-              {historyDetail.entry.working_sets}
-            </Text>
-            <Text style={styles.detailStatLabel}>DE TRABAJO</Text>
+            <View style={styles.detailStatBlock}>
+              <Text style={styles.detailStat}>
+                {historyDetail.entry.total_sets}
+              </Text>
+              <Text style={styles.detailStatLabel}>SERIES</Text>
+            </View>
+            <View style={styles.detailStatBlock}>
+              <Text style={styles.detailStat}>
+                {historyDetail.entry.working_sets}
+              </Text>
+              <Text style={styles.detailStatLabel}>DE TRABAJO</Text>
+            </View>
           </View>
           {historyDetail.exercises.map((exercise) => (
             <View key={exercise.occurrence_id} style={styles.detailCard}>
@@ -862,6 +918,27 @@ const styles = StyleSheet.create({
   restAdjustText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   lightRoot: { flex: 1, backgroundColor: '#F5F8FC' },
   lightPage: { padding: 20, paddingBottom: 50, gap: 14 },
+  historyPage: { padding: 20, paddingBottom: 110, gap: 11 },
+  inlineBack: {
+    alignSelf: 'flex-start',
+    minHeight: 42,
+    justifyContent: 'center',
+  },
+  inlineBackText: { color: '#075BFF', fontSize: 14, fontWeight: '800' },
+  historyDetailHeading: {
+    color: '#081527',
+    fontWeight: '900',
+    fontSize: 25,
+  },
+  historyBodyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  historyBodyMain: { flex: 1, gap: 3 },
+  historyArrow: { fontSize: 25, fontWeight: '800', color: '#075BFF' },
+  detailStatBlock: { flex: 1, gap: 2 },
+
   hubIntro: { paddingHorizontal: 20, paddingTop: 20, gap: 10 },
   brandEyebrow: {
     color: '#075BFF',
@@ -1074,10 +1151,11 @@ const styles = StyleSheet.create({
   lightHeading: { fontSize: 30, color: '#081527', fontWeight: '900' },
   lightSubtitle: { color: '#677383', fontSize: 13, lineHeight: 20 },
   historyCard: {
-    padding: 17,
-    borderRadius: 17,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 14,
     backgroundColor: '#FFFFFF',
-    gap: 11,
+    gap: 7,
   },
   historyCardTop: {
     flexDirection: 'row',
@@ -1085,8 +1163,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   historyDate: { color: '#677383', fontSize: 12, fontWeight: '800' },
-  historyStatus: { color: '#008F82', fontSize: 10, fontWeight: '900' },
-  historyName: { color: '#081527', fontSize: 18, fontWeight: '900' },
+  historyStatus: {
+    color: '#008F82',
+    fontSize: 10,
+    fontWeight: '900',
+    backgroundColor: '#E4F8F4',
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderRadius: 7,
+  },
+  historyName: { color: '#081527', fontSize: 16, fontWeight: '800' },
   historySummary: { color: '#677383', fontSize: 13, fontWeight: '600' },
   historyLink: {
     alignSelf: 'flex-end',
@@ -1105,25 +1191,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 17,
-    padding: 19,
-    flexWrap: 'wrap',
-    gap: 13,
+    borderRadius: 14,
+    padding: 16,
+    gap: 16,
   },
   detailStat: { color: '#075BFF', fontSize: 29, fontWeight: '900' },
   detailStatLabel: { color: '#677383', fontSize: 10, fontWeight: '800' },
   detailCard: {
     backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 17,
-    gap: 13,
+    padding: 14,
+    borderRadius: 14,
+    gap: 5,
   },
   detailExercise: { color: '#081527', fontSize: 17, fontWeight: '900' },
   detailSetRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 11,
+    paddingVertical: 9,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E4EAF2',
     gap: 8,
