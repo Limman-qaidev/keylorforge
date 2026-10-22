@@ -22,7 +22,11 @@ Individual screens (390 × 820 px exports):
 6. [Workout details](m3/06-workout-detail.png)
 7. [Finish confirmation](m3/07-finish-confirmation.png)
 
-M3's tested engine, local SQLite persistence, FastAPI transport, synchronization, workout history and Android QA should remain intact. Extra mechanisms **not already implemented** (rest timer UI, advanced RIR/RPE, persistent notes/editing, predictive search) are *future-sprint concepts*, not claims of availability.
+**Runtime scope (do not confuse QA with the published app):** workout START, confirmed sets, explicit FINISH/CANCEL, local SQLite history and causal FastAPI synchronization have been **implemented and physically validated on the separately packaged Android QA release** (PR #171, isolated test account/database). The ordinary published `/train` route still displays the catalogue; these workout flows and background sync are **not shipped as a production feature**. Do not treat the QA success as production readiness or skip production integration, account isolation, deletion/retention or security gates. See [PROJECT_STATE](../../project-context/PROJECT_STATE.md) for the execution queue; its older #153 narrative predates the later merged QA slices.
+
+**Rest timer scope:** a **basic live-workout rest timer is an accepted M3/MVP requirement that is not yet implemented** ([M3 Workout Engine Product Contract §15.4](../M3_WORKOUT_ENGINE_PRODUCT_CONTRACT.md), [MVP](../../product-specs/MVP.md)). The timer pictured on the dark workout board is an illustrative placeholder, **not a functioning or completed timer**. Its basic implementation remains an **open M3 implementation task**; only advanced rest programming can be deferred to a subsequent sprint.
+
+Other capabilities depicted but not yet implemented—advanced RIR/RPE interactions, persistent notes and finished-workout editing, predictive catalogue search, routines, plans, social and rankings—require their own explicitly scoped implementation slices. None should be inferred to exist from these PNGs.
 
 ## Board 2 — Existing shell / visual continuity
 
@@ -58,7 +62,7 @@ These screens are **visual-only proposals**. Plans, routines, recommendations, s
 - **Standard mode is light**; **active workout is dark and distraction-minimizing**; auth preserves its separate dark photographic direction.
 - The Figma file is the **editable source**. GitHub PNGs are **versioned previews/reference evidence**, not interactive implementations.
 - Keep the existing production naming **KeylorForge** and the original G4 mark; no generic letter-logo substitutions.
-- Only implement the already supported M3 features during the M3 UX visual sprint. Each additional capability gets its own sprint/contract/QA.
+- The **M3 UX visual sprint is presentation-only**, using the currently implemented QA-safe domain flows; it must not silently promote isolated QA behavior into ordinary production. M3-required gaps such as the **basic rest timer** remain explicitly tracked for a dedicated M3 implementation slice and are not waived by the visual redesign. Other capabilities get their own sprint/contract/QA.
 - Preserve offline-first behavior, session history, SQLite outbox, security and previously approved physical-device test results. Do not reset or uninstall the Android QA application to check visual changes.
 - Approval and progress tracked in [issue #169](https://github.com/Limman-qaidev/keylorforge/issues/169).
 
