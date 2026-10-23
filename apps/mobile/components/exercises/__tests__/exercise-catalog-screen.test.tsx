@@ -129,6 +129,12 @@ describe('ExerciseCatalogScreen', () => {
     expect(listEquipment).not.toHaveBeenCalled();
 
     await act(async () =>
+      fireEvent.press(getByLabelText('Seleccionar músculo')),
+    );
+    await act(async () =>
+      fireEvent.changeText(getByLabelText('Buscar músculo'), 'pectorales'),
+    );
+    await act(async () =>
       fireEvent.press(getByLabelText('Filtrar por músculo Pectorales')),
     );
     expect(getByText('Press de banca')).toBeTruthy();
@@ -178,16 +184,17 @@ describe('ExerciseCatalogScreen', () => {
     const { findByText, getByLabelText, getByText } = await renderScreen();
 
     expect(await findByText('Press de banca')).toBeTruthy();
+    expect(getByLabelText('Seleccionar músculo')).toBeTruthy();
+    await act(async () =>
+      fireEvent.press(getByLabelText('Seleccionar músculo')),
+    );
     expect(
       getByLabelText('Quitar filtro de músculo').props.accessibilityState,
     ).toEqual({ selected: true });
-
     await act(async () =>
       fireEvent.press(getByLabelText('Filtrar por músculo Pectorales')),
     );
-    expect(
-      getByLabelText('Filtrar por músculo Pectorales').props.accessibilityState,
-    ).toEqual({ selected: true });
+    expect(getByText('Pectorales')).toBeTruthy();
     await waitFor(() => {
       expect(listExercises).toHaveBeenLastCalledWith('current-token', {
         equipmentId: undefined,
@@ -199,6 +206,9 @@ describe('ExerciseCatalogScreen', () => {
     });
     expect(await findByText('Press de banca')).toBeTruthy();
 
+    await act(async () =>
+      fireEvent.press(getByLabelText('Seleccionar equipamiento')),
+    );
     await act(async () =>
       fireEvent.press(getByLabelText('Filtrar por equipamiento Barra')),
     );
@@ -271,6 +281,8 @@ describe('ExerciseCatalogScreen', () => {
 
     await user.press(getByText('Reintentar filtros'));
 
+    expect(await findByLabelText('Seleccionar músculo')).toBeTruthy();
+    await user.press(await findByLabelText('Seleccionar músculo'));
     expect(
       await findByLabelText('Filtrar por músculo Pectorales'),
     ).toBeTruthy();
