@@ -754,7 +754,7 @@ export function ExerciseNotesV2({
       {notes.length === 0 ? (
         <Text style={styles.lightSubtitle}>Aún no hay observaciones.</Text>
       ) : null}
-      <Text style={styles.filterLabel}>Añadir observación</Text>
+      <Text style={styles.noteHistoryDate}>Añadir observación</Text>
       <TextInput
         accessibilityLabel="Nueva observación del ejercicio"
         multiline
