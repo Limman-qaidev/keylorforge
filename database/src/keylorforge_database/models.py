@@ -694,6 +694,56 @@ class MachineConfiguration(Base):
     )
 
 
+class WorkoutExerciseNoteEvent(Base):
+    """Immutable owner-scoped exercise observation; supports append after FINISH."""
+
+    __tablename__ = "workout_exercise_note_events"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["occurrence_id", "session_id", "owner_user_id"],
+            ["workout_occurrences.id", "workout_occurrences.session_id",
+             "workout_occurrences.owner_user_id"],
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "char_length(body) BETWEEN 1 AND 1000", name="body_length"
+        ),
+        Index(
+            "ix_workout_notes_owner_exercise_created",
+            "owner_user_id", "canonical_exercise_id",
+            "created_at_utc", "note_event_id",
+        ),
+        Index(
+            "ix_workout_notes_owner_session_created",
+            "owner_user_id", "session_id",
+            "created_at_utc", "note_event_id",
+        ),
+    )
+
+    note_event_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), primary_key=True
+    )
+    owner_user_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("application_users.id", ondelete="RESTRICT"),
+        primary_key=True,
+    )
+    session_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    occurrence_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    canonical_exercise_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("catalog_exercises.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    body: Mapped[str] = mapped_column(String(1000), nullable=False)
+    created_at_utc: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False,
+    )
+    accepted_at_utc: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False,
+    )
+
+
 class MachineMutationReceipt(Base):
     """Cross-session machine create retry receipt scoped by immutable owner."""
 
