@@ -33,6 +33,10 @@ import {
   LOCAL_WORKOUT_NOTES_SCHEMA_VERSION,
 } from './local-exercise-notes-schema';
 import {
+  migrateWorkoutSchemaV7ToV8,
+  LOCAL_WORKOUT_NOTE_SYNC_SCHEMA_VERSION,
+} from './local-exercise-notes-sync-schema';
+import {
   initializeLocalWorkoutSchema,
   LOCAL_WORKOUT_SCHEMA_VERSION,
   type SqliteWorkoutPort,
@@ -60,7 +64,7 @@ async function initializeNativeWorkoutDatabase(
     if (!version || !Number.isInteger(version.user_version)) {
       throw new Error('Unable to read M3 SQLite schema version.');
     }
-    if (version.user_version > LOCAL_WORKOUT_NOTES_SCHEMA_VERSION) {
+    if (version.user_version > LOCAL_WORKOUT_NOTE_SYNC_SCHEMA_VERSION) {
       throw new Error(
         'M3 SQLite schema is newer than this app. Update KeylorForge.',
       );
@@ -93,6 +97,9 @@ async function initializeNativeWorkoutDatabase(
     }
     if (version.user_version <= LOCAL_WORKOUT_REMOTE_HISTORY_SCHEMA_VERSION) {
       await migrateWorkoutSchemaV6ToV7(db as SqliteWorkoutPort);
+    }
+    if (version.user_version <= LOCAL_WORKOUT_NOTES_SCHEMA_VERSION) {
+      await migrateWorkoutSchemaV7ToV8(db as SqliteWorkoutPort);
     }
     // The SDK's SQLiteDatabase implements the three query methods and the
     // scoped withExclusiveTransactionAsync callback of SqliteWorkoutPort.
