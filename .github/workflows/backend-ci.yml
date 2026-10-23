@@ -85,6 +85,7 @@ jobs:
               "test_real_postgres_confirmations_are_owner_scoped_atomic_and_idempotent",
               "test_postgres_finish_is_atomic_idempotent_and_owner_scoped",
               "test_cancel_is_atomic_owner_scoped_and_preserves_sets",
+              "test_real_postgres_exercise_notes_are_owner_scoped_and_append_only",
           ]
           for name in required:
               matches = executed.get(name, [])
