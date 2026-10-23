@@ -965,7 +965,31 @@ def test_notes_v7_append_only_migration():
         ("Actualización posterior", "pending"),
     ]
     assert db.execute("PRAGMA user_version").fetchone()[0] == 8
-    print("PASS: v7 -> v8 retains original notes and backfills pending delivery")
+    db.executescript(sql(
+        "local-remote-note-cache-schema.ts", "LOCAL_WORKOUT_V9_MIGRATION_SQL"
+    ))
+    assert not db.execute("PRAGMA foreign_key_check").fetchall()
+    db.execute("PRAGMA user_version = 9")
+    db.execute(
+        "INSERT INTO local_remote_exercise_notes "
+        "(subject,note_event_id,session_id,occurrence_id,"
+        "canonical_exercise_id,body,created_at_utc)"
+        " VALUES (?,?,?,?,?,?,?)",
+        (owner, "93d3fc0c-6e87-492b-85d3-66d52064d917",
+         session, occurrence, exercise, "Nota de otro dispositivo",
+         "2026-10-23T11:30:00.000Z"),
+    )
+    db.commit()
+    assert db.execute(
+        "SELECT delivery_state FROM local_exercise_note_events "
+        "WHERE subject=?", (owner,)
+    ).fetchall() == [("pending",), ("pending",)]
+    assert db.execute(
+        "SELECT body FROM local_remote_exercise_notes WHERE subject=?",
+        (owner,)
+    ).fetchall() == [("Nota de otro dispositivo",)]
+    assert db.execute("PRAGMA user_version").fetchone()[0] == 9
+    print("PASS: v7 -> v9 retains local pending notes and caches remote history")
 
 
 if __name__ == "__main__":
