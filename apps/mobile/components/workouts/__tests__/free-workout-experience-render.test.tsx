@@ -222,7 +222,7 @@ describe('staged real Free Workout UI', () => {
       ).toBeTruthy();
       await user.press(screen.getByText('Iniciar entrenamiento libre'));
       const activeHeading = await screen.findByText('Entrenamiento activo');
-      expect(screen.getByText('EJERCICIOS REALIZADOS')).toBeTruthy();
+      expect(screen.getByText('EJERCICIOS')).toBeTruthy();
       expect(StyleSheet.flatten(activeHeading.props.style)).toMatchObject({
         color: '#ffffff',
       });
