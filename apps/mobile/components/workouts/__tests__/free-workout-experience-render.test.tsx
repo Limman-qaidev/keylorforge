@@ -52,6 +52,15 @@ jest.mock('@/lib/workouts/native-workout-platform', () => ({
     timeZone: () => 'Europe/Madrid',
   },
 }));
+jest.mock('@/lib/workouts/last-exercise-performance', () => ({
+  readLastCompletedExercisePerformance: jest.fn().mockResolvedValue(null),
+}));
+
+jest.mock('@/lib/workouts/local-exercise-notes', () => ({
+  readSessionExerciseNotes: jest.fn().mockResolvedValue([]),
+  appendLocalExerciseNote: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock('@/components/exercises/exercise-catalog-screen', () => {
   const {
     Pressable: MockPressable,
