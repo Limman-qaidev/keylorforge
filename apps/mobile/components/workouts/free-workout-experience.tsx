@@ -669,7 +669,11 @@ function FreeWorkoutSessionExperience({
         const db = await openDb();
         const [notes, acrossSessions, cached] = await Promise.all([
           readSessionExerciseNotes(db, access, sessionId),
-          readCanonicalExerciseNotes(db, access, exercise.canonical_exercise_id),
+          readCanonicalExerciseNotes(
+            db,
+            access,
+            exercise.canonical_exercise_id,
+          ),
           readCachedExerciseNotes(db, access, exercise.canonical_exercise_id),
         ]);
         if (
@@ -683,19 +687,24 @@ function FreeWorkoutSessionExperience({
         try {
           if (isolatedPreview) return; // QA preview never contacts a live account API.
           const fromServer = await fetchRemoteExerciseNotes(
-            access, exercise.canonical_exercise_id,
+            access,
+            exercise.canonical_exercise_id,
           );
           if (
             subjectRef.current === selectedSubject &&
             noteRequestId.current === request
           ) {
             await cacheRemoteExerciseNotes(
-              db, access, exercise.canonical_exercise_id, fromServer,
+              db,
+              access,
+              exercise.canonical_exercise_id,
+              fromServer,
             );
             if (
               subjectRef.current === selectedSubject &&
               noteRequestId.current === request
-            ) setRemoteNotes(mergeExerciseNotes(cached, fromServer));
+            )
+              setRemoteNotes(mergeExerciseNotes(cached, fromServer));
           }
         } catch {
           // Offline-first: pending local notes and cached remote events survive.

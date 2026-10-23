@@ -41,7 +41,11 @@ export async function migrateWorkoutSchemaV8ToV9(
     if (violation) throw new Error('M3 remote notes cache FK failure');
     await db.execAsync('PRAGMA user_version = 9; COMMIT;');
   } catch (error) {
-    try { await db.execAsync('ROLLBACK;'); } catch { /* already rolled back */ }
+    try {
+      await db.execAsync('ROLLBACK;');
+    } catch {
+      /* already rolled back */
+    }
     throw error;
   }
 }

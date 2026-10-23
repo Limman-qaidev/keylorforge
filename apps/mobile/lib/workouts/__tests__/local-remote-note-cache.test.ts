@@ -20,35 +20,49 @@ describe('subject-fenced remote note cache', () => {
   it('caches once, never rewrites an event and can read offline', async () => {
     const stored = new Map<string, ExerciseNoteEvent>();
     const db = {
-      withExclusiveTransactionAsync: jest.fn(async (
-        callback: (tx: SqliteQueryPort) => Promise<void>,
-      ) => {
-        await callback({
-          getFirstAsync: async (_sql: string, _subject: string, id: string) =>
-            stored.get(id) ?? null,
-          runAsync: async (_sql: string, _subject: string, id: string,
-            session: string, occurrence: string, canonical: string,
-            body: string, timestamp: string) => {
+      withExclusiveTransactionAsync: jest.fn(
+        async (callback: (tx: SqliteQueryPort) => Promise<void>) => {
+          await callback({
+            getFirstAsync: async (_sql: string, _subject: string, id: string) =>
+              stored.get(id) ?? null,
+            runAsync: async (
+              _sql: string,
+              _subject: string,
+              id: string,
+              session: string,
+              occurrence: string,
+              canonical: string,
+              body: string,
+              timestamp: string,
+            ) => {
               stored.set(id, {
-                note_event_id: id, session_id: session,
-                occurrence_id: occurrence, canonical_exercise_id: canonical,
-                body, created_at_utc: timestamp,
+                note_event_id: id,
+                session_id: session,
+                occurrence_id: occurrence,
+                canonical_exercise_id: canonical,
+                body,
+                created_at_utc: timestamp,
               });
             },
-        } as unknown as SqliteQueryPort);
-      }),
-      getFirstAsync: jest.fn(async () =>
-        ({ items_json: JSON.stringify([...stored.values()]) })),
+          } as unknown as SqliteQueryPort);
+        },
+      ),
+      getFirstAsync: jest.fn(async () => ({
+        items_json: JSON.stringify([...stored.values()]),
+      })),
     } as unknown as SqliteWorkoutPort;
     const access = { currentAuthenticatedSubject: () => OWNER };
     await cacheRemoteExerciseNotes(db, access, EXERCISE, [entry]);
     await cacheRemoteExerciseNotes(db, access, EXERCISE, [entry]);
     expect(stored.size).toBe(1);
-    expect(await readCachedExerciseNotes(db, access, EXERCISE))
-      .toEqual([entry]);
-    await expect(cacheRemoteExerciseNotes(
-      db, access, EXERCISE, [{ ...entry, body: 'tampered' }],
-    )).rejects.toThrow('noteHistoryConflict');
+    expect(await readCachedExerciseNotes(db, access, EXERCISE)).toEqual([
+      entry,
+    ]);
+    await expect(
+      cacheRemoteExerciseNotes(db, access, EXERCISE, [
+        { ...entry, body: 'tampered' },
+      ]),
+    ).rejects.toThrow('noteHistoryConflict');
     expect(stored.get(entry.note_event_id)?.body).toBe(entry.body);
   });
 
@@ -57,9 +71,9 @@ describe('subject-fenced remote note cache', () => {
       withExclusiveTransactionAsync: jest.fn(),
     } as unknown as SqliteWorkoutPort;
     const access = { currentAuthenticatedSubject: () => null };
-    await expect(cacheRemoteExerciseNotes(
-      db, access, EXERCISE, [entry],
-    )).rejects.toThrow('notAuthenticated');
+    await expect(
+      cacheRemoteExerciseNotes(db, access, EXERCISE, [entry]),
+    ).rejects.toThrow('notAuthenticated');
     expect(db.withExclusiveTransactionAsync).not.toHaveBeenCalled();
   });
 });

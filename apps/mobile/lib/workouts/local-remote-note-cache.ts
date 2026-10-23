@@ -15,11 +15,16 @@ function owner(access: LocalSubjectAccess): string {
 }
 function valid(note: ExerciseNoteEvent, exercise: string): boolean {
   return (
-    [note.session_id, note.occurrence_id, note.canonical_exercise_id,
-      note.note_event_id].every((v) => UUID.test(v)) &&
+    [
+      note.session_id,
+      note.occurrence_id,
+      note.canonical_exercise_id,
+      note.note_event_id,
+    ].every((v) => UUID.test(v)) &&
     note.canonical_exercise_id === exercise &&
     note.body.trim() === note.body &&
-    note.body.length >= 1 && note.body.length <= 1000 &&
+    note.body.length >= 1 &&
+    note.body.length <= 1000 &&
     Number.isFinite(Date.parse(note.created_at_utc))
   );
 }
@@ -42,8 +47,11 @@ export async function cacheRemoteExerciseNotes(
 ): Promise<void> {
   const subject = owner(access);
   const exercise = canonicalExerciseId.toLowerCase();
-  if (!UUID.test(exercise) || notes.length > 100 ||
-      !notes.every((n) => valid(n, exercise))) {
+  if (
+    !UUID.test(exercise) ||
+    notes.length > 100 ||
+    !notes.every((n) => valid(n, exercise))
+  ) {
     throw new Error('invalidNotesResponse');
   }
   await db.withExclusiveTransactionAsync(async (tx) => {
@@ -51,7 +59,8 @@ export async function cacheRemoteExerciseNotes(
       if (owner(access) !== subject) throw new Error('notAuthenticated');
       const old = await tx.getFirstAsync<ExerciseNoteEvent>(
         'SELECT note_event_id, session_id, occurrence_id, canonical_exercise_id, body, created_at_utc FROM local_remote_exercise_notes WHERE subject = ? AND note_event_id = ?',
-        subject, note.note_event_id,
+        subject,
+        note.note_event_id,
       );
       if (owner(access) !== subject) throw new Error('notAuthenticated');
       if (old && !identical(old, note)) {
@@ -60,8 +69,12 @@ export async function cacheRemoteExerciseNotes(
       if (!old) {
         await tx.runAsync(
           'INSERT INTO local_remote_exercise_notes (subject, note_event_id, session_id, occurrence_id, canonical_exercise_id, body, created_at_utc) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          subject, note.note_event_id, note.session_id,
-          note.occurrence_id, note.canonical_exercise_id, note.body,
+          subject,
+          note.note_event_id,
+          note.session_id,
+          note.occurrence_id,
+          note.canonical_exercise_id,
+          note.body,
           note.created_at_utc,
         );
         if (owner(access) !== subject) throw new Error('notAuthenticated');
@@ -82,7 +95,7 @@ export async function readCachedExerciseNotes(
   const row = await db.getFirstAsync<{ items_json: string }>(
     [
       "SELECT COALESCE(json_group_array(json(item_json)), '[]') AS items_json",
-      "FROM (SELECT json_object(",
+      'FROM (SELECT json_object(',
       "'session_id', session_id, 'occurrence_id', occurrence_id,",
       "'canonical_exercise_id', canonical_exercise_id,",
       "'note_event_id', note_event_id, 'body', body,",
@@ -91,17 +104,26 @@ export async function readCachedExerciseNotes(
       'WHERE subject = ? AND canonical_exercise_id = ?',
       'ORDER BY created_at_utc DESC, note_event_id DESC LIMIT 500)',
     ].join(' '),
-    subject, exercise,
+    subject,
+    exercise,
   );
   if (owner(access) !== subject) throw new Error('notAuthenticated');
   let parsed: unknown;
-  try { parsed = JSON.parse(row?.items_json ?? '[]'); } catch {
+  try {
+    parsed = JSON.parse(row?.items_json ?? '[]');
+  } catch {
     throw new Error('corruptNotes');
   }
-  if (!Array.isArray(parsed) || parsed.length > 500 ||
-      !parsed.every((item) =>
-        item && typeof item === 'object' &&
-        valid(item as ExerciseNoteEvent, exercise)
-      )) throw new Error('corruptNotes');
+  if (
+    !Array.isArray(parsed) ||
+    parsed.length > 500 ||
+    !parsed.every(
+      (item) =>
+        item &&
+        typeof item === 'object' &&
+        valid(item as ExerciseNoteEvent, exercise),
+    )
+  )
+    throw new Error('corruptNotes');
   return parsed as ExerciseNoteEvent[];
 }
