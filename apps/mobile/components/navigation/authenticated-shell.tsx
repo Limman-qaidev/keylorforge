@@ -6,6 +6,7 @@ import {
   Platform,
   Pressable,
   StyleSheet,
+  StatusBar,
   Text,
   View,
 } from 'react-native';
@@ -41,11 +42,15 @@ const navigationItems: readonly NavigationItem[] = [
 
 type AuthenticatedShellProps = PropsWithChildren<{
   activeDestination: ShellDestination;
+  immersive?: boolean;
+  darkChrome?: boolean;
 }>;
 
 export function AuthenticatedShell({
   activeDestination,
   children,
+  immersive = false,
+  darkChrome = false,
 }: AuthenticatedShellProps) {
   const router = useRouter();
 
@@ -63,10 +68,18 @@ export function AuthenticatedShell({
   }, []);
 
   return (
-    <View style={styles.root}>
-      <SafeAreaView edges={['top']} style={styles.content}>
+    <View style={[styles.root, darkChrome && styles.darkBackground]}>
+      <StatusBar
+        barStyle={darkChrome ? 'light-content' : 'dark-content'}
+        backgroundColor={darkChrome ? '#061524' : '#F5F8FC'}
+      />
+      <SafeAreaView
+        edges={['top']}
+        style={[styles.content, darkChrome && styles.darkBackground]}
+      >
         {children}
       </SafeAreaView>
+      {!immersive ? (
       <SafeAreaView edges={['bottom']} style={styles.safeArea}>
         <View
           accessibilityLabel="Navegación principal"
@@ -129,11 +142,13 @@ export function AuthenticatedShell({
           })}
         </View>
       </SafeAreaView>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  darkBackground: { backgroundColor: '#061524' },
   activeGlyphContainer: {
     backgroundColor: '#eaf1ff',
   },
