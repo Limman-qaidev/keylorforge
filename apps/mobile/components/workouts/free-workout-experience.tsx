@@ -61,6 +61,10 @@ import {
 } from '@/lib/workouts/rest-timer';
 import type { LocalSubjectAccess } from '@/lib/workouts/local-store';
 import {
+  readLastCompletedExercisePerformance,
+  type LastExercisePerformance,
+} from '@/lib/workouts/last-exercise-performance';
+import {
   deviceWorkoutClock,
   secureWorkoutIds,
 } from '@/lib/workouts/native-workout-platform';
@@ -264,6 +268,10 @@ function FreeWorkoutSessionExperience({
   const [role, setRole] = useState<Role>('WORKING');
   const [quantity, setQuantity] = useState('');
   const [load, setLoad] = useState('');
+  const [previousPerformance, setPreviousPerformance] =
+    useState<LastExercisePerformance | null>(null);
+  const [previousLookupError, setPreviousLookupError] = useState(false);
+  const selectionRequest = useRef(0);
   const [unit, setUnit] = useState<'kg' | 'lb'>('kg');
   const [distanceUnit, setDistanceUnit] = useState<'m' | 'km'>('m');
   const [loading, setLoading] = useState(true);
@@ -601,6 +609,9 @@ function FreeWorkoutSessionExperience({
   };
 
   const addSetToExercise = (exercise: ActiveExerciseSummary) => {
+    ++selectionRequest.current;
+    setPreviousPerformance(null);
+    setPreviousLookupError(false);
     setFocusedExerciseId(exercise.canonical_exercise_id);
     const previous = exercise.sets[exercise.sets.length - 1];
     if (!previous) return;
@@ -630,13 +641,56 @@ function FreeWorkoutSessionExperience({
   const choose = (
     exercise: Pick<ExerciseDetail, 'id' | 'name' | 'measurement_type'>,
   ) => {
+    const requestId = ++selectionRequest.current;
+    const selectedSubject = subjectRef.current;
     setFocusedExerciseId(exercise.id);
     setChosen(exercise);
     setRole('WORKING');
     setQuantity('');
     setLoad('');
-    setMode('set');
+    setPreviousPerformance(null);
+    setPreviousLookupError(false);
     setError(null);
+    // Read completed, confirmed WORKING sets only. Never derive a prescription.
+    // Keep the picker while the local query completes so typing cannot be
+    // overwritten by a late historical result.
+    void (async () => {
+      try {
+        const db = await openDb();
+        const prior = await readLastCompletedExercisePerformance(
+          db,
+          access,
+          exercise.id,
+        );
+        if (
+          selectionRequest.current !== requestId ||
+          subjectRef.current !== selectedSubject
+        ) return;
+        if (prior && prior.measurement_type === exercise.measurement_type) {
+          setPreviousPerformance(prior);
+          setQuantity(
+            prior.measurement_type === 'reps'
+              ? String(prior.reps ?? '')
+              : prior.measurement_type === 'time'
+                ? String(prior.duration_seconds ?? '')
+                : String(prior.distance_decimal ?? ''),
+          );
+          setLoad(prior.load_decimal ?? '');
+          setUnit(prior.load_unit === 'lb' ? 'lb' : 'kg');
+          setDistanceUnit(prior.distance_unit === 'km' ? 'km' : 'm');
+        }
+      } catch {
+        if (
+          selectionRequest.current === requestId &&
+          subjectRef.current === selectedSubject
+        ) setPreviousLookupError(true);
+      } finally {
+        if (
+          selectionRequest.current === requestId &&
+          subjectRef.current === selectedSubject
+        ) setMode('set');
+      }
+    })();
   };
 
   const nameOf = (id: string): string =>
@@ -699,6 +753,8 @@ function FreeWorkoutSessionExperience({
     return (
       <RegisterSetV2
         chosen={chosen}
+        previousPerformance={previousPerformance}
+        previousLookupError={previousLookupError}
         role={role}
         onRole={setRole}
         quantity={quantity}
