@@ -731,10 +731,8 @@ function FreeWorkoutSessionExperience({
         created_at_utc: new Date().toISOString(),
         body: text,
       });
-      // Submit only after the SQLite transaction commits: a failed network
-      // attempt cannot lose the original pending immutable note.
-      triggerSync();
-      // Set confirmations keep their independent causal outbox.
+      // The local note is durable before the foreground coordinator attempts
+      // delivery. The confirmed-set outbox stays independent of note events.
       const [inSession, acrossSessions] = await Promise.all([
         readSessionExerciseNotes(db, access, note.sessionId),
         readCanonicalExerciseNotes(db, access, note.canonicalId),
