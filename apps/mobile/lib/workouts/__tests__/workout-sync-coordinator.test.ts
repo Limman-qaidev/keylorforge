@@ -107,8 +107,8 @@ describe('bounded causal Workout M3 sync coordinator', () => {
       'set',
       'finish',
       'cancel',
-      'note',
     ]);
+    expect(syncNextPendingExerciseNote).toHaveBeenCalled();
   });
 
   it('drains earlier FINISH before retrying an offline START for the next session', async () => {
