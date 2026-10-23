@@ -59,7 +59,8 @@ describe('append-only local exercise notes', () => {
     };
     const db = {
       withExclusiveTransactionAsync: jest.fn(
-        async (f: (tx: SqliteQueryPort) => Promise<void>) => f(tx),
+        async (f: (tx: SqliteQueryPort) => Promise<void>) =>
+          f(tx as unknown as SqliteQueryPort),
       ),
       getFirstAsync: jest.fn(async () => ({
         items_json: JSON.stringify(stored),
