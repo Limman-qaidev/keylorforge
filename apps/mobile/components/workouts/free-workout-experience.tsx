@@ -611,11 +611,7 @@ function FreeWorkoutSessionExperience({
     void (async () => {
       const db = await openDb();
       const result = await readLocalFinishedWorkoutDetail(db, access, item);
-      const notes = await readSessionExerciseNotes(
-        db,
-        access,
-        item.session_id,
-      );
+      const notes = await readSessionExerciseNotes(db, access, item.session_id);
       if (subjectRef.current === expectedSubject) {
         setHistoryDetail(result);
         setSessionNotes(notes);
@@ -745,7 +741,8 @@ function FreeWorkoutSessionExperience({
         if (
           selectionRequest.current !== requestId ||
           subjectRef.current !== selectedSubject
-        ) return;
+        )
+          return;
         if (prior && prior.measurement_type === exercise.measurement_type) {
           setPreviousPerformance(prior);
           setQuantity(
@@ -763,12 +760,14 @@ function FreeWorkoutSessionExperience({
         if (
           selectionRequest.current === requestId &&
           subjectRef.current === selectedSubject
-        ) setPreviousLookupError(true);
+        )
+          setPreviousLookupError(true);
       } finally {
         if (
           selectionRequest.current === requestId &&
           subjectRef.current === selectedSubject
-        ) setMode('set');
+        )
+          setMode('set');
       }
     })();
   };

@@ -584,14 +584,18 @@ export function RegisterSetV2({
               : ''}
           </Text>
           <Text style={styles.lastWorkoutCaption}>
-            {new Date(previousPerformance.completed_at_utc).toLocaleDateString('es-ES')}
+            {new Date(previousPerformance.completed_at_utc).toLocaleDateString(
+              'es-ES',
+            )}
             {' · '}
-            Valores precargados, puedes modificarlos. No es una recomendación automática.
+            Valores precargados, puedes modificarlos. No es una recomendación
+            automática.
           </Text>
         </View>
       ) : previousLookupError ? (
         <Text style={styles.lastWorkoutCaption}>
-          No se pudo consultar la última sesión. Puedes registrar esta serie normalmente.
+          No se pudo consultar la última sesión. Puedes registrar esta serie
+          normalmente.
         </Text>
       ) : null}
       <SectionLabel dark>TIPO DE SERIE</SectionLabel>
@@ -991,16 +995,21 @@ export function WorkoutHistoryDetailV2({
               <Text style={styles.detailExercise}>
                 {nameOf(exercise.canonical_exercise_id)}
               </Text>
-              {notes?.filter((note) =>
-                note.occurrence_id === exercise.occurrence_id
-              ).map((note) => (
-                <View key={note.note_event_id} style={styles.noteHistoryEntry}>
-                  <Text style={styles.noteHistoryDate}>
-                    {new Date(note.created_at_utc).toLocaleString('es-ES')}
-                  </Text>
-                  <Text style={styles.noteHistoryText}>{note.body}</Text>
-                </View>
-              ))}
+              {notes
+                ?.filter(
+                  (note) => note.occurrence_id === exercise.occurrence_id,
+                )
+                .map((note) => (
+                  <View
+                    key={note.note_event_id}
+                    style={styles.noteHistoryEntry}
+                  >
+                    <Text style={styles.noteHistoryDate}>
+                      {new Date(note.created_at_utc).toLocaleString('es-ES')}
+                    </Text>
+                    <Text style={styles.noteHistoryText}>{note.body}</Text>
+                  </View>
+                ))}
               {onOpenNotes ? (
                 <Pressable
                   accessibilityRole="button"

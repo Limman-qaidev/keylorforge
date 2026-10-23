@@ -38,16 +38,16 @@ describe('historical workout reference', () => {
     expect(LAST_EXERCISE_PERFORMANCE_SQL).toContain(
       "w.lifecycle_state = 'completed'",
     );
-    expect(LAST_EXERCISE_PERFORMANCE_SQL).toContain(
-      "s.set_role = 'WORKING'",
-    );
+    expect(LAST_EXERCISE_PERFORMANCE_SQL).toContain("s.set_role = 'WORKING'");
   });
 
   it('returns null without fabricating a recommendation', async () => {
     const db = {
       getFirstAsync: jest.fn().mockResolvedValue(null),
     } as unknown as SqliteWorkoutPort;
-    expect(await readLastCompletedExercisePerformance(db, access, EXERCISE)).toBeNull();
+    expect(
+      await readLastCompletedExercisePerformance(db, access, EXERCISE),
+    ).toBeNull();
   });
 
   it('rejects account switching while reading', async () => {
@@ -59,9 +59,13 @@ describe('historical workout reference', () => {
       }),
     } as unknown as SqliteWorkoutPort;
     await expect(
-      readLastCompletedExercisePerformance(db, {
-        currentAuthenticatedSubject: () => current,
-      }, EXERCISE),
+      readLastCompletedExercisePerformance(
+        db,
+        {
+          currentAuthenticatedSubject: () => current,
+        },
+        EXERCISE,
+      ),
     ).rejects.toThrow('notAuthenticated');
   });
 });

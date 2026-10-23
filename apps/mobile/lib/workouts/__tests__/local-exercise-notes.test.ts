@@ -25,30 +25,45 @@ describe('append-only local exercise notes', () => {
   it('writes through an account-scoped transaction and retains original notes', async () => {
     const stored: ExerciseNoteEvent[] = [];
     const tx = {
-      getFirstAsync: jest.fn(async (sql: string, _subject: string, id: string) => {
-        if (sql.includes('FROM local_workout_outbox')) throw Error('Outbox not allowed');
-        if (sql.includes('FROM local_exercise_note_events')) {
-          return stored.find((item) => item.note_event_id === id) ?? null;
-        }
-        return { canonical_exercise_id: EXERCISE };
-      }),
-      runAsync: jest.fn(async (
-        _sql: string, _subject: string, session: string, occurrence: string,
-        exercise: string, id: string, body: string, created: string,
-      ) => {
-        stored.push({
-          session_id: session,
-          occurrence_id: occurrence,
-          canonical_exercise_id: exercise,
-          note_event_id: id,
-          body,
-          created_at_utc: created,
-        });
-      }),
+      getFirstAsync: jest.fn(
+        async (sql: string, _subject: string, id: string) => {
+          if (sql.includes('FROM local_workout_outbox'))
+            throw Error('Outbox not allowed');
+          if (sql.includes('FROM local_exercise_note_events')) {
+            return stored.find((item) => item.note_event_id === id) ?? null;
+          }
+          return { canonical_exercise_id: EXERCISE };
+        },
+      ),
+      runAsync: jest.fn(
+        async (
+          _sql: string,
+          _subject: string,
+          session: string,
+          occurrence: string,
+          exercise: string,
+          id: string,
+          body: string,
+          created: string,
+        ) => {
+          stored.push({
+            session_id: session,
+            occurrence_id: occurrence,
+            canonical_exercise_id: exercise,
+            note_event_id: id,
+            body,
+            created_at_utc: created,
+          });
+        },
+      ),
     };
     const db = {
-      withExclusiveTransactionAsync: jest.fn(async (f: (tx: SqliteQueryPort) => Promise<void>) => f(tx)),
-      getFirstAsync: jest.fn(async () => ({ items_json: JSON.stringify(stored) })),
+      withExclusiveTransactionAsync: jest.fn(
+        async (f: (tx: SqliteQueryPort) => Promise<void>) => f(tx),
+      ),
+      getFirstAsync: jest.fn(async () => ({
+        items_json: JSON.stringify(stored),
+      })),
     } as unknown as SqliteWorkoutPort;
     const access = { currentAuthenticatedSubject: () => OWNER };
     await appendLocalExerciseNote(db, access, note);
@@ -66,7 +81,9 @@ describe('append-only local exercise notes', () => {
     const read = await readSessionExerciseNotes(db, access, SESSION);
     expect(read.map((row) => row.body)).toEqual([note.body, followUp.body]);
     expect(db.getFirstAsync).toHaveBeenCalledWith(
-      NOTES_BY_SESSION_SQL, OWNER, SESSION,
+      NOTES_BY_SESSION_SQL,
+      OWNER,
+      SESSION,
     );
   });
 
@@ -76,15 +93,21 @@ describe('append-only local exercise notes', () => {
       getFirstAsync: jest.fn(),
     } as unknown as SqliteWorkoutPort;
     const access = { currentAuthenticatedSubject: () => null };
-    await expect(appendLocalExerciseNote(db, access, note)).rejects.toThrow('notAuthenticated');
-    await expect(readSessionExerciseNotes(db, access, SESSION)).rejects.toThrow('notAuthenticated');
+    await expect(appendLocalExerciseNote(db, access, note)).rejects.toThrow(
+      'notAuthenticated',
+    );
+    await expect(readSessionExerciseNotes(db, access, SESSION)).rejects.toThrow(
+      'notAuthenticated',
+    );
     expect(db.withExclusiveTransactionAsync).not.toHaveBeenCalled();
   });
 
   it('rejects a mid-transaction account change before inserting', async () => {
     let current = OWNER;
     const db = {
-      withExclusiveTransactionAsync: async (callback: (tx: SqliteQueryPort) => Promise<void>) =>
+      withExclusiveTransactionAsync: async (
+        callback: (tx: SqliteQueryPort) => Promise<void>,
+      ) =>
         callback({
           getFirstAsync: async () => {
             current = OTHER;
@@ -93,8 +116,12 @@ describe('append-only local exercise notes', () => {
           runAsync: jest.fn(),
         }),
     } as unknown as SqliteWorkoutPort;
-    await expect(appendLocalExerciseNote(
-      db, { currentAuthenticatedSubject: () => current }, note,
-    )).rejects.toThrow('notAuthenticated');
+    await expect(
+      appendLocalExerciseNote(
+        db,
+        { currentAuthenticatedSubject: () => current },
+        note,
+      ),
+    ).rejects.toThrow('notAuthenticated');
   });
 });
