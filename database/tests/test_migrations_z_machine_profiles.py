@@ -51,7 +51,7 @@ def test_machine_profile_migration_has_private_owner_scoped_constraints(
             ).all()
     finally:
         engine.dispose()
-    assert version == "20261009_0003"
+    assert version == "20261023_0001"
     assert rls == [
         ("machine_configurations", True),
         ("machine_mutation_receipts", True),
