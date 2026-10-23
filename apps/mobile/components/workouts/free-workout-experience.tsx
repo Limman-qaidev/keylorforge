@@ -243,6 +243,11 @@ function FreeWorkoutSessionExperience({
   useEffect(() => {
     onChromeChange?.({ immersive, dark: darkChrome });
   }, [onChromeChange, immersive, darkChrome]);
+
+  useEffect(
+    () => () => onChromeChange?.({ immersive: false, dark: false }),
+    [onChromeChange],
+  );
   const [selectedHistory, setSelectedHistory] =
     useState<FinishedWorkoutHistoryEntry | null>(null);
   const [historyDetail, setHistoryDetail] =
