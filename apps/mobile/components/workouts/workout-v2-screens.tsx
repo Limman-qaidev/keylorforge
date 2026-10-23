@@ -707,6 +707,7 @@ export function RegisterSetV2({
 export function ExerciseNotesV2({
   title,
   notes,
+  historicalNotes,
   draft,
   onDraft,
   onSave,
@@ -716,6 +717,7 @@ export function ExerciseNotesV2({
 }: {
   title: string;
   notes: ExerciseNoteEvent[];
+  historicalNotes?: ExerciseNoteEvent[];
   draft: string;
   onDraft: (value: string) => void;
   onSave: () => void;
@@ -752,7 +754,20 @@ export function ExerciseNotesV2({
         </View>
       ))}
       {notes.length === 0 ? (
-        <Text style={styles.lightSubtitle}>Aún no hay observaciones.</Text>
+        <Text style={styles.lightSubtitle}>Aún no hay observaciones en esta sesión.</Text>
+      ) : null}
+      {(historicalNotes?.length ?? 0) > 0 ? (
+        <>
+          <Text style={styles.brandEyebrow}>HISTORIAL DEL EJERCICIO</Text>
+          {historicalNotes?.map((item) => (
+            <View key={item.note_event_id} style={styles.noteHistoryEntry}>
+              <Text style={styles.noteHistoryDate}>
+                {new Date(item.created_at_utc).toLocaleString('es-ES')}
+              </Text>
+              <Text style={styles.noteHistoryText}>{item.body}</Text>
+            </View>
+          ))}
+        </>
       ) : null}
       <Text style={styles.noteHistoryDate}>Añadir observación</Text>
       <TextInput
