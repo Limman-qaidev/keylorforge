@@ -80,68 +80,70 @@ export function AuthenticatedShell({
         {children}
       </SafeAreaView>
       {!immersive ? (
-      <SafeAreaView edges={['bottom']} style={styles.safeArea}>
-        <View
-          accessibilityLabel="Navegación principal"
-          accessibilityRole="tablist"
-          style={styles.navigation}
-        >
-          {navigationItems.map((item) => {
-            const isActive = item.destination === activeDestination;
-            const isPrimary = item.primary === true;
+        <SafeAreaView edges={['bottom']} style={styles.safeArea}>
+          <View
+            accessibilityLabel="Navegación principal"
+            accessibilityRole="tablist"
+            style={styles.navigation}
+          >
+            {navigationItems.map((item) => {
+              const isActive = item.destination === activeDestination;
+              const isPrimary = item.primary === true;
 
-            return (
-              <Pressable
-                accessibilityLabel={item.label}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: isActive }}
-                key={item.destination}
-                onPress={() => router.replace(item.href)}
-                testID={isPrimary ? 'primary-training-destination' : undefined}
-                style={({ pressed }) => [
-                  styles.navigationItem,
-                  isPrimary && styles.primaryNavigationItem,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <View
-                  style={[
-                    styles.glyphContainer,
-                    isPrimary && styles.primaryGlyphContainer,
-                    !isPrimary && isActive && styles.activeGlyphContainer,
+              return (
+                <Pressable
+                  accessibilityLabel={item.label}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: isActive }}
+                  key={item.destination}
+                  onPress={() => router.replace(item.href)}
+                  testID={
+                    isPrimary ? 'primary-training-destination' : undefined
+                  }
+                  style={({ pressed }) => [
+                    styles.navigationItem,
+                    isPrimary && styles.primaryNavigationItem,
+                    pressed && styles.pressed,
                   ]}
                 >
-                  {isPrimary ? (
-                    <Image
-                      accessible={false}
-                      resizeMode="contain"
-                      source={trainingBolt}
-                      style={styles.primaryGlyphImage}
-                      testID="primary-training-icon"
-                    />
-                  ) : (
-                    <Text
-                      accessible={false}
-                      style={[styles.glyph, isActive && styles.activeText]}
-                    >
-                      {item.glyph}
-                    </Text>
-                  )}
-                </View>
-                <Text
-                  style={[
-                    styles.label,
-                    isActive && styles.activeText,
-                    isPrimary && styles.primaryLabel,
-                  ]}
-                >
-                  {item.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </SafeAreaView>
+                  <View
+                    style={[
+                      styles.glyphContainer,
+                      isPrimary && styles.primaryGlyphContainer,
+                      !isPrimary && isActive && styles.activeGlyphContainer,
+                    ]}
+                  >
+                    {isPrimary ? (
+                      <Image
+                        accessible={false}
+                        resizeMode="contain"
+                        source={trainingBolt}
+                        style={styles.primaryGlyphImage}
+                        testID="primary-training-icon"
+                      />
+                    ) : (
+                      <Text
+                        accessible={false}
+                        style={[styles.glyph, isActive && styles.activeText]}
+                      >
+                        {item.glyph}
+                      </Text>
+                    )}
+                  </View>
+                  <Text
+                    style={[
+                      styles.label,
+                      isActive && styles.activeText,
+                      isPrimary && styles.primaryLabel,
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </SafeAreaView>
       ) : null}
     </View>
   );

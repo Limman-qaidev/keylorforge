@@ -280,7 +280,8 @@ export function ActiveWorkoutV2({
         Entrenamiento activo
       </Text>
       <Text style={styles.subtitleDark}>
-        Entrenamiento libre · {overview.totalSets} {overview.totalSets === 1 ? 'serie confirmada' : 'series confirmadas'}
+        Entrenamiento libre · {overview.totalSets}{' '}
+        {overview.totalSets === 1 ? 'serie confirmada' : 'series confirmadas'}
       </Text>
       <SectionLabel dark>EJERCICIOS</SectionLabel>
       {focused ? (
@@ -296,7 +297,8 @@ export function ActiveWorkoutV2({
                 {nameOf(focused.canonical_exercise_id)}
               </Text>
               <Text style={styles.exerciseMeta}>
-                Ejercicio actual · {focused.sets.length} {focused.sets.length === 1 ? 'serie' : 'series'}
+                Ejercicio actual · {focused.sets.length}{' '}
+                {focused.sets.length === 1 ? 'serie' : 'series'}
               </Text>
             </View>
           </View>
@@ -344,7 +346,11 @@ export function ActiveWorkoutV2({
 
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={showRestControls ? 'Ocultar ajustes de descanso' : 'Ajustar descanso'}
+            accessibilityLabel={
+              showRestControls
+                ? 'Ocultar ajustes de descanso'
+                : 'Ajustar descanso'
+            }
             onPress={() => setShowRestControls((visible) => !visible)}
             style={styles.restControlToggle}
           >
@@ -375,7 +381,9 @@ export function ActiveWorkoutV2({
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`Descanso ${seconds} segundos`}
-                  accessibilityState={{ selected: restPresetSeconds === seconds }}
+                  accessibilityState={{
+                    selected: restPresetSeconds === seconds,
+                  }}
                   key={seconds}
                   onPress={() => onRestPreset(seconds)}
                   style={[

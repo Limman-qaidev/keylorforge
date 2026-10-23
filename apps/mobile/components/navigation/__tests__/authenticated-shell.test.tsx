@@ -69,11 +69,7 @@ describe('AuthenticatedShell', () => {
 
   it('uses an immersive training surface without the global bottom tabs', async () => {
     const { getByText, queryByLabelText } = await render(
-      <AuthenticatedShell
-        activeDestination="train"
-        immersive
-        darkChrome
-      >
+      <AuthenticatedShell activeDestination="train" immersive darkChrome>
         <Text>Sesión de trabajo</Text>
       </AuthenticatedShell>,
     );
