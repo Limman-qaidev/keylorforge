@@ -1,0 +1,53 @@
+name: PR174 Superseded CI Cleanup
+
+on:
+  push:
+    branches:
+      - feat/m3-ux-v2-dark-active-workout
+    paths:
+      - .github/workflows/temporary-pr174-cleanup.yml
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  cancel-obsolete-runs:
+    if: github.repository == 'Limman-qaidev/keylorforge' && github.ref == 'refs/heads/feat/m3-ux-v2-dark-active-workout'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Determine the current branch SHA
+        id: head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          latest="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/feat/m3-ux-v2-dark-active-workout" --jq '.object.sha')"
+          test -n "$latest"
+          echo "sha=$latest" >> "$GITHUB_OUTPUT"
+          echo "Will preserve CI for latest SHA: $latest"
+
+      - name: Cancel old PR-174 runs, preserve latest SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LATEST_SHA: ${{ steps.head.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='feat%2Fm3-ux-v2-dark-active-workout'
+          for status in queued in_progress waiting; do
+            gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs?branch=${branch}&status=${status}&per_page=100" \
+              --jq '.workflow_runs[] | [.id, .name, .head_sha, .event] | @tsv' |
+            while IFS=$'\t' read -r run_id name sha event; do
+              test "$event" = "pull_request" || continue
+              test "$sha" != "$LATEST_SHA" || continue
+              case "$name" in
+                'Android Real App QA APK (isolated)'|'Mobile CI'|'Backend CI'|'Database Migration CI'|'M3 Security Baseline'|'KeylorForge residual check') ;;
+                *) continue ;;
+              esac
+              echo "Cancel superseded $name run $run_id ($sha)"
+              if ! gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/cancel"; then
+                echo "::warning::Could not cancel run $run_id (completed, permission denied or competing update)"
+              fi
+            done
+          done
