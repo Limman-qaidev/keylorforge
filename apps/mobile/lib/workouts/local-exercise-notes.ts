@@ -71,6 +71,7 @@ export async function appendLocalExerciseNote(
       subject,
       note.note_event_id,
     );
+    if (requireOwner(access) !== subject) throw new Error('notAuthenticated');
     if (existing) {
       if (
         existing.session_id !== note.session_id ||
@@ -92,6 +93,7 @@ export async function appendLocalExerciseNote(
       note.session_id,
       note.occurrence_id,
     );
+    if (requireOwner(access) !== subject) throw new Error('notAuthenticated');
     if (
       !occurrence ||
       occurrence.canonical_exercise_id !== note.canonical_exercise_id
