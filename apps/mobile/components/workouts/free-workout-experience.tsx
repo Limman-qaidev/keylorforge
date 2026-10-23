@@ -72,6 +72,10 @@ import {
   type LastExercisePerformance,
 } from '@/lib/workouts/last-exercise-performance';
 import {
+  cacheRemoteExerciseNotes,
+  readCachedExerciseNotes,
+} from '@/lib/workouts/local-remote-note-cache';
+import {
   fetchRemoteExerciseNotes,
   mergeExerciseNotes,
 } from '@/lib/workouts/remote-exercise-notes';
@@ -663,13 +667,10 @@ function FreeWorkoutSessionExperience({
     void (async () => {
       try {
         const db = await openDb();
-        const [notes, acrossSessions] = await Promise.all([
+        const [notes, acrossSessions, cached] = await Promise.all([
           readSessionExerciseNotes(db, access, sessionId),
-          readCanonicalExerciseNotes(
-            db,
-            access,
-            exercise.canonical_exercise_id,
-          ),
+          readCanonicalExerciseNotes(db, access, exercise.canonical_exercise_id),
+          readCachedExerciseNotes(db, access, exercise.canonical_exercise_id),
         ]);
         if (
           subjectRef.current === selectedSubject &&
@@ -677,19 +678,26 @@ function FreeWorkoutSessionExperience({
         ) {
           setSessionNotes(notes);
           setLongitudinalNotes(acrossSessions);
+          setRemoteNotes(cached);
         }
         try {
           const fromServer = await fetchRemoteExerciseNotes(
-            access,
-            exercise.canonical_exercise_id,
+            access, exercise.canonical_exercise_id,
           );
           if (
             subjectRef.current === selectedSubject &&
             noteRequestId.current === request
-          )
-            setRemoteNotes(fromServer);
+          ) {
+            await cacheRemoteExerciseNotes(
+              db, access, exercise.canonical_exercise_id, fromServer,
+            );
+            if (
+              subjectRef.current === selectedSubject &&
+              noteRequestId.current === request
+            ) setRemoteNotes(mergeExerciseNotes(cached, fromServer));
+          }
         } catch {
-          // Offline-first: keep local notes and pending events intact.
+          // Offline-first: pending local notes and cached remote events survive.
         }
       } catch {
         if (subjectRef.current === selectedSubject) {
