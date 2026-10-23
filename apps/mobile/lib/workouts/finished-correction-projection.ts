@@ -47,16 +47,16 @@ function validateValues(values: EffectiveSetValues): boolean {
     measurementType !== 'reps' &&
     measurementType !== 'time' &&
     measurementType !== 'distance'
-  ) return false;
+  )
+    return false;
   if (
     (values.load_decimal === null) !== (values.load_unit === null) ||
-    (values.load_unit !== null &&
-      !['kg', 'lb'].includes(values.load_unit))
-  ) return false;
+    (values.load_unit !== null && !['kg', 'lb'].includes(values.load_unit))
+  )
+    return false;
   if (values.load_decimal !== null) {
-    if (
-      !/^(?:0|[1-9][0-9]{0,8})(?:\.[0-9]{1,3})?$/.test(values.load_decimal)
-    ) return false;
+    if (!/^(?:0|[1-9][0-9]{0,8})(?:\.[0-9]{1,3})?$/.test(values.load_decimal))
+      return false;
   }
   if (measurementType === 'reps') {
     return (
@@ -123,7 +123,8 @@ export function projectAcceptedSetCorrections(
       instant < previousTime ||
       !validateValues(event.values) ||
       event.values.measurement_type !== original.measurement_type
-    ) throw new Error('invalidCorrectionChain');
+    )
+      throw new Error('invalidCorrectionChain');
     seen.add(event.revision_id);
     previous = event.revision_id;
     previousTime = instant;

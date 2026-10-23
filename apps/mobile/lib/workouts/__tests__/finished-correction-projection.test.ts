@@ -67,16 +67,20 @@ describe('pure M3 post-finish correction projection', () => {
       projectAcceptedSetCorrections(original, [first, first]),
     ).toThrow('invalidCorrectionChain');
     expect(() =>
-      projectAcceptedSetCorrections(original, [{
-        ...first,
-        expected_previous_revision_id: original.set_id,
-      }]),
+      projectAcceptedSetCorrections(original, [
+        {
+          ...first,
+          expected_previous_revision_id: original.set_id,
+        },
+      ]),
     ).toThrow('invalidCorrectionChain');
     expect(() =>
-      projectAcceptedSetCorrections(original, [{
-        ...first,
-        values: { ...correction, reps: null },
-      }]),
+      projectAcceptedSetCorrections(original, [
+        {
+          ...first,
+          values: { ...correction, reps: null },
+        },
+      ]),
     ).toThrow('invalidCorrectionChain');
   });
 
