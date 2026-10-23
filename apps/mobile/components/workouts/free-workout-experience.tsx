@@ -70,6 +70,11 @@ type Mode =
 type Measurement = 'reps' | 'time' | 'distance';
 type Role = 'WORKING' | 'WARMUP';
 
+export type WorkoutChrome = {
+  immersive: boolean;
+  dark: boolean;
+};
+
 type RestControl = {
   sessionId: string;
   setId: string;
@@ -177,9 +182,11 @@ export function buildSetRequest(
 export function FreeWorkoutExperience({
   isolatedPreview = false,
   initialMode = 'catalogue',
+  onChromeChange,
 }: {
   isolatedPreview?: boolean;
   initialMode?: 'catalogue' | 'history';
+  onChromeChange?: (chrome: WorkoutChrome) => void;
 }) {
   if (isolatedPreview && !__DEV__) {
     throw new Error('Isolated preview must not run in release builds.');
@@ -191,6 +198,7 @@ export function FreeWorkoutExperience({
       session={session}
       isolatedPreview={isolatedPreview}
       initialMode={initialMode}
+      onChromeChange={onChromeChange}
     />
   );
 }
@@ -199,10 +207,12 @@ function FreeWorkoutSessionExperience({
   session,
   isolatedPreview,
   initialMode,
+  onChromeChange,
 }: {
   session: ReturnType<typeof useAuth>['session'];
   isolatedPreview: boolean;
   initialMode: 'catalogue' | 'history';
+  onChromeChange?: (chrome: WorkoutChrome) => void;
 }) {
   const subject = session?.user.id ?? null;
   // QA sessions must never reach the server or the ordinary workout database.
@@ -226,6 +236,13 @@ function FreeWorkoutSessionExperience({
   );
   const [history, setHistory] = useState<FinishedWorkoutHistoryEntry[]>([]);
   const [mode, setMode] = useState<Mode>(initialMode);
+  const hasActiveWorkout = overview !== null;
+  const immersive = hasActiveWorkout || mode !== 'catalogue';
+  const darkChrome =
+    mode === 'set' || (hasActiveWorkout && mode === 'catalogue');
+  useEffect(() => {
+    onChromeChange?.({ immersive, dark: darkChrome });
+  }, [onChromeChange, immersive, darkChrome]);
   const [selectedHistory, setSelectedHistory] =
     useState<FinishedWorkoutHistoryEntry | null>(null);
   const [historyDetail, setHistoryDetail] =
