@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Platform, Pressable, Text, View } from 'react-native';
 
 import { RequireAuthenticated } from '@/components/auth/auth-guards';
 import { ExerciseCatalogScreen } from '@/components/exercises/exercise-catalog-screen';
 import { AuthenticatedShell } from '@/components/navigation/authenticated-shell';
-import { FreeWorkoutExperience } from '@/components/workouts/free-workout-experience';
+import {
+  FreeWorkoutExperience,
+  type WorkoutChrome,
+} from '@/components/workouts/free-workout-experience';
 import { isIsolatedRealWorkoutQa } from '@/lib/workouts/qa-real-config';
 
 /**
@@ -20,9 +23,24 @@ export default function TrainRoute() {
   const preview = previewMode !== null;
   const canPreview = __DEV__ && Platform.OS !== 'web';
   const realQaWorkout = isIsolatedRealWorkoutQa();
+  const [chrome, setChrome] = useState<WorkoutChrome>({
+    immersive: false,
+    dark: false,
+  });
+  const updateChrome = useCallback((next: WorkoutChrome) => {
+    setChrome((previous) =>
+      previous.immersive === next.immersive && previous.dark === next.dark
+        ? previous
+        : next,
+    );
+  }, []);
   return (
     <RequireAuthenticated>
-      <AuthenticatedShell activeDestination="train">
+      <AuthenticatedShell
+        activeDestination="train"
+        immersive={chrome.immersive}
+        darkChrome={chrome.dark}
+      >
         {canPreview && !realQaWorkout ? (
           <View style={{ paddingHorizontal: 16, paddingVertical: 8 }}>
             <Pressable
@@ -52,11 +70,12 @@ export default function TrainRoute() {
           </View>
         ) : null}
         {realQaWorkout ? (
-          <FreeWorkoutExperience />
+          <FreeWorkoutExperience onChromeChange={updateChrome} />
         ) : canPreview && preview ? (
           <FreeWorkoutExperience
             isolatedPreview
             initialMode={previewMode === 'history' ? 'history' : 'catalogue'}
+            onChromeChange={updateChrome}
           />
         ) : (
           <ExerciseCatalogScreen />
