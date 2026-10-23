@@ -3,7 +3,7 @@ import {
   readCachedExerciseNotes,
 } from '../local-remote-note-cache';
 import type { ExerciseNoteEvent } from '../local-exercise-notes';
-import type { SqliteWorkoutPort } from '../local-schema';
+import type { SqliteQueryPort, SqliteWorkoutPort } from '../local-schema';
 
 const OWNER = 'a3dbf764-e0e3-41aa-9895-6e58eadfbb14';
 const EXERCISE = '502c4c87-80a5-4567-9aaf-296e43bfc4d1';
@@ -20,7 +20,9 @@ describe('subject-fenced remote note cache', () => {
   it('caches once, never rewrites an event and can read offline', async () => {
     const stored = new Map<string, ExerciseNoteEvent>();
     const db = {
-      withExclusiveTransactionAsync: jest.fn(async (callback) => {
+      withExclusiveTransactionAsync: jest.fn(async (
+        callback: (tx: SqliteQueryPort) => Promise<void>,
+      ) => {
         await callback({
           getFirstAsync: async (_sql: string, _subject: string, id: string) =>
             stored.get(id) ?? null,
