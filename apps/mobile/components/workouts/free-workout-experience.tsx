@@ -64,6 +64,7 @@ import type { LocalSubjectAccess } from '@/lib/workouts/local-store';
 import {
   appendLocalExerciseNote,
   readSessionExerciseNotes,
+  readCanonicalExerciseNotes,
   type ExerciseNoteEvent,
 } from '@/lib/workouts/local-exercise-notes';
 import {
@@ -269,6 +270,7 @@ function FreeWorkoutSessionExperience({
   const [historyDetail, setHistoryDetail] =
     useState<FinishedWorkoutDetail | null>(null);
   const [sessionNotes, setSessionNotes] = useState<ExerciseNoteEvent[]>([]);
+  const [longitudinalNotes, setLongitudinalNotes] = useState<ExerciseNoteEvent[]>([]);
   const [noteContext, setNoteContext] = useState<{
     sessionId: string;
     occurrenceId: string;
@@ -646,12 +648,19 @@ function FreeWorkoutSessionExperience({
     setNoteDraft('');
     setNoteError(null);
     setSessionNotes([]);
+    setLongitudinalNotes([]);
     setMode('notes');
     void (async () => {
       try {
         const db = await openDb();
-        const notes = await readSessionExerciseNotes(db, access, sessionId);
-        if (subjectRef.current === selectedSubject) setSessionNotes(notes);
+        const [notes, acrossSessions] = await Promise.all([
+          readSessionExerciseNotes(db, access, sessionId),
+          readCanonicalExerciseNotes(db, access, exercise.canonical_exercise_id),
+        ]);
+        if (subjectRef.current === selectedSubject) {
+          setSessionNotes(notes);
+          setLongitudinalNotes(acrossSessions);
+        }
       } catch {
         if (subjectRef.current === selectedSubject) {
           setNoteError('No se pudieron cargar las observaciones.');
@@ -676,9 +685,12 @@ function FreeWorkoutSessionExperience({
       });
       // Notes are deliberately local until the API/outbox contract is approved.
       // Do not rely on ordinary set-sync to deliver them.
-      setSessionNotes(
-        await readSessionExerciseNotes(db, access, note.sessionId),
-      );
+      const [inSession, acrossSessions] = await Promise.all([
+        readSessionExerciseNotes(db, access, note.sessionId),
+        readCanonicalExerciseNotes(db, access, note.canonicalId),
+      ]);
+      setSessionNotes(inSession);
+      setLongitudinalNotes(acrossSessions);
       setNoteDraft('');
       setNoteError(null);
     });
@@ -858,6 +870,9 @@ function FreeWorkoutSessionExperience({
         title={nameOf(noteContext.canonicalId)}
         notes={sessionNotes.filter(
           (item) => item.occurrence_id === noteContext.occurrenceId,
+        )}
+        historicalNotes={longitudinalNotes.filter(
+          (item) => item.occurrence_id !== noteContext.occurrenceId,
         )}
         draft={noteDraft}
         onDraft={setNoteDraft}
