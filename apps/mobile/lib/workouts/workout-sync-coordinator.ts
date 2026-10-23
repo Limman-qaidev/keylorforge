@@ -20,7 +20,8 @@ const UUID =
 const activeDrains = new WeakSet<SqliteWorkoutPort>();
 const MAX_BATCH = 30;
 
-export type SyncStage = 'start' | 'machine' | 'set' | 'finish' | 'cancel' | 'note';
+export type SyncStage =
+  'start' | 'machine' | 'set' | 'finish' | 'cancel' | 'note';
 type SingleResult =
   | Awaited<ReturnType<typeof syncNextPendingStart>>
   | Awaited<ReturnType<typeof syncNextPendingMachineCreate>>

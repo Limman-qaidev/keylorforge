@@ -25,7 +25,10 @@ type Parent = { canonical_exercise_id: string; delivery_state: string };
 export type NoteSyncOutcome =
   | { state: 'idle' | 'inFlight' }
   | { state: 'acknowledged' | 'conflict'; mutationId: string }
-  | { state: 'blocked'; reason: 'auth' | 'dependency' | 'localData' | 'rejected' }
+  | {
+      state: 'blocked';
+      reason: 'auth' | 'dependency' | 'localData' | 'rejected';
+    }
   | { state: 'retryable'; reason: 'network' | 'server' | 'invalidResponse' };
 
 function owner(access: StartSyncAccess): string {
@@ -37,7 +40,8 @@ function check(access: StartSyncAccess, expected: string): void {
   if (owner(access) !== expected) throw new Error('notAuthenticated');
 }
 function sameReceipt(payload: unknown, note: PendingNote): boolean {
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return false;
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload))
+    return false;
   const result = payload as Record<string, unknown>;
   return (
     result.note_event_id === note.note_event_id &&
@@ -60,26 +64,32 @@ async function ack(
     check(access, note.subject);
     const current = await tx.getFirstAsync<PendingNote>(
       'SELECT * FROM local_exercise_note_events WHERE subject = ? AND note_event_id = ?',
-      note.subject, note.note_event_id,
+      note.subject,
+      note.note_event_id,
     );
     check(access, note.subject);
-    if (!current ||
+    if (
+      !current ||
       current.body !== note.body ||
       current.created_at_utc !== note.created_at_utc ||
       current.session_id !== note.session_id ||
       current.occurrence_id !== note.occurrence_id ||
       current.canonical_exercise_id !== note.canonical_exercise_id ||
       !['pending', state].includes(current.delivery_state)
-    ) throw new Error('corruptLocalData');
+    )
+      throw new Error('corruptLocalData');
     if (current.delivery_state === 'pending') {
       await tx.runAsync(
         "UPDATE local_exercise_note_events SET delivery_state = ? WHERE subject = ? AND note_event_id = ? AND delivery_state = 'pending'",
-        state, note.subject, note.note_event_id,
+        state,
+        note.subject,
+        note.note_event_id,
       );
     }
     const checked = await tx.getFirstAsync<PendingNote>(
       'SELECT * FROM local_exercise_note_events WHERE subject = ? AND note_event_id = ?',
-      note.subject, note.note_event_id,
+      note.subject,
+      note.note_event_id,
     );
     check(access, note.subject);
     if (checked?.delivery_state !== state || checked.body !== note.body) {
@@ -104,10 +114,19 @@ export async function syncNextPendingExerciseNote(
     );
     check(access, subject);
     if (!note) return { state: 'idle' };
-    if (note.subject !== subject || note.delivery_state !== 'pending' ||
-        ![note.note_event_id, note.session_id, note.occurrence_id, note.canonical_exercise_id].every((id) => UUID.test(id)) ||
-        note.body.length < 1 || note.body.length > 1000 ||
-        !Number.isFinite(Date.parse(note.created_at_utc))) {
+    if (
+      note.subject !== subject ||
+      note.delivery_state !== 'pending' ||
+      ![
+        note.note_event_id,
+        note.session_id,
+        note.occurrence_id,
+        note.canonical_exercise_id,
+      ].every((id) => UUID.test(id)) ||
+      note.body.length < 1 ||
+      note.body.length > 1000 ||
+      !Number.isFinite(Date.parse(note.created_at_utc))
+    ) {
       return { state: 'blocked', reason: 'localData' };
     }
     // The first set must be ACKed before the server could own this occurrence.
@@ -120,10 +139,15 @@ export async function syncNextPendingExerciseNote(
        JOIN local_workout_outbox b
          ON b.subject = s.subject AND b.mutation_id = s.mutation_id
        WHERE o.subject = ? AND o.session_id = ? AND o.occurrence_id = ?`,
-      subject, note.session_id, note.occurrence_id,
+      subject,
+      note.session_id,
+      note.occurrence_id,
     );
     check(access, subject);
-    if (!parent || parent.canonical_exercise_id !== note.canonical_exercise_id) {
+    if (
+      !parent ||
+      parent.canonical_exercise_id !== note.canonical_exercise_id
+    ) {
       return { state: 'blocked', reason: 'localData' };
     }
     if (parent.delivery_state !== 'acknowledged') {
@@ -131,15 +155,20 @@ export async function syncNextPendingExerciseNote(
     }
     const credentials = await access.acquireCurrentCredentials();
     check(access, subject);
-    if (!credentials || credentials.subject.toLowerCase() !== subject ||
-        !credentials.accessToken) return { state: 'blocked', reason: 'auth' };
+    if (
+      !credentials ||
+      credentials.subject.toLowerCase() !== subject ||
+      !credentials.accessToken
+    )
+      return { state: 'blocked', reason: 'auth' };
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15_000);
     let response: Response;
     try {
       response = await requestApi(
-        `/workout-sessions/${note.session_id}/notes`, {
+        `/workout-sessions/${note.session_id}/notes`,
+        {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${credentials.accessToken}`,
@@ -171,9 +200,12 @@ export async function syncNextPendingExerciseNote(
       return { state: 'blocked', reason: 'auth' };
     if (response.status === 404 || response.status === 422)
       return { state: 'blocked', reason: 'rejected' };
-    if (response.status !== 201) return { state: 'retryable', reason: 'server' };
+    if (response.status !== 201)
+      return { state: 'retryable', reason: 'server' };
     let receipt: unknown;
-    try { receipt = await response.json(); } catch {
+    try {
+      receipt = await response.json();
+    } catch {
       return { state: 'retryable', reason: 'invalidResponse' };
     }
     check(access, subject);

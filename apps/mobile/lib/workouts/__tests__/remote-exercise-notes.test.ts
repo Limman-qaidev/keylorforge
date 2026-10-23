@@ -19,10 +19,7 @@ describe('immutable notes across workout sessions', () => {
       body: 'Próxima sesión: más rango',
       created_at_utc: '2026-10-24T11:00:00.000Z',
     };
-    expect(mergeExerciseNotes([one], [one, second])).toEqual([
-      second,
-      one,
-    ]);
+    expect(mergeExerciseNotes([one], [one, second])).toEqual([second, one]);
   });
 
   it('rejects conflicting reuse of an immutable event ID', () => {

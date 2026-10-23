@@ -33,9 +33,7 @@ def purge_account_workout_data(session: Session, owner_user_id: UUID) -> None:
             WorkoutExerciseNoteEvent.owner_user_id == owner_user_id
         )
     )
-    session.execute(
-        delete(WorkoutSet).where(WorkoutSet.owner_user_id == owner_user_id)
-    )
+    session.execute(delete(WorkoutSet).where(WorkoutSet.owner_user_id == owner_user_id))
     session.execute(
         delete(WorkoutOccurrence).where(
             WorkoutOccurrence.owner_user_id == owner_user_id

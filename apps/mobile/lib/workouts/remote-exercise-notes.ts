@@ -32,7 +32,8 @@ export function mergeExerciseNotes(
         existing.occurrence_id !== note.occurrence_id ||
         existing.canonical_exercise_id !== note.canonical_exercise_id ||
         Date.parse(existing.created_at_utc) !== Date.parse(note.created_at_utc)
-      ) throw new Error('noteHistoryConflict');
+      )
+        throw new Error('noteHistoryConflict');
     } else {
       entries.set(note.note_event_id, note);
     }
@@ -52,12 +53,14 @@ export async function fetchRemoteExerciseNotes(
   const subject = current(access);
   if (!UUID.test(canonicalExerciseId)) throw new Error('invalidExerciseId');
   const { data, error } = await getSupabaseClient().auth.getSession();
-  if (error || data.session?.user.id !== subject) throw new Error('notAuthenticated');
+  if (error || data.session?.user.id !== subject)
+    throw new Error('notAuthenticated');
   const token = data.session.access_token;
   if (
     isIsolatedRealWorkoutQa() &&
     !(await confirmIsolatedQaWorkoutTarget(token))
-  ) throw new Error('invalidQaTarget');
+  )
+    throw new Error('invalidQaTarget');
   if (current(access) !== subject) throw new Error('notAuthenticated');
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 12_000);
@@ -76,8 +79,13 @@ export async function fetchRemoteExerciseNotes(
   if (current(access) !== subject) throw new Error('notAuthenticated');
   if (response.status !== 200) throw new Error('notesRemoteUnavailable');
   const page: unknown = await response.json();
-  if (!page || typeof page !== 'object' || !('items' in page) ||
-      !Array.isArray(page.items) || page.items.length > 100) {
+  if (
+    !page ||
+    typeof page !== 'object' ||
+    !('items' in page) ||
+    !Array.isArray(page.items) ||
+    page.items.length > 100
+  ) {
     throw new Error('invalidNotesResponse');
   }
   const result: ExerciseNoteEvent[] = [];
@@ -87,14 +95,20 @@ export async function fetchRemoteExerciseNotes(
     }
     const row = entry as Record<string, unknown>;
     if (
-      !['note_event_id', 'session_id', 'occurrence_id', 'canonical_exercise_id']
-        .every((key) => typeof row[key] === 'string' && UUID.test(row[key])) ||
+      ![
+        'note_event_id',
+        'session_id',
+        'occurrence_id',
+        'canonical_exercise_id',
+      ].every((key) => typeof row[key] === 'string' && UUID.test(row[key])) ||
       row.canonical_exercise_id !== canonicalExerciseId ||
       typeof row.body !== 'string' ||
-      row.body.length < 1 || row.body.length > 1000 ||
+      row.body.length < 1 ||
+      row.body.length > 1000 ||
       typeof row.created_at_utc !== 'string' ||
       !Number.isFinite(Date.parse(row.created_at_utc))
-    ) throw new Error('invalidNotesResponse');
+    )
+      throw new Error('invalidNotesResponse');
     result.push({
       note_event_id: row.note_event_id as string,
       session_id: row.session_id as string,

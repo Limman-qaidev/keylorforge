@@ -4,6 +4,7 @@ Revision ID: 20261023_0001
 Revises: 20261009_0003
 No performed work, completion snapshot or prior note is rewritten.
 """
+
 from collections.abc import Sequence
 
 from alembic import op
@@ -23,7 +24,9 @@ def upgrade() -> None:
         sa.Column("owner_user_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("session_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("occurrence_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("canonical_exercise_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column(
+            "canonical_exercise_id", postgresql.UUID(as_uuid=True), nullable=False
+        ),
         sa.Column("body", sa.String(length=1000), nullable=False),
         sa.Column("created_at_utc", sa.DateTime(timezone=True), nullable=False),
         sa.Column(
@@ -37,13 +40,17 @@ def upgrade() -> None:
             ["owner_user_id"], ["application_users.id"], ondelete="RESTRICT"
         ),
         sa.ForeignKeyConstraint(
-            ["canonical_exercise_id"], ["catalog_exercises.id"],
+            ["canonical_exercise_id"],
+            ["catalog_exercises.id"],
             ondelete="RESTRICT",
         ),
         sa.ForeignKeyConstraint(
             ["occurrence_id", "session_id", "owner_user_id"],
-            ["workout_occurrences.id", "workout_occurrences.session_id",
-             "workout_occurrences.owner_user_id"],
+            [
+                "workout_occurrences.id",
+                "workout_occurrences.session_id",
+                "workout_occurrences.owner_user_id",
+            ],
             ondelete="RESTRICT",
         ),
         sa.CheckConstraint(

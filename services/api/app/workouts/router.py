@@ -33,6 +33,10 @@ from app.workouts.history_service import (
     CompletedWorkoutHistoryPage,
     list_authoritative_completed_workouts,
 )
+from app.workouts.lifecycle_service import (
+    WorkoutLifecycleStateResponse,
+    get_authoritative_workout_lifecycle,
+)
 from app.workouts.note_service import (
     ExerciseNoteCommand,
     ExerciseNotePage,
@@ -40,10 +44,6 @@ from app.workouts.note_service import (
     append_exercise_note,
     list_exercise_notes,
     list_session_exercise_notes,
-)
-from app.workouts.lifecycle_service import (
-    WorkoutLifecycleStateResponse,
-    get_authoritative_workout_lifecycle,
 )
 from app.workouts.schemas import StartFreeWorkoutRequest, WorkoutSessionResponse
 from app.workouts.service import get_active_free_workout, start_free_workout
@@ -204,9 +204,7 @@ def append_session_exercise_note(
 ) -> ExerciseNoteResponse:
     if request.session_id != session_id:
         raise HTTPException(422, detail="session ID mismatch")
-    return append_exercise_note(
-        session=session, principal=principal, command=request
-    )
+    return append_exercise_note(session=session, principal=principal, command=request)
 
 
 @router.get("/{session_id}/notes", response_model=ExerciseNotePage)
@@ -217,8 +215,10 @@ def workout_session_notes(
     limit: Annotated[int, Query(ge=1, le=100)] = 100,
 ) -> ExerciseNotePage:
     return list_session_exercise_notes(
-        session=session, principal=principal,
-        session_id=session_id, limit=limit,
+        session=session,
+        principal=principal,
+        session_id=session_id,
+        limit=limit,
     )
 
 
@@ -230,6 +230,8 @@ def exercise_note_history(
     limit: Annotated[int, Query(ge=1, le=100)] = 100,
 ) -> ExerciseNotePage:
     return list_exercise_notes(
-        session=session, principal=principal,
-        canonical_exercise_id=canonical_exercise_id, limit=limit,
+        session=session,
+        principal=principal,
+        canonical_exercise_id=canonical_exercise_id,
+        limit=limit,
     )

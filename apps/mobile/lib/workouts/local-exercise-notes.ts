@@ -201,6 +201,7 @@ export async function readCanonicalExerciseNotes(
         validEvent(item as ExerciseNoteEvent) &&
         (item as ExerciseNoteEvent).canonical_exercise_id === exerciseId,
     )
-  ) throw new Error('corruptNotes');
+  )
+    throw new Error('corruptNotes');
   return parsed as ExerciseNoteEvent[];
 }

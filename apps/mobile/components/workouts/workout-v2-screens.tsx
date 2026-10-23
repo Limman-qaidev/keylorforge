@@ -754,7 +754,9 @@ export function ExerciseNotesV2({
         </View>
       ))}
       {notes.length === 0 ? (
-        <Text style={styles.lightSubtitle}>Aún no hay observaciones en esta sesión.</Text>
+        <Text style={styles.lightSubtitle}>
+          Aún no hay observaciones en esta sesión.
+        </Text>
       ) : null}
       {(historicalNotes?.length ?? 0) > 0 ? (
         <>
@@ -792,8 +794,8 @@ export function ExerciseNotesV2({
         onPress={onSave}
       />
       <Text style={styles.noteLocalWarning}>
-        Las observaciones se guardan primero en este dispositivo. La entrega
-        al servidor se reintentará cuando exista conexión; los comentarios aún
+        Las observaciones se guardan primero en este dispositivo. La entrega al
+        servidor se reintentará cuando exista conexión; los comentarios aún
         pendientes pueden no aparecer en otros dispositivos.
       </Text>
     </ScrollView>

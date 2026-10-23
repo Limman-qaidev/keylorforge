@@ -274,7 +274,9 @@ function FreeWorkoutSessionExperience({
   const [historyDetail, setHistoryDetail] =
     useState<FinishedWorkoutDetail | null>(null);
   const [sessionNotes, setSessionNotes] = useState<ExerciseNoteEvent[]>([]);
-  const [longitudinalNotes, setLongitudinalNotes] = useState<ExerciseNoteEvent[]>([]);
+  const [longitudinalNotes, setLongitudinalNotes] = useState<
+    ExerciseNoteEvent[]
+  >([]);
   const [remoteNotes, setRemoteNotes] = useState<ExerciseNoteEvent[]>([]);
   const noteRequestId = useRef(0);
   const [noteContext, setNoteContext] = useState<{
@@ -663,7 +665,11 @@ function FreeWorkoutSessionExperience({
         const db = await openDb();
         const [notes, acrossSessions] = await Promise.all([
           readSessionExerciseNotes(db, access, sessionId),
-          readCanonicalExerciseNotes(db, access, exercise.canonical_exercise_id),
+          readCanonicalExerciseNotes(
+            db,
+            access,
+            exercise.canonical_exercise_id,
+          ),
         ]);
         if (
           subjectRef.current === selectedSubject &&
@@ -680,7 +686,8 @@ function FreeWorkoutSessionExperience({
           if (
             subjectRef.current === selectedSubject &&
             noteRequestId.current === request
-          ) setRemoteNotes(fromServer);
+          )
+            setRemoteNotes(fromServer);
         } catch {
           // Offline-first: keep local notes and pending events intact.
         }

@@ -1,4 +1,5 @@
 """Owner-fenced, append-only exercise annotations and replay-safe reading."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -30,7 +31,7 @@ class ExerciseNoteCommand(BaseModel):
     created_at_utc: AwareDatetime
 
     @model_validator(mode="after")
-    def validate_note(self) -> "ExerciseNoteCommand":
+    def validate_note(self) -> ExerciseNoteCommand:
         if self.body != self.body.strip():
             raise ValueError("body must be trimmed")
         try:
@@ -77,9 +78,7 @@ def append_exercise_note(
     Existing performed sets and completion snapshots are never updated.
     """
     owner = _active_owner(session, principal, lock=True)
-    existing = session.get(
-        WorkoutExerciseNoteEvent, (command.note_event_id, owner.id)
-    )
+    existing = session.get(WorkoutExerciseNoteEvent, (command.note_event_id, owner.id))
     if existing is not None:
         submitted = command.created_at_utc.astimezone(UTC)
         persisted = existing.created_at_utc.astimezone(UTC)

@@ -27,7 +27,11 @@ export async function migrateWorkoutSchemaV7ToV8(
     if (violation) throw new Error('M3 notes v8 FK integrity failure');
     await db.execAsync('PRAGMA user_version = 8; COMMIT;');
   } catch (error) {
-    try { await db.execAsync('ROLLBACK;'); } catch { /* already rolled back */ }
+    try {
+      await db.execAsync('ROLLBACK;');
+    } catch {
+      /* already rolled back */
+    }
     throw error;
   }
 }

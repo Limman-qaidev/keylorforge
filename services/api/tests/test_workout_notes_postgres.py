@@ -1,8 +1,8 @@
 """Real PostgreSQL owner isolation and immutable note replay tests."""
+
 from __future__ import annotations
 
 import os
-from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 import pytest
@@ -63,12 +63,13 @@ def test_real_postgres_exercise_notes_are_owner_scoped_and_append_only() -> None
         with Session(engine) as db:
             import_vendored_catalog(db, load_vendored_snapshot())
             exercise = db.scalar(
-                select(CatalogExercise.id).where(
+                select(CatalogExercise.id)
+                .where(
                     CatalogExercise.is_active.is_(True),
                     CatalogExercise.canonical_exercise_id.is_(None),
-                    CatalogExercise.measurement_type
-                    == ExerciseMeasurementType.REPS,
-                ).limit(1)
+                    CatalogExercise.measurement_type == ExerciseMeasurementType.REPS,
+                )
+                .limit(1)
             )
             assert exercise is not None
             db.commit()
@@ -122,9 +123,12 @@ def test_real_postgres_exercise_notes_are_owner_scoped_and_append_only() -> None
         assert created.status_code == 201, created.text
         assert client.post(endpoint, headers=a, json=note).json() == created.json()
         assert client.get(endpoint, headers=b).status_code == 404
-        assert client.get(
-            f"/workout-sessions/exercise-notes/{exercise}", headers=b
-        ).json()["items"] == []
+        assert (
+            client.get(
+                f"/workout-sessions/exercise-notes/{exercise}", headers=b
+            ).json()["items"]
+            == []
+        )
         changed = dict(note, body="Overwritten")
         assert client.post(endpoint, headers=a, json=changed).status_code == 409
         other = dict(
@@ -150,12 +154,12 @@ def test_real_postgres_exercise_notes_are_owner_scoped_and_append_only() -> None
             created_at_utc="2026-10-23T10:13:00+00:00",
         )
         assert client.post(endpoint, headers=a, json=third).status_code == 201
-        history = client.get(
-            f"/workout-sessions/exercise-notes/{exercise}", headers=a
-        )
+        history = client.get(f"/workout-sessions/exercise-notes/{exercise}", headers=a)
         assert history.status_code == 200, history.text
         assert [row["body"] for row in history.json()["items"]] == [
-            third["body"], other["body"], note["body"]
+            third["body"],
+            other["body"],
+            note["body"],
         ]
         with Session(engine) as db:
             assert len(db.scalars(select(WorkoutExerciseNoteEvent)).all()) == 3
