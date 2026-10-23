@@ -3,6 +3,7 @@ import { syncNextPendingMachineCreate } from '../machine-create-sync';
 import { syncNextPendingConfirmedSet } from '../confirmed-set-sync';
 import { syncNextPendingFinish } from '../finish-session-sync';
 import { syncNextPendingCancel } from '../cancel-session-sync';
+import { syncNextPendingExerciseNote } from '../exercise-note-sync';
 import { drainWorkoutSync } from '../workout-sync-coordinator';
 import type { SqliteWorkoutPort } from '../local-schema';
 import type { StartSyncAccess } from '../start-session-sync';
@@ -21,6 +22,9 @@ jest.mock('../finish-session-sync', () => ({
 }));
 jest.mock('../cancel-session-sync', () => ({
   syncNextPendingCancel: jest.fn(),
+}));
+jest.mock('../exercise-note-sync', () => ({
+  syncNextPendingExerciseNote: jest.fn(),
 }));
 
 const OWNER = 'a3dbf764-e0e3-41aa-9895-6e58eadfbb14';
@@ -52,6 +56,7 @@ function noWork() {
   });
   jest.mocked(syncNextPendingFinish).mockResolvedValue({ state: 'idle' });
   jest.mocked(syncNextPendingCancel).mockResolvedValue({ state: 'idle' });
+  jest.mocked(syncNextPendingExerciseNote).mockResolvedValue({ state: 'idle' });
 }
 
 beforeEach(() => {
@@ -102,6 +107,7 @@ describe('bounded causal Workout M3 sync coordinator', () => {
       'set',
       'finish',
       'cancel',
+      'note',
     ]);
   });
 
