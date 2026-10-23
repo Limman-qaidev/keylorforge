@@ -72,6 +72,10 @@ import {
   type LastExercisePerformance,
 } from '@/lib/workouts/last-exercise-performance';
 import {
+  fetchRemoteExerciseNotes,
+  mergeExerciseNotes,
+} from '@/lib/workouts/remote-exercise-notes';
+import {
   deviceWorkoutClock,
   secureWorkoutIds,
 } from '@/lib/workouts/native-workout-platform';
@@ -271,6 +275,8 @@ function FreeWorkoutSessionExperience({
     useState<FinishedWorkoutDetail | null>(null);
   const [sessionNotes, setSessionNotes] = useState<ExerciseNoteEvent[]>([]);
   const [longitudinalNotes, setLongitudinalNotes] = useState<ExerciseNoteEvent[]>([]);
+  const [remoteNotes, setRemoteNotes] = useState<ExerciseNoteEvent[]>([]);
+  const noteRequestId = useRef(0);
   const [noteContext, setNoteContext] = useState<{
     sessionId: string;
     occurrenceId: string;
@@ -639,6 +645,8 @@ function FreeWorkoutSessionExperience({
     returnMode: 'catalogue' | 'history-detail',
   ) => {
     const selectedSubject = subjectRef.current;
+    const request = ++noteRequestId.current;
+    setRemoteNotes([]);
     setNoteContext({
       sessionId,
       occurrenceId: exercise.occurrence_id,
@@ -657,9 +665,24 @@ function FreeWorkoutSessionExperience({
           readSessionExerciseNotes(db, access, sessionId),
           readCanonicalExerciseNotes(db, access, exercise.canonical_exercise_id),
         ]);
-        if (subjectRef.current === selectedSubject) {
+        if (
+          subjectRef.current === selectedSubject &&
+          noteRequestId.current === request
+        ) {
           setSessionNotes(notes);
           setLongitudinalNotes(acrossSessions);
+        }
+        try {
+          const fromServer = await fetchRemoteExerciseNotes(
+            access,
+            exercise.canonical_exercise_id,
+          );
+          if (
+            subjectRef.current === selectedSubject &&
+            noteRequestId.current === request
+          ) setRemoteNotes(fromServer);
+        } catch {
+          // Offline-first: keep local notes and pending events intact.
         }
       } catch {
         if (subjectRef.current === selectedSubject) {
@@ -868,11 +891,21 @@ function FreeWorkoutSessionExperience({
     return (
       <ExerciseNotesV2
         title={nameOf(noteContext.canonicalId)}
-        notes={sessionNotes.filter(
-          (item) => item.occurrence_id === noteContext.occurrenceId,
+        notes={mergeExerciseNotes(
+          sessionNotes.filter(
+            (item) => item.occurrence_id === noteContext.occurrenceId,
+          ),
+          remoteNotes.filter(
+            (item) => item.occurrence_id === noteContext.occurrenceId,
+          ),
         )}
-        historicalNotes={longitudinalNotes.filter(
-          (item) => item.occurrence_id !== noteContext.occurrenceId,
+        historicalNotes={mergeExerciseNotes(
+          longitudinalNotes.filter(
+            (item) => item.occurrence_id !== noteContext.occurrenceId,
+          ),
+          remoteNotes.filter(
+            (item) => item.occurrence_id !== noteContext.occurrenceId,
+          ),
         )}
         draft={noteDraft}
         onDraft={setNoteDraft}
