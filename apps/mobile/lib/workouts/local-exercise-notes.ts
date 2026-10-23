@@ -160,3 +160,47 @@ export async function readSessionExerciseNotes(
     throw new Error('corruptNotes');
   return raw as ExerciseNoteEvent[];
 }
+
+/** Longitudinal view, ordered across sessions for the same canonical exercise. */
+export async function readCanonicalExerciseNotes(
+  db: SqliteWorkoutPort,
+  access: LocalSubjectAccess,
+  canonicalExerciseId: string,
+): Promise<ExerciseNoteEvent[]> {
+  const subject = requireOwner(access);
+  const exerciseId = requireId(canonicalExerciseId);
+  const result = await db.getFirstAsync<{ items_json: string }>(
+    [
+      "SELECT COALESCE(json_group_array(json(item_json)), '[]') AS items_json",
+      'FROM (SELECT json_object(',
+      "'session_id', session_id, 'occurrence_id', occurrence_id,",
+      "'canonical_exercise_id', canonical_exercise_id,",
+      "'note_event_id', note_event_id, 'body', body,",
+      "'created_at_utc', created_at_utc",
+      ') AS item_json FROM local_exercise_note_events',
+      'WHERE subject = ? AND canonical_exercise_id = ?',
+      'ORDER BY created_at_utc DESC, note_event_id DESC LIMIT 500)',
+    ].join(' '),
+    subject,
+    exerciseId,
+  );
+  if (requireOwner(access) !== subject) throw new Error('notAuthenticated');
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(result?.items_json ?? '[]');
+  } catch {
+    throw new Error('corruptNotes');
+  }
+  if (
+    !Array.isArray(parsed) ||
+    parsed.length > 500 ||
+    !parsed.every(
+      (item: unknown) =>
+        item !== null &&
+        typeof item === 'object' &&
+        validEvent(item as ExerciseNoteEvent) &&
+        (item as ExerciseNoteEvent).canonical_exercise_id === exerciseId,
+    )
+  ) throw new Error('corruptNotes');
+  return parsed as ExerciseNoteEvent[];
+}
