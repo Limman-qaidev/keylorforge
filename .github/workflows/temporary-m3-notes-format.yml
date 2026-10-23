@@ -13,6 +13,10 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: true
+      - name: Use latest PR head
+        run: |
+          git fetch origin feat/m3-ux-v2-dark-active-workout
+          git checkout -B feat/m3-ux-v2-dark-active-workout origin/feat/m3-ux-v2-dark-active-workout
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22.14.0
@@ -35,6 +39,7 @@ jobs:
             lib/workouts/exercise-note-sync.ts \
             lib/workouts/remote-exercise-notes.ts \
             lib/workouts/__tests__/exercise-note-sync.test.ts \
+            lib/workouts/__tests__/remote-exercise-notes.test.ts \
             lib/workouts/__tests__/workout-sync-coordinator.test.ts \
             lib/workouts/__tests__/expo-sqlite-adapter.test.ts \
             components/workouts/free-workout-experience.tsx \
@@ -76,6 +81,7 @@ jobs:
             apps/mobile/lib/workouts/exercise-note-sync.ts \
             apps/mobile/lib/workouts/remote-exercise-notes.ts \
             apps/mobile/lib/workouts/__tests__/exercise-note-sync.test.ts \
+            apps/mobile/lib/workouts/__tests__/remote-exercise-notes.test.ts \
             apps/mobile/lib/workouts/__tests__/workout-sync-coordinator.test.ts \
             apps/mobile/lib/workouts/__tests__/expo-sqlite-adapter.test.ts \
             apps/mobile/components/workouts/free-workout-experience.tsx \
