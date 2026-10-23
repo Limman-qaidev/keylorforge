@@ -68,7 +68,14 @@ export async function appendLocalExerciseNote(
       subject, note.note_event_id,
     );
     if (existing) {
-      if (JSON.stringify(existing) !== JSON.stringify(note)) {
+      if (
+        existing.session_id !== note.session_id ||
+        existing.occurrence_id !== note.occurrence_id ||
+        existing.canonical_exercise_id !== note.canonical_exercise_id ||
+        existing.note_event_id !== note.note_event_id ||
+        existing.body !== note.body ||
+        existing.created_at_utc !== note.created_at_utc
+      ) {
         throw new Error('noteIdConflict');
       }
       return; // Immutable idempotent replay.
