@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Keyboard,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,7 +24,10 @@ import {
   listMuscles,
 } from '@/lib/exercises/catalog-api';
 import { useCachedExerciseCatalogue } from '@/lib/exercises/use-cached-exercise-catalogue';
-import { rankExerciseMatches } from '@/lib/exercises/search-ranking';
+import {
+  normalizeExerciseQuery,
+  rankExerciseMatches,
+} from '@/lib/exercises/search-ranking';
 
 type AuthenticatedRequestContext = {
   accessToken: string;
@@ -146,59 +150,102 @@ type FilterRowProps = {
   onSelect: (id: string | null) => void;
 };
 
+/**
+ * Searchable vertical selector instead of an unbounded horizontal chip strip.
+ * Filter values preserve the canonical reference IDs; only their labels change.
+ */
 function FilterRow({ label, onSelect, options, selectedId }: FilterRowProps) {
+  const [expanded, setExpanded] = useState(false);
+  const [query, setQuery] = useState('');
+  const selected = options.find((item) => item.id === selectedId);
+  const normalized = normalizeExerciseQuery(query);
+  const candidates = normalized
+    ? options.filter((item) =>
+        normalizeExerciseQuery(item.name).includes(normalized),
+      )
+    : options;
+
+  const choose = (id: string | null) => {
+    onSelect(id);
+    setExpanded(false);
+    setQuery('');
+    Keyboard.dismiss();
+  };
+
   return (
     <View style={styles.filterGroup}>
-      <Text style={styles.filterLabel}>{label}</Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterScroller}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={'Seleccionar ' + label.toLowerCase()}
+        accessibilityState={{ expanded }}
+        onPress={() => setExpanded((value) => !value)}
+        style={styles.filterSelector}
       >
-        <Pressable
-          accessibilityLabel={'Quitar filtro de ' + label.toLowerCase()}
-          accessibilityRole="button"
-          accessibilityState={{ selected: selectedId === null }}
-          onPress={() => onSelect(null)}
-          style={[
-            styles.filterChip,
-            selectedId === null && styles.filterChipSelected,
-          ]}
-        >
-          <Text
-            style={[
-              styles.filterChipText,
-              selectedId === null && styles.filterChipTextSelected,
-            ]}
-          >
-            Todos
+        <View style={styles.filterSelectorBody}>
+          <Text style={styles.filterSelectorLabel}>{label}</Text>
+          <Text style={styles.filterSelectorValue}>
+            {selected?.name ?? 'Todos'}
           </Text>
-        </Pressable>
-        {options.map((option) => {
-          const selected = option.id === selectedId;
-          return (
-            <Pressable
-              accessibilityLabel={
-                'Filtrar por ' + label.toLowerCase() + ' ' + option.name
-              }
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              key={option.id}
-              onPress={() => onSelect(option.id)}
-              style={[styles.filterChip, selected && styles.filterChipSelected]}
-            >
-              <Text
-                style={[
-                  styles.filterChipText,
-                  selected && styles.filterChipTextSelected,
-                ]}
+        </View>
+        <Text style={styles.filterSelectorChevron}>{expanded ? '⌃' : '⌄'}</Text>
+      </Pressable>
+      {expanded ? (
+        <View style={styles.filterOptionsPanel}>
+          <TextInput
+            accessibilityLabel={'Buscar ' + label.toLowerCase()}
+            autoCapitalize="none"
+            autoCorrect={false}
+            onChangeText={setQuery}
+            placeholder={'Buscar ' + label.toLowerCase() + '…'}
+            placeholderTextColor="#697991"
+            style={styles.filterSearchInput}
+            value={query}
+          />
+          <ScrollView
+            keyboardShouldPersistTaps="always"
+            nestedScrollEnabled
+            style={styles.filterOptionsList}
+          >
+            {!normalized ? (
+              <Pressable
+                accessibilityLabel={'Quitar filtro de ' + label.toLowerCase()}
+                accessibilityRole="button"
+                accessibilityState={{ selected: selectedId === null }}
+                key="all"
+                onPress={() => choose(null)}
+                style={styles.filterOption}
               >
-                {option.name}
+                <Text style={styles.filterOptionText}>Todos</Text>
+                {selectedId === null ? (
+                  <Text style={styles.filterOptionSelected}>✓</Text>
+                ) : null}
+              </Pressable>
+            ) : null}
+            {candidates.map((item) => (
+              <Pressable
+                accessibilityLabel={
+                  'Filtrar por ' + label.toLowerCase() + ' ' + item.name
+                }
+                accessibilityRole="button"
+                accessibilityState={{ selected: selectedId === item.id }}
+                key={item.id}
+                onPress={() => choose(item.id)}
+                style={styles.filterOption}
+              >
+                <Text style={styles.filterOptionText}>{item.name}</Text>
+                {selectedId === item.id ? (
+                  <Text style={styles.filterOptionSelected}>✓</Text>
+                ) : null}
+              </Pressable>
+            ))}
+            {candidates.length === 0 ? (
+              <Text style={styles.filterNoMatches}>
+                No hay opciones que coincidan.
               </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+            ) : null}
+          </ScrollView>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -1028,8 +1075,70 @@ const styles = StyleSheet.create({
   filterChipTextSelected: {
     color: '#ffffff',
   },
-  filterGroup: {
-    marginTop: 18,
+  filterGroup: { marginTop: 8 },
+  filterSelector: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#D4DEED',
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 55,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  filterSelectorBody: { flex: 1, gap: 3 },
+  filterSelectorLabel: {
+    color: '#65748A',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  filterSelectorValue: {
+    color: '#15263D',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  filterSelectorChevron: { color: '#075BFF', fontSize: 23 },
+  filterOptionsPanel: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#D4DEED',
+    borderRadius: 13,
+    borderWidth: 1,
+    marginTop: 6,
+    overflow: 'hidden',
+    padding: 8,
+  },
+  filterSearchInput: {
+    borderColor: '#D4DEED',
+    borderRadius: 10,
+    borderWidth: 1,
+    color: '#15263D',
+    fontSize: 15,
+    minHeight: 44,
+    paddingHorizontal: 12,
+  },
+  filterOptionsList: { maxHeight: 264, marginTop: 5 },
+  filterOption: {
+    alignItems: 'center',
+    borderBottomColor: '#E9EEF4',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 43,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  filterOptionText: { color: '#15263D', flex: 1, fontSize: 14 },
+  filterOptionSelected: {
+    color: '#075BFF',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  filterNoMatches: {
+    color: '#65748A',
+    fontSize: 13,
+    padding: 12,
   },
   inlineError: {
     alignItems: 'flex-start',
