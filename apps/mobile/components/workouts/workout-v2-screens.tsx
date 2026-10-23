@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 
 import type { ExerciseDetail } from '@/lib/exercises/catalog-api';
+import type { LastExercisePerformance } from '@/lib/workouts/last-exercise-performance';
 import {
   REST_PRESETS_SECONDS,
   type RestPresetSeconds,
@@ -496,6 +497,8 @@ function RoleChip({
 
 export function RegisterSetV2({
   chosen,
+  previousPerformance,
+  previousLookupError,
   role,
   onRole,
   quantity,
@@ -512,6 +515,8 @@ export function RegisterSetV2({
   onBack,
 }: {
   chosen: Pick<ExerciseDetail, 'id' | 'name' | 'measurement_type'>;
+  previousPerformance?: LastExercisePerformance | null;
+  previousLookupError?: boolean;
   role: Role;
   onRole: (next: Role) => void;
   quantity: string;
@@ -550,6 +555,32 @@ export function RegisterSetV2({
       <Text style={styles.subtitleDark}>
         Confirma cada serie para guardarla.
       </Text>
+      {previousPerformance ? (
+        <View style={styles.lastWorkoutPanel}>
+          <Text style={styles.lastWorkoutEyebrow}>
+            ÚLTIMA SERIE DE TRABAJO REGISTRADA
+          </Text>
+          <Text style={styles.lastWorkoutValue}>
+            {previousPerformance.measurement_type === 'reps'
+              ? `${previousPerformance.reps} rep`
+              : previousPerformance.measurement_type === 'time'
+                ? `${previousPerformance.duration_seconds} s`
+                : `${previousPerformance.distance_decimal} ${previousPerformance.distance_unit}`}
+            {previousPerformance.load_decimal !== null
+              ? ` · ${previousPerformance.load_decimal} ${previousPerformance.load_unit}`
+              : ''}
+          </Text>
+          <Text style={styles.lastWorkoutCaption}>
+            {new Date(previousPerformance.completed_at_utc).toLocaleDateString('es-ES')}
+            {' · '}
+            Valores precargados, puedes modificarlos. No es una recomendación automática.
+          </Text>
+        </View>
+      ) : previousLookupError ? (
+        <Text style={styles.lastWorkoutCaption}>
+          No se pudo consultar la última sesión. Puedes registrar esta serie normalmente.
+        </Text>
+      ) : null}
       <SectionLabel dark>TIPO DE SERIE</SectionLabel>
       <View style={styles.roleRow}>
         <RoleChip
@@ -895,6 +926,22 @@ export function WorkoutHistoryDetailV2({
 }
 
 const styles = StyleSheet.create({
+  lastWorkoutPanel: {
+    borderColor: '#1F5971',
+    borderWidth: 1,
+    borderRadius: 13,
+    padding: 13,
+    backgroundColor: '#102A40',
+    gap: 5,
+  },
+  lastWorkoutEyebrow: {
+    color: '#00C4B6',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  lastWorkoutValue: { color: '#FFFFFF', fontSize: 23, fontWeight: '900' },
+  lastWorkoutCaption: { color: '#ADC0D1', fontSize: 12, lineHeight: 17 },
   workoutTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
