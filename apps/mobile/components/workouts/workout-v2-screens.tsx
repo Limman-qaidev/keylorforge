@@ -5,7 +5,7 @@
  * No fake set statistics, pending exercise drafts or simulated timers.
  * All mutations remain with FreeWorkoutSessionExperience.
  */
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -253,6 +253,7 @@ export function ActiveWorkoutV2({
   onFinish: () => void;
   onCancel: () => void;
 }) {
+  const [showRestControls, setShowRestControls] = useState(false);
   const focused =
     overview.exercises.find(
       (entry) => entry.canonical_exercise_id === focusedExerciseId,
@@ -279,9 +280,9 @@ export function ActiveWorkoutV2({
         Entrenamiento activo
       </Text>
       <Text style={styles.subtitleDark}>
-        Entrenamiento libre · {overview.totalSets} series confirmadas
+        Entrenamiento libre · {overview.totalSets} {overview.totalSets === 1 ? 'serie confirmada' : 'series confirmadas'}
       </Text>
-      <SectionLabel dark>EJERCICIOS REALIZADOS</SectionLabel>
+      <SectionLabel dark>EJERCICIOS</SectionLabel>
       {focused ? (
         <View style={styles.exerciseCard}>
           <View style={styles.exerciseTop}>
@@ -295,7 +296,7 @@ export function ActiveWorkoutV2({
                 {nameOf(focused.canonical_exercise_id)}
               </Text>
               <Text style={styles.exerciseMeta}>
-                Ejercicio actual · {focused.sets.length} series
+                Ejercicio actual · {focused.sets.length} {focused.sets.length === 1 ? 'serie' : 'series'}
               </Text>
             </View>
           </View>
@@ -340,37 +341,53 @@ export function ActiveWorkoutV2({
               <Text style={styles.restDismissText}>Omitir</Text>
             </Pressable>
           </View>
-          <View style={styles.restActions}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => onRestAdjust(-15)}
-              style={styles.restAdjust}
-            >
-              <Text style={styles.restAdjustText}>−15 s</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => onRestAdjust(15)}
-              style={styles.restAdjust}
-            >
-              <Text style={styles.restAdjustText}>+15 s</Text>
-            </Pressable>
-            {REST_PRESETS_SECONDS.map((seconds) => (
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={showRestControls ? 'Ocultar ajustes de descanso' : 'Ajustar descanso'}
+            onPress={() => setShowRestControls((visible) => !visible)}
+            style={styles.restControlToggle}
+          >
+            <Text style={styles.restControlToggleText}>
+              {showRestControls ? 'Ocultar ajustes' : 'Ajustar descanso'}
+            </Text>
+            <Text style={styles.restControlToggleText}>
+              {showRestControls ? '⌃' : '⌄'}
+            </Text>
+          </Pressable>
+          {showRestControls ? (
+            <View style={styles.restActions}>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`Descanso ${seconds} segundos`}
-                accessibilityState={{ selected: restPresetSeconds === seconds }}
-                key={seconds}
-                onPress={() => onRestPreset(seconds)}
-                style={[
-                  styles.restPreset,
-                  restPresetSeconds === seconds && styles.restPresetSelected,
-                ]}
+                onPress={() => onRestAdjust(-15)}
+                style={styles.restAdjust}
               >
-                <Text style={styles.restAdjustText}>{seconds}s</Text>
+                <Text style={styles.restAdjustText}>−15 s</Text>
               </Pressable>
-            ))}
-          </View>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => onRestAdjust(15)}
+                style={styles.restAdjust}
+              >
+                <Text style={styles.restAdjustText}>+15 s</Text>
+              </Pressable>
+              {REST_PRESETS_SECONDS.map((seconds) => (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Descanso ${seconds} segundos`}
+                  accessibilityState={{ selected: restPresetSeconds === seconds }}
+                  key={seconds}
+                  onPress={() => onRestPreset(seconds)}
+                  style={[
+                    styles.restPreset,
+                    restPresetSeconds === seconds && styles.restPresetSelected,
+                  ]}
+                >
+                  <Text style={styles.restAdjustText}>{seconds}s</Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
         </View>
       ) : null}
 
@@ -912,6 +929,13 @@ const styles = StyleSheet.create({
   },
   restDismiss: { padding: 10 },
   restDismissText: { color: '#AFC7D9', fontSize: 13, fontWeight: '800' },
+  restControlToggle: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    minHeight: 36,
+  },
+  restControlToggleText: { color: '#AFC7D9', fontSize: 12, fontWeight: '800' },
   restActions: {
     flexDirection: 'row',
     alignItems: 'center',
