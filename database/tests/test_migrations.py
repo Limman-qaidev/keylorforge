@@ -254,7 +254,7 @@ def test_catalog_migration_refuses_destructive_downgrade(
     """The profile migration must not silently drop persisted display names."""
     config = Config("alembic.ini")
 
-    with pytest.raises(NotImplementedError, match="account-owned workout"):
+    with pytest.raises(NotImplementedError, match="Immutable exercise notes"):
         command.downgrade(config, "20260831_0001")
 
     engine = create_engine(test_database_url)
@@ -263,7 +263,7 @@ def test_catalog_migration_refuses_destructive_downgrade(
             revision = connection.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-        assert revision == "20261009_0003"
+        assert revision == "20261023_0001"
     finally:
         engine.dispose()
 
