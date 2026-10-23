@@ -22,6 +22,7 @@ import { ExerciseCatalogScreen } from '@/components/exercises/exercise-catalog-s
 import {
   ActiveWorkoutV2,
   ExercisePickerV2,
+  ExerciseNotesV2,
   RegisterSetV2,
   WorkoutHistoryDetailV2,
   WorkoutHistoryV2,
@@ -61,6 +62,11 @@ import {
 } from '@/lib/workouts/rest-timer';
 import type { LocalSubjectAccess } from '@/lib/workouts/local-store';
 import {
+  appendLocalExerciseNote,
+  readSessionExerciseNotes,
+  type ExerciseNoteEvent,
+} from '@/lib/workouts/local-exercise-notes';
+import {
   readLastCompletedExercisePerformance,
   type LastExercisePerformance,
 } from '@/lib/workouts/last-exercise-performance';
@@ -70,7 +76,13 @@ import {
 } from '@/lib/workouts/native-workout-platform';
 
 type Mode =
-  'catalogue' | 'explore' | 'picker' | 'set' | 'history' | 'history-detail';
+  | 'catalogue'
+  | 'explore'
+  | 'picker'
+  | 'set'
+  | 'history'
+  | 'history-detail'
+  | 'notes';
 type Measurement = 'reps' | 'time' | 'distance';
 type Role = 'WORKING' | 'WARMUP';
 
@@ -256,6 +268,15 @@ function FreeWorkoutSessionExperience({
     useState<FinishedWorkoutHistoryEntry | null>(null);
   const [historyDetail, setHistoryDetail] =
     useState<FinishedWorkoutDetail | null>(null);
+  const [sessionNotes, setSessionNotes] = useState<ExerciseNoteEvent[]>([]);
+  const [noteContext, setNoteContext] = useState<{
+    sessionId: string;
+    occurrenceId: string;
+    canonicalId: string;
+    returnMode: 'catalogue' | 'history-detail';
+  } | null>(null);
+  const [noteDraft, setNoteDraft] = useState('');
+  const [noteError, setNoteError] = useState<string | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [chosen, setChosen] = useState<Pick<
@@ -590,8 +611,14 @@ function FreeWorkoutSessionExperience({
     void (async () => {
       const db = await openDb();
       const result = await readLocalFinishedWorkoutDetail(db, access, item);
+      const notes = await readSessionExerciseNotes(
+        db,
+        access,
+        item.session_id,
+      );
       if (subjectRef.current === expectedSubject) {
         setHistoryDetail(result);
+        setSessionNotes(notes);
       }
     })()
       .catch((reason: unknown) => {
@@ -606,6 +633,59 @@ function FreeWorkoutSessionExperience({
       .finally(() => {
         if (subjectRef.current === expectedSubject) setDetailLoading(false);
       });
+  };
+
+  const openNotes = (
+    exercise: ActiveExerciseSummary,
+    sessionId: string,
+    returnMode: 'catalogue' | 'history-detail',
+  ) => {
+    const selectedSubject = subjectRef.current;
+    setNoteContext({
+      sessionId,
+      occurrenceId: exercise.occurrence_id,
+      canonicalId: exercise.canonical_exercise_id,
+      returnMode,
+    });
+    setNoteDraft('');
+    setNoteError(null);
+    setSessionNotes([]);
+    setMode('notes');
+    void (async () => {
+      try {
+        const db = await openDb();
+        const notes = await readSessionExerciseNotes(db, access, sessionId);
+        if (subjectRef.current === selectedSubject) setSessionNotes(notes);
+      } catch {
+        if (subjectRef.current === selectedSubject) {
+          setNoteError('No se pudieron cargar las observaciones.');
+        }
+      }
+    })();
+  };
+
+  const saveNote = () => {
+    if (!noteContext || !noteDraft.trim()) return;
+    const note = noteContext;
+    const text = noteDraft.trim();
+    void perform(async () => {
+      const db = await openDb();
+      await appendLocalExerciseNote(db, access, {
+        session_id: note.sessionId,
+        occurrence_id: note.occurrenceId,
+        canonical_exercise_id: note.canonicalId,
+        note_event_id: secureWorkoutIds.newUuid(),
+        created_at_utc: new Date().toISOString(),
+        body: text,
+      });
+      // Notes are deliberately local until the API/outbox contract is approved.
+      // Do not rely on ordinary set-sync to deliver them.
+      setSessionNotes(
+        await readSessionExerciseNotes(db, access, note.sessionId),
+      );
+      setNoteDraft('');
+      setNoteError(null);
+    });
   };
 
   const addSetToExercise = (exercise: ActiveExerciseSummary) => {
@@ -773,6 +853,40 @@ function FreeWorkoutSessionExperience({
     );
   }
 
+  if (mode === 'notes' && noteContext) {
+    return (
+      <ExerciseNotesV2
+        title={nameOf(noteContext.canonicalId)}
+        notes={sessionNotes.filter(
+          (item) => item.occurrence_id === noteContext.occurrenceId,
+        )}
+        draft={noteDraft}
+        onDraft={setNoteDraft}
+        onSave={saveNote}
+        busy={busy}
+        error={noteError ?? error}
+        onBack={() => {
+          if (noteDraft.trim()) {
+            Alert.alert(
+              'Descartar observación',
+              'El texto que no hayas guardado se perderá.',
+              [
+                { text: 'Seguir escribiendo', style: 'cancel' },
+                {
+                  text: 'Descartar',
+                  style: 'destructive',
+                  onPress: () => setMode(noteContext.returnMode),
+                },
+              ],
+            );
+          } else {
+            setMode(noteContext.returnMode);
+          }
+        }}
+      />
+    );
+  }
+
   if (mode === 'history-detail') {
     return (
       <WorkoutHistoryDetailV2
@@ -781,6 +895,16 @@ function FreeWorkoutSessionExperience({
         detailLoading={detailLoading}
         detailError={detailError}
         nameOf={nameOf}
+        notes={sessionNotes}
+        onOpenNotes={(exercise) => {
+          if (historyDetail) {
+            openNotes(
+              exercise,
+              historyDetail.entry.session_id,
+              'history-detail',
+            );
+          }
+        }}
         onBack={() => setMode('history')}
       />
     );
@@ -806,6 +930,9 @@ function FreeWorkoutSessionExperience({
         error={error}
         onAddExercise={() => setMode('picker')}
         onAddSet={addSetToExercise}
+        onOpenNotes={(exercise) =>
+          openNotes(exercise, overview.session.session_id, 'catalogue')
+        }
         focusedExerciseId={focusedExerciseId}
         onFocusExercise={setFocusedExerciseId}
         nowMilliseconds={clockMilliseconds}
