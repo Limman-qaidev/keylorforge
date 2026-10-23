@@ -18,6 +18,7 @@ import {
 
 import type { ExerciseDetail } from '@/lib/exercises/catalog-api';
 import type { LastExercisePerformance } from '@/lib/workouts/last-exercise-performance';
+import type { ExerciseNoteEvent } from '@/lib/workouts/local-exercise-notes';
 import {
   REST_PRESETS_SECONDS,
   type RestPresetSeconds,
@@ -226,6 +227,7 @@ export function ActiveWorkoutV2({
   onFocusExercise,
   onAddExercise,
   onAddSet,
+  onOpenNotes,
   restRemainingSeconds,
   restPresetSeconds,
   onRestPreset,
@@ -244,6 +246,7 @@ export function ActiveWorkoutV2({
   onFocusExercise: (exerciseId: string) => void;
   onAddExercise: () => void;
   onAddSet: (exercise: ActiveExerciseSummary) => void;
+  onOpenNotes: (exercise: ActiveExerciseSummary) => void;
   restRemainingSeconds: number;
   restPresetSeconds: RestPresetSeconds;
   onRestPreset: (seconds: RestPresetSeconds) => void;
@@ -304,6 +307,16 @@ export function ActiveWorkoutV2({
             </View>
           </View>
           <SetLedger sets={focused.sets} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              'Abrir notas de ' + nameOf(focused.canonical_exercise_id)
+            }
+            onPress={() => onOpenNotes(focused)}
+            style={styles.noteShortcut}
+          >
+            <Text style={styles.noteShortcutText}>Notas del ejercicio ›</Text>
+          </Pressable>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={
@@ -687,6 +700,86 @@ export function RegisterSetV2({
   );
 }
 
+export function ExerciseNotesV2({
+  title,
+  notes,
+  draft,
+  onDraft,
+  onSave,
+  onBack,
+  busy,
+  error,
+}: {
+  title: string;
+  notes: ExerciseNoteEvent[];
+  draft: string;
+  onDraft: (value: string) => void;
+  onSave: () => void;
+  onBack: () => void;
+  busy: boolean;
+  error: string | null;
+}) {
+  return (
+    <ScrollView
+      keyboardShouldPersistTaps="handled"
+      style={styles.lightRoot}
+      contentContainerStyle={styles.historyPage}
+    >
+      <Pressable
+        accessibilityRole="button"
+        onPress={onBack}
+        style={styles.inlineBack}
+      >
+        <Text style={styles.inlineBackText}>‹ Volver al ejercicio</Text>
+      </Pressable>
+      <Text style={styles.brandEyebrow}>OBSERVACIONES</Text>
+      <Text accessibilityRole="header" style={styles.historyDetailHeading}>
+        {title}
+      </Text>
+      <Text style={styles.lightSubtitle}>
+        Tus comentarios se conservan sin sobrescribir las entradas anteriores.
+      </Text>
+      {notes.map((item) => (
+        <View key={item.note_event_id} style={styles.noteHistoryEntry}>
+          <Text style={styles.noteHistoryDate}>
+            {new Date(item.created_at_utc).toLocaleString('es-ES')}
+          </Text>
+          <Text style={styles.noteHistoryText}>{item.body}</Text>
+        </View>
+      ))}
+      {notes.length === 0 ? (
+        <Text style={styles.lightSubtitle}>Aún no hay observaciones.</Text>
+      ) : null}
+      <Text style={styles.filterLabel}>Añadir observación</Text>
+      <TextInput
+        accessibilityLabel="Nueva observación del ejercicio"
+        multiline
+        maxLength={1000}
+        onChangeText={onDraft}
+        placeholder="Máquina utilizada, técnica, sensaciones, ajustes…"
+        placeholderTextColor="#728097"
+        style={styles.noteInput}
+        value={draft}
+      />
+      <Text style={styles.lightSubtitle}>{draft.length}/1000 caracteres</Text>
+      {error ? (
+        <Text accessibilityLiveRegion="polite" style={styles.errorLight}>
+          {error}
+        </Text>
+      ) : null}
+      <Action
+        label={busy ? 'Guardando…' : 'Guardar observación'}
+        disabled={busy || draft.trim().length === 0}
+        onPress={onSave}
+      />
+      <Text style={styles.noteLocalWarning}>
+        Guardado local en este dispositivo. La sincronización de observaciones
+        con otros dispositivos está pendiente.
+      </Text>
+    </ScrollView>
+  );
+}
+
 export function ExercisePickerV2({
   onBack,
   children,
@@ -834,6 +927,8 @@ export function WorkoutHistoryDetailV2({
   detailLoading,
   detailError,
   nameOf,
+  notes,
+  onOpenNotes,
   onBack,
 }: {
   selectedHistory: FinishedWorkoutHistoryEntry | null;
@@ -841,6 +936,8 @@ export function WorkoutHistoryDetailV2({
   detailLoading: boolean;
   detailError: string | null;
   nameOf: (id: string) => string;
+  notes?: ExerciseNoteEvent[];
+  onOpenNotes?: (exercise: ActiveExerciseSummary) => void;
   onBack: () => void;
 }) {
   const entry = historyDetail?.entry ?? selectedHistory;
@@ -894,6 +991,27 @@ export function WorkoutHistoryDetailV2({
               <Text style={styles.detailExercise}>
                 {nameOf(exercise.canonical_exercise_id)}
               </Text>
+              {notes?.filter((note) =>
+                note.occurrence_id === exercise.occurrence_id
+              ).map((note) => (
+                <View key={note.note_event_id} style={styles.noteHistoryEntry}>
+                  <Text style={styles.noteHistoryDate}>
+                    {new Date(note.created_at_utc).toLocaleString('es-ES')}
+                  </Text>
+                  <Text style={styles.noteHistoryText}>{note.body}</Text>
+                </View>
+              ))}
+              {onOpenNotes ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => onOpenNotes(exercise)}
+                  style={styles.noteShortcut}
+                >
+                  <Text style={styles.noteShortcutText}>
+                    Añadir observación ›
+                  </Text>
+                </Pressable>
+              ) : null}
               {exercise.sets.map((set, index) => {
                 const performed =
                   set.measurement_type === 'reps'
@@ -926,6 +1044,31 @@ export function WorkoutHistoryDetailV2({
 }
 
 const styles = StyleSheet.create({
+  noteShortcut: { minHeight: 42, justifyContent: 'center', paddingVertical: 8 },
+  noteShortcutText: { color: '#00B8B0', fontWeight: '800', fontSize: 14 },
+  noteHistoryEntry: {
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderColor: '#DCE6EF',
+    borderWidth: 1,
+    padding: 12,
+    gap: 5,
+    marginTop: 7,
+  },
+  noteHistoryDate: { color: '#65758B', fontSize: 11, fontWeight: '700' },
+  noteHistoryText: { color: '#0D2037', fontSize: 14, lineHeight: 20 },
+  noteInput: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#D4DEED',
+    color: '#10233A',
+    fontSize: 15,
+    minHeight: 112,
+    padding: 12,
+    textAlignVertical: 'top',
+  },
+  noteLocalWarning: { color: '#65758B', fontSize: 12, lineHeight: 18 },
   lastWorkoutPanel: {
     borderColor: '#1F5971',
     borderWidth: 1,
