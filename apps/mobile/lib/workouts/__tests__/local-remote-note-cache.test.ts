@@ -35,7 +35,7 @@ describe('subject-fenced remote note cache', () => {
                 body, created_at_utc: timestamp,
               });
             },
-        });
+        } as unknown as SqliteQueryPort);
       }),
       getFirstAsync: jest.fn(async () =>
         ({ items_json: JSON.stringify([...stored.values()]) })),
