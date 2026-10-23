@@ -1,4 +1,5 @@
 """Real PostgreSQL owner isolation and first-set FK migration structure."""
+
 from __future__ import annotations
 
 from alembic import command
@@ -37,16 +38,20 @@ def test_performed_history_migration_is_private_and_first_set_is_mandatory(
                     "WHERE conname = 'fk_workout_occurrences_first_set'"
                 )
             ).one()
-            set_fk = conn.execute(
-                text(
-                    "SELECT confdeltype FROM pg_constraint "
-                    "WHERE conrelid = 'workout_sets'::regclass "
-                    "AND contype = 'f' ORDER BY conname"
+            set_fk = (
+                conn.execute(
+                    text(
+                        "SELECT confdeltype FROM pg_constraint "
+                        "WHERE conrelid = 'workout_sets'::regclass "
+                        "AND contype = 'f' ORDER BY conname"
+                    )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
     finally:
         engine.dispose()
-    assert version == "20261009_0003"
+    assert version == "20261023_0001"
     assert rls == [
         ("workout_occurrences", True),
         ("workout_sets", True),

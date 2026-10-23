@@ -1,5 +1,5 @@
 import { act, render, userEvent, waitFor } from '@testing-library/react-native';
-import { Alert } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
 
 import { FreeWorkoutExperience } from '../free-workout-experience';
 import { useAuth } from '@/lib/auth/auth-provider';
@@ -52,6 +52,15 @@ jest.mock('@/lib/workouts/native-workout-platform', () => ({
     timeZone: () => 'Europe/Madrid',
   },
 }));
+jest.mock('@/lib/workouts/last-exercise-performance', () => ({
+  readLastCompletedExercisePerformance: jest.fn().mockResolvedValue(null),
+}));
+
+jest.mock('@/lib/workouts/local-exercise-notes', () => ({
+  readSessionExerciseNotes: jest.fn().mockResolvedValue([]),
+  appendLocalExerciseNote: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock('@/components/exercises/exercise-catalog-screen', () => {
   const {
     Pressable: MockPressable,
@@ -140,7 +149,8 @@ describe('staged real Free Workout UI', () => {
   it('isolates preview read/write operations and suppresses network sync', async () => {
     const user = userEvent.setup();
     const screen = await render(<FreeWorkoutExperience isolatedPreview />);
-    expect(await screen.findByText('CATÁLOGO CANÓNICO')).toBeTruthy();
+    expect(await screen.findByText('Iniciar entrenamiento libre')).toBeTruthy();
+    expect(screen.queryByText('CATÁLOGO CANÓNICO')).toBeNull();
     expect(openPreviewWorkoutDatabase).toHaveBeenCalledWith(OWNER);
     expect(openLocalWorkoutDatabase).not.toHaveBeenCalled();
     expect(useForegroundWorkoutSync).toHaveBeenCalledWith(null);
@@ -216,18 +226,27 @@ describe('staged real Free Workout UI', () => {
     try {
       const screen = await render(<FreeWorkoutExperience isolatedPreview />);
       await screen.findByText('Iniciar entrenamiento libre');
+      expect(
+        screen.getByText('Tu entrenamiento, sin distracciones.'),
+      ).toBeTruthy();
       await user.press(screen.getByText('Iniciar entrenamiento libre'));
-      await screen.findByText('Entrenamiento activo');
-      await user.press(screen.getByText('Añadir ejercicio o serie'));
+      const activeHeading = await screen.findByText('Entrenamiento activo');
+      expect(screen.getByText('EJERCICIOS')).toBeTruthy();
+      expect(StyleSheet.flatten(activeHeading.props.style)).toMatchObject({
+        color: '#ffffff',
+      });
+      await user.press(screen.getByText('Añadir ejercicio'));
       await user.press(await screen.findByText('Elegir Press de banca'));
+      expect(screen.getByText('REGISTRA LO QUE HAS HECHO')).toBeTruthy();
       await user.type(await screen.findByLabelText('Cantidad realizada'), '8');
       await user.type(screen.getByLabelText('Carga total opcional'), '25');
       await user.press(screen.getByText('Confirmar serie'));
-      await screen.findByText('1 series confirmadas');
+      await screen.findByText(/1 serie confirmada/);
       expect(screen.getByText(/8 rep.*25 kg/)).toBeTruthy();
       await user.press(screen.getByText('Finalizar entrenamiento'));
       await waitFor(() => expect(endFreeWorkout).toHaveBeenCalledTimes(1));
       await screen.findByText('Historial');
+      expect(screen.getByText('SESIONES FINALIZADAS')).toBeTruthy();
       expect(screen.getByText('1 series · 1 de trabajo')).toBeTruthy();
       expect(alert).toHaveBeenCalledTimes(1);
       expect(cancelFreeWorkout).not.toHaveBeenCalled();
@@ -293,7 +312,7 @@ describe('staged real Free Workout UI', () => {
     expect(await screen.findByText('Historial')).toBeTruthy();
     await user.press(
       screen.getByRole('button', {
-        name: 'Ver entrenamiento del 2026-10-09',
+        name: /Ver entrenamiento del 2026-10-09 a las/,
       }),
     );
     expect(await screen.findByText('ENTRENAMIENTO FINALIZADO')).toBeTruthy();
@@ -304,9 +323,9 @@ describe('staged real Free Workout UI', () => {
       expect.anything(),
       entry,
     );
-    await user.press(screen.getByText('Volver al historial'));
+    await user.press(screen.getByText(/Volver al historial/));
     expect(screen.getByText('Historial')).toBeTruthy();
-    await user.press(screen.getByText('Volver a Entrenar'));
+    await user.press(screen.getByText(/Volver a Entrenar/));
     expect(screen.getByText('Ver historial')).toBeTruthy();
     await user.press(screen.getByText('Ver historial'));
     expect(screen.getByText('Historial')).toBeTruthy();
@@ -319,7 +338,7 @@ describe('staged real Free Workout UI', () => {
     expect(await reopened.findByText('Historial')).toBeTruthy();
     expect(
       reopened.getByRole('button', {
-        name: 'Ver entrenamiento del 2026-10-09',
+        name: /Ver entrenamiento del 2026-10-09 a las/,
       }),
     ).toBeTruthy();
     expect(beginFreeWorkout).not.toHaveBeenCalled();
@@ -352,13 +371,13 @@ describe('staged real Free Workout UI', () => {
     await screen.findByText('Historial');
     await user.press(
       screen.getByRole('button', {
-        name: 'Ver entrenamiento del 2026-10-09',
+        name: /Ver entrenamiento del 2026-10-09 a las/,
       }),
     );
     expect(
       await screen.findByText('No se pudo recuperar el detalle'),
     ).toBeTruthy();
-    await user.press(screen.getByText('Volver al historial'));
+    await user.press(screen.getByText(/Volver al historial/));
     expect(screen.getByText('Historial')).toBeTruthy();
     expect(recordFreeWorkoutSet).not.toHaveBeenCalled();
     expect(endFreeWorkout).not.toHaveBeenCalled();
@@ -411,13 +430,81 @@ describe('staged real Free Workout UI', () => {
     }
   });
 
-  it('preserves the normal catalogue until a real Free Workout is explicitly started', async () => {
+  it('keeps the Train Hub clean until exercises are explicitly explored', async () => {
+    const user = userEvent.setup();
     const screen = await render(<FreeWorkoutExperience />);
-    expect(await screen.findByText('CATÁLOGO CANÓNICO')).toBeTruthy();
     expect(await screen.findByText('Iniciar entrenamiento libre')).toBeTruthy();
+    expect(screen.queryByText('CATÁLOGO CANÓNICO')).toBeNull();
+    await user.press(screen.getByText('Explorar ejercicios'));
+    expect(screen.getByText('CATÁLOGO CANÓNICO')).toBeTruthy();
+    await user.press(screen.getByText('‹ Volver al entrenamiento'));
+    expect(screen.queryByText('CATÁLOGO CANÓNICO')).toBeNull();
     expect(beginFreeWorkout).not.toHaveBeenCalled();
     expect(recordFreeWorkoutSet).not.toHaveBeenCalled();
     expect(endFreeWorkout).not.toHaveBeenCalled();
+  });
+
+  it('adds another set directly to the existing exercise with last values prefilled', async () => {
+    const exerciseId = '502c4c87-80a5-4567-9aaf-296e43bfc4d1';
+    jest.mocked(useCachedExerciseCatalogue).mockReturnValue({
+      initialized: true,
+      snapshot: { items: [{ id: exerciseId, name: 'Press de banca' }] },
+    } as unknown as ReturnType<typeof useCachedExerciseCatalogue>);
+    jest.mocked(readActiveFreeWorkoutOverview).mockResolvedValue({
+      session,
+      totalSets: 1,
+      workingSets: 1,
+      exercises: [
+        {
+          occurrence_id: 'c226a777-d460-4d5f-bad6-f75667a9d022',
+          canonical_exercise_id: exerciseId,
+          actual_order: 0,
+          agenda_item_id: null,
+          sets: [
+            {
+              set_id: '1b428bd6-781d-44ec-8609-57af594a5511',
+              set_role: 'WORKING',
+              measurement_type: 'reps',
+              reps: 8,
+              duration_seconds: null,
+              distance_decimal: null,
+              distance_unit: null,
+              load_decimal: '25',
+              load_unit: 'kg',
+              completed_at_utc: '2026-10-09T15:00:00.000Z',
+            },
+          ],
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    const screen = await render(<FreeWorkoutExperience isolatedPreview />);
+    expect(await screen.findByText('Entrenamiento activo')).toBeTruthy();
+    await user.press(
+      screen.getByRole('button', {
+        name: 'Añadir serie a Press de banca',
+      }),
+    );
+    expect(screen.queryByText('CATÁLOGO CANÓNICO')).toBeNull();
+    expect(screen.getByLabelText('Cantidad realizada').props.value).toBe('8');
+    expect(screen.getByLabelText('Carga total opcional').props.value).toBe(
+      '25',
+    );
+    await user.press(screen.getByText('Confirmar serie'));
+    await waitFor(() =>
+      expect(recordFreeWorkoutSet).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+        expect.objectContaining({
+          canonicalExerciseId: exerciseId,
+          measurement: { measurementType: 'reps', reps: 8 },
+          load: { decimal: '25', unit: 'kg', entrySemantics: 'total' },
+        }),
+      ),
+    );
+    expect(screen.queryByText('CATÁLOGO CANÓNICO')).toBeNull();
   });
 
   it('recovers an existing session, refuses empty Finish and records only a confirmed set', async () => {
@@ -440,7 +527,7 @@ describe('staged real Free Workout UI', () => {
     });
     expect(finishButton.props.accessibilityState?.disabled).toBe(true);
 
-    await user.press(screen.getByText('Añadir ejercicio o serie'));
+    await user.press(screen.getByText('Añadir ejercicio'));
     expect(await screen.findByText('CATÁLOGO CANÓNICO')).toBeTruthy();
     await user.press(screen.getByText('Elegir Press de banca'));
     expect(await screen.findByText('REGISTRAR SERIE')).toBeTruthy();

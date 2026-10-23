@@ -6,25 +6,35 @@
  * explicitly confirms a set. All written state uses the real SQLite store.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 
 import { ExerciseCatalogScreen } from '@/components/exercises/exercise-catalog-screen';
+import {
+  ActiveWorkoutV2,
+  ExercisePickerV2,
+  ExerciseNotesV2,
+  RegisterSetV2,
+  WorkoutHistoryDetailV2,
+  WorkoutHistoryV2,
+  WorkoutHubV2,
+} from '@/components/workouts/workout-v2-screens';
 import { useAuth } from '@/lib/auth/auth-provider';
 import type { ExerciseDetail } from '@/lib/exercises/catalog-api';
 import { useCachedExerciseCatalogue } from '@/lib/exercises/use-cached-exercise-catalogue';
 import {
   readActiveFreeWorkoutOverview,
   type ActiveFreeWorkoutOverview,
+  type ActiveExerciseSummary,
 } from '@/lib/workouts/active-workout-overview';
 import {
   beginFreeWorkout,
@@ -44,26 +54,71 @@ import {
   openPreviewWorkoutDatabase,
 } from '@/lib/workouts/expo-sqlite-adapter';
 import { useForegroundWorkoutSync } from '@/lib/workouts/workout-sync-foreground';
+import {
+  latestConfirmedSet,
+  remainingRestSeconds,
+  REST_PRESETS_SECONDS,
+  type RestPresetSeconds,
+} from '@/lib/workouts/rest-timer';
 import type { LocalSubjectAccess } from '@/lib/workouts/local-store';
+import {
+  appendLocalExerciseNote,
+  readSessionExerciseNotes,
+  readCanonicalExerciseNotes,
+  type ExerciseNoteEvent,
+} from '@/lib/workouts/local-exercise-notes';
+import {
+  readLastCompletedExercisePerformance,
+  type LastExercisePerformance,
+} from '@/lib/workouts/last-exercise-performance';
+import {
+  cacheRemoteExerciseNotes,
+  readCachedExerciseNotes,
+} from '@/lib/workouts/local-remote-note-cache';
+import {
+  fetchRemoteExerciseNotes,
+  mergeExerciseNotes,
+} from '@/lib/workouts/remote-exercise-notes';
 import {
   deviceWorkoutClock,
   secureWorkoutIds,
 } from '@/lib/workouts/native-workout-platform';
 
-type Mode = 'catalogue' | 'picker' | 'set' | 'history' | 'history-detail';
+type Mode =
+  | 'catalogue'
+  | 'explore'
+  | 'picker'
+  | 'set'
+  | 'history'
+  | 'history-detail'
+  | 'notes';
 type Measurement = 'reps' | 'time' | 'distance';
 type Role = 'WORKING' | 'WARMUP';
+
+export type WorkoutChrome = {
+  immersive: boolean;
+  dark: boolean;
+};
+
+type RestControl = {
+  sessionId: string;
+  setId: string;
+  adjustmentSeconds: number;
+  dismissed: boolean;
+};
 
 function Button({
   title,
   onPress,
   disabled,
   secondary = false,
+  dark = false,
 }: {
   title: string;
   onPress: () => void;
   disabled?: boolean;
   secondary?: boolean;
+  dark?: boolean;
 }) {
   return (
     <Pressable
@@ -71,9 +126,19 @@ function Button({
       accessibilityState={{ disabled: !!disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={[styles.button, secondary && styles.secondaryButton]}
+      style={[
+        styles.button,
+        secondary && styles.secondaryButton,
+        dark && secondary && styles.secondaryButtonDark,
+      ]}
     >
-      <Text style={[styles.buttonText, secondary && styles.secondaryText]}>
+      <Text
+        style={[
+          styles.buttonText,
+          secondary && styles.secondaryText,
+          dark && secondary && styles.secondaryTextDark,
+        ]}
+      >
         {title}
       </Text>
     </Pressable>
@@ -142,9 +207,11 @@ export function buildSetRequest(
 export function FreeWorkoutExperience({
   isolatedPreview = false,
   initialMode = 'catalogue',
+  onChromeChange,
 }: {
   isolatedPreview?: boolean;
   initialMode?: 'catalogue' | 'history';
+  onChromeChange?: (chrome: WorkoutChrome) => void;
 }) {
   if (isolatedPreview && !__DEV__) {
     throw new Error('Isolated preview must not run in release builds.');
@@ -156,6 +223,7 @@ export function FreeWorkoutExperience({
       session={session}
       isolatedPreview={isolatedPreview}
       initialMode={initialMode}
+      onChromeChange={onChromeChange}
     />
   );
 }
@@ -164,10 +232,12 @@ function FreeWorkoutSessionExperience({
   session,
   isolatedPreview,
   initialMode,
+  onChromeChange,
 }: {
   session: ReturnType<typeof useAuth>['session'];
   isolatedPreview: boolean;
   initialMode: 'catalogue' | 'history';
+  onChromeChange?: (chrome: WorkoutChrome) => void;
 }) {
   const subject = session?.user.id ?? null;
   // QA sessions must never reach the server or the ordinary workout database.
@@ -191,22 +261,191 @@ function FreeWorkoutSessionExperience({
   );
   const [history, setHistory] = useState<FinishedWorkoutHistoryEntry[]>([]);
   const [mode, setMode] = useState<Mode>(initialMode);
+  const hasActiveWorkout = overview !== null;
+  const immersive = hasActiveWorkout || mode !== 'catalogue';
+  const darkChrome =
+    mode === 'set' || (hasActiveWorkout && mode === 'catalogue');
+  useEffect(() => {
+    onChromeChange?.({ immersive, dark: darkChrome });
+  }, [onChromeChange, immersive, darkChrome]);
+
+  useEffect(
+    () => () => onChromeChange?.({ immersive: false, dark: false }),
+    [onChromeChange],
+  );
   const [selectedHistory, setSelectedHistory] =
     useState<FinishedWorkoutHistoryEntry | null>(null);
   const [historyDetail, setHistoryDetail] =
     useState<FinishedWorkoutDetail | null>(null);
+  const [sessionNotes, setSessionNotes] = useState<ExerciseNoteEvent[]>([]);
+  const [longitudinalNotes, setLongitudinalNotes] = useState<
+    ExerciseNoteEvent[]
+  >([]);
+  const [remoteNotes, setRemoteNotes] = useState<ExerciseNoteEvent[]>([]);
+  const noteRequestId = useRef(0);
+  const [noteContext, setNoteContext] = useState<{
+    sessionId: string;
+    occurrenceId: string;
+    canonicalId: string;
+    returnMode: 'catalogue' | 'history-detail';
+  } | null>(null);
+  const [noteDraft, setNoteDraft] = useState('');
+  const [noteError, setNoteError] = useState<string | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
-  const [chosen, setChosen] = useState<ExerciseDetail | null>(null);
+  const [chosen, setChosen] = useState<Pick<
+    ExerciseDetail,
+    'id' | 'name' | 'measurement_type'
+  > | null>(null);
+  const [focusedExerciseId, setFocusedExerciseId] = useState<string | null>(
+    null,
+  );
   const [role, setRole] = useState<Role>('WORKING');
   const [quantity, setQuantity] = useState('');
   const [load, setLoad] = useState('');
+  const [previousPerformance, setPreviousPerformance] =
+    useState<LastExercisePerformance | null>(null);
+  const [previousLookupError, setPreviousLookupError] = useState(false);
+  const selectionRequest = useRef(0);
   const [unit, setUnit] = useState<'kg' | 'lb'>('kg');
   const [distanceUnit, setDistanceUnit] = useState<'m' | 'km'>('m');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  const [restSeconds, setRestSeconds] = useState<RestPresetSeconds>(90);
+  const [restControl, setRestControl] = useState<RestControl | null>(null);
+  const [clockMilliseconds, setClockMilliseconds] = useState<number>(0);
+
+  // Settings are local, scoped to the authenticated subject, and never synced
+  // with workout data. Only a confirmed set timestamp starts the countdown.
+  useEffect(() => {
+    if (!subject) return;
+    let live = true;
+    void Promise.all([
+      AsyncStorage.getItem(`keylorforge:rest:preset:v1:${subject}`),
+      AsyncStorage.getItem(`keylorforge:rest:control:v1:${subject}`),
+    ])
+      .then(([preset, control]) => {
+        if (!live) return;
+        const seconds = Number(preset);
+        if (
+          preset !== null &&
+          REST_PRESETS_SECONDS.some((item) => item === seconds)
+        ) {
+          setRestSeconds(seconds as RestPresetSeconds);
+        }
+        if (control) {
+          try {
+            const stored: unknown = JSON.parse(control);
+            if (
+              stored &&
+              typeof stored === 'object' &&
+              'sessionId' in stored &&
+              'setId' in stored &&
+              'adjustmentSeconds' in stored &&
+              'dismissed' in stored
+            ) {
+              const value = stored as RestControl;
+              if (
+                typeof value.sessionId === 'string' &&
+                typeof value.setId === 'string' &&
+                Number.isInteger(value.adjustmentSeconds) &&
+                Math.abs(value.adjustmentSeconds) <= 3600 &&
+                typeof value.dismissed === 'boolean'
+              ) {
+                setRestControl(value);
+              }
+            }
+          } catch {
+            // Invalid optional rest UI metadata does not affect workout records.
+          }
+        }
+      })
+      .catch(() => {
+        // Rest preferences are optional; confirmed set data remains authoritative.
+      });
+    return () => {
+      live = false;
+    };
+  }, [subject]);
+
+  const activeSessionId = overview?.session.session_id;
+  useEffect(() => {
+    if (!activeSessionId) return;
+    const tick = () => setClockMilliseconds(Date.now());
+    const initialTick = setTimeout(tick, 0);
+    const ticker = setInterval(tick, 1000);
+    const appState = AppState.addEventListener('change', (state) => {
+      if (state === 'active') tick();
+    });
+    return () => {
+      clearTimeout(initialTick);
+      clearInterval(ticker);
+      appState.remove();
+    };
+  }, [activeSessionId]);
+
+  const recentSet = latestConfirmedSet(overview);
+  const currentControl =
+    restControl?.sessionId === overview?.session.session_id &&
+    restControl?.setId === recentSet?.set_id
+      ? restControl
+      : null;
+  const remainingRest =
+    currentControl?.dismissed || clockMilliseconds === 0
+      ? 0
+      : remainingRestSeconds(
+          recentSet,
+          restSeconds,
+          clockMilliseconds,
+          currentControl?.adjustmentSeconds ?? 0,
+        );
+
+  const saveRestControl = (value: RestControl) => {
+    setRestControl(value);
+    if (subject) {
+      void AsyncStorage.setItem(
+        `keylorforge:rest:control:v1:${subject}`,
+        JSON.stringify(value),
+      ).catch(() => {});
+    }
+  };
+
+  const adjustRest = (seconds: number) => {
+    if (!overview || !recentSet || remainingRest === 0) return;
+    saveRestControl({
+      sessionId: overview.session.session_id,
+      setId: recentSet.set_id,
+      adjustmentSeconds: Math.max(
+        -3600,
+        Math.min(3600, (currentControl?.adjustmentSeconds ?? 0) + seconds),
+      ),
+      dismissed: false,
+    });
+    setClockMilliseconds(Date.now());
+  };
+
+  const dismissRest = () => {
+    if (!overview || !recentSet) return;
+    saveRestControl({
+      sessionId: overview.session.session_id,
+      setId: recentSet.set_id,
+      adjustmentSeconds: currentControl?.adjustmentSeconds ?? 0,
+      dismissed: true,
+    });
+  };
+
+  const selectRestSeconds = (seconds: RestPresetSeconds) => {
+    setRestSeconds(seconds);
+    setClockMilliseconds(Date.now());
+    if (subject) {
+      void AsyncStorage.setItem(
+        `keylorforge:rest:preset:v1:${subject}`,
+        String(seconds),
+      ).catch(() => {});
+    }
+  };
 
   const reload = useCallback(async () => {
     const expectedSubject = subjectRef.current;
@@ -296,9 +535,8 @@ function FreeWorkoutSessionExperience({
         deviceWorkoutClock,
         request,
       );
-      setChosen(null);
-      setQuantity('');
-      setLoad('');
+      // Keep exercise context. The engine reuses its canonical occurrence.
+      // Returning to the active workout does not reopen the catalogue.
       setMode('catalogue');
     });
   };
@@ -387,8 +625,10 @@ function FreeWorkoutSessionExperience({
     void (async () => {
       const db = await openDb();
       const result = await readLocalFinishedWorkoutDetail(db, access, item);
+      const notes = await readSessionExerciseNotes(db, access, item.session_id);
       if (subjectRef.current === expectedSubject) {
         setHistoryDetail(result);
+        setSessionNotes(notes);
       }
     })()
       .catch((reason: unknown) => {
@@ -405,13 +645,191 @@ function FreeWorkoutSessionExperience({
       });
   };
 
-  const choose = (exercise: ExerciseDetail) => {
+  const openNotes = (
+    exercise: ActiveExerciseSummary,
+    sessionId: string,
+    returnMode: 'catalogue' | 'history-detail',
+  ) => {
+    const selectedSubject = subjectRef.current;
+    const request = ++noteRequestId.current;
+    setRemoteNotes([]);
+    setNoteContext({
+      sessionId,
+      occurrenceId: exercise.occurrence_id,
+      canonicalId: exercise.canonical_exercise_id,
+      returnMode,
+    });
+    setNoteDraft('');
+    setNoteError(null);
+    setSessionNotes([]);
+    setLongitudinalNotes([]);
+    setMode('notes');
+    void (async () => {
+      try {
+        const db = await openDb();
+        const [notes, acrossSessions, cached] = await Promise.all([
+          readSessionExerciseNotes(db, access, sessionId),
+          readCanonicalExerciseNotes(
+            db,
+            access,
+            exercise.canonical_exercise_id,
+          ),
+          readCachedExerciseNotes(db, access, exercise.canonical_exercise_id),
+        ]);
+        if (
+          subjectRef.current === selectedSubject &&
+          noteRequestId.current === request
+        ) {
+          setSessionNotes(notes);
+          setLongitudinalNotes(acrossSessions);
+          setRemoteNotes(cached);
+        }
+        try {
+          if (isolatedPreview) return; // QA preview never contacts a live account API.
+          const fromServer = await fetchRemoteExerciseNotes(
+            access,
+            exercise.canonical_exercise_id,
+          );
+          if (
+            subjectRef.current === selectedSubject &&
+            noteRequestId.current === request
+          ) {
+            await cacheRemoteExerciseNotes(
+              db,
+              access,
+              exercise.canonical_exercise_id,
+              fromServer,
+            );
+            if (
+              subjectRef.current === selectedSubject &&
+              noteRequestId.current === request
+            )
+              setRemoteNotes(mergeExerciseNotes(cached, fromServer));
+          }
+        } catch {
+          // Offline-first: pending local notes and cached remote events survive.
+        }
+      } catch {
+        if (subjectRef.current === selectedSubject) {
+          setNoteError('No se pudieron cargar las observaciones.');
+        }
+      }
+    })();
+  };
+
+  const saveNote = () => {
+    if (!noteContext || !noteDraft.trim()) return;
+    const note = noteContext;
+    const text = noteDraft.trim();
+    void perform(async () => {
+      const db = await openDb();
+      await appendLocalExerciseNote(db, access, {
+        session_id: note.sessionId,
+        occurrence_id: note.occurrenceId,
+        canonical_exercise_id: note.canonicalId,
+        note_event_id: secureWorkoutIds.newUuid(),
+        created_at_utc: new Date().toISOString(),
+        body: text,
+      });
+      // The local note is durable before the foreground coordinator attempts
+      // delivery. The confirmed-set outbox stays independent of note events.
+      const [inSession, acrossSessions] = await Promise.all([
+        readSessionExerciseNotes(db, access, note.sessionId),
+        readCanonicalExerciseNotes(db, access, note.canonicalId),
+      ]);
+      setSessionNotes(inSession);
+      setLongitudinalNotes(acrossSessions);
+      setNoteDraft('');
+      setNoteError(null);
+    });
+  };
+
+  const addSetToExercise = (exercise: ActiveExerciseSummary) => {
+    ++selectionRequest.current;
+    setPreviousPerformance(null);
+    setPreviousLookupError(false);
+    setFocusedExerciseId(exercise.canonical_exercise_id);
+    const previous = exercise.sets[exercise.sets.length - 1];
+    if (!previous) return;
+    const cached = snapshot?.items.find(
+      (item) => item.id === exercise.canonical_exercise_id,
+    );
+    setChosen({
+      id: exercise.canonical_exercise_id,
+      name: cached?.name ?? 'Ejercicio registrado',
+      measurement_type: previous.measurement_type,
+    });
+    setRole(previous.set_role);
+    setQuantity(
+      previous.measurement_type === 'reps'
+        ? String(previous.reps ?? '')
+        : previous.measurement_type === 'time'
+          ? String(previous.duration_seconds ?? '')
+          : String(previous.distance_decimal ?? ''),
+    );
+    setLoad(previous.load_decimal ?? '');
+    setUnit(previous.load_unit === 'lb' ? 'lb' : 'kg');
+    setDistanceUnit(previous.distance_unit === 'km' ? 'km' : 'm');
+    setError(null);
+    setMode('set');
+  };
+
+  const choose = (
+    exercise: Pick<ExerciseDetail, 'id' | 'name' | 'measurement_type'>,
+  ) => {
+    const requestId = ++selectionRequest.current;
+    const selectedSubject = subjectRef.current;
+    setFocusedExerciseId(exercise.id);
     setChosen(exercise);
     setRole('WORKING');
     setQuantity('');
     setLoad('');
-    setMode('set');
+    setPreviousPerformance(null);
+    setPreviousLookupError(false);
     setError(null);
+    // Read completed, confirmed WORKING sets only. Never derive a prescription.
+    // Keep the picker while the local query completes so typing cannot be
+    // overwritten by a late historical result.
+    void (async () => {
+      try {
+        const db = await openDb();
+        const prior = await readLastCompletedExercisePerformance(
+          db,
+          access,
+          exercise.id,
+        );
+        if (
+          selectionRequest.current !== requestId ||
+          subjectRef.current !== selectedSubject
+        )
+          return;
+        if (prior && prior.measurement_type === exercise.measurement_type) {
+          setPreviousPerformance(prior);
+          setQuantity(
+            prior.measurement_type === 'reps'
+              ? String(prior.reps ?? '')
+              : prior.measurement_type === 'time'
+                ? String(prior.duration_seconds ?? '')
+                : String(prior.distance_decimal ?? ''),
+          );
+          setLoad(prior.load_decimal ?? '');
+          setUnit(prior.load_unit === 'lb' ? 'lb' : 'kg');
+          setDistanceUnit(prior.distance_unit === 'km' ? 'km' : 'm');
+        }
+      } catch {
+        if (
+          selectionRequest.current === requestId &&
+          subjectRef.current === selectedSubject
+        )
+          setPreviousLookupError(true);
+      } finally {
+        if (
+          selectionRequest.current === requestId &&
+          subjectRef.current === selectedSubject
+        )
+          setMode('set');
+      }
+    })();
   };
 
   const nameOf = (id: string): string =>
@@ -451,364 +869,189 @@ function FreeWorkoutSessionExperience({
     );
   }
 
+  if (mode === 'explore') {
+    return (
+      <ExercisePickerV2
+        title="Explorar ejercicios"
+        onBack={() => setMode('catalogue')}
+      >
+        <ExerciseCatalogScreen />
+      </ExercisePickerV2>
+    );
+  }
+
   if (mode === 'picker') {
     return (
-      <View style={styles.root}>
-        <View style={styles.toolbar}>
-          <Button
-            title="Volver al entrenamiento"
-            secondary
-            onPress={() => setMode('catalogue')}
-          />
-        </View>
-        <ExerciseCatalogScreen onChooseExercise={choose} />
-      </View>
+      <ExercisePickerV2 onBack={() => setMode('catalogue')}>
+        <ExerciseCatalogScreen onChooseExercise={choose} compact />
+      </ExercisePickerV2>
     );
   }
 
   if (mode === 'set' && chosen) {
-    const measurement = chosen.measurement_type as Measurement;
     return (
-      <ScrollView
-        contentContainerStyle={styles.page}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text style={styles.eyebrow}>REGISTRAR SERIE</Text>
-        <Text accessibilityRole="header" style={styles.heading}>
-          {chosen.name}
-        </Text>
-        <Text style={styles.caption}>
-          La serie solo se guarda cuando pulses «Confirmar serie».
-        </Text>
-        <Text style={styles.label}>Tipo de serie</Text>
-        <View style={styles.inline}>
-          <Button
-            title="Trabajo"
-            secondary={role !== 'WORKING'}
-            onPress={() => setRole('WORKING')}
-          />
-          <Button
-            title="Calentamiento"
-            secondary={role !== 'WARMUP'}
-            onPress={() => setRole('WARMUP')}
-          />
-        </View>
-        <Text style={styles.label}>
-          {measurement === 'time'
-            ? 'Duración (segundos)'
-            : measurement === 'distance'
-              ? 'Distancia'
-              : 'Repeticiones'}
-        </Text>
-        <TextInput
-          accessibilityLabel="Cantidad realizada"
-          keyboardType="decimal-pad"
-          onChangeText={setQuantity}
-          placeholder="Cantidad realizada"
-          style={styles.input}
-          value={quantity}
-        />
-        {measurement === 'distance' ? (
-          <View style={styles.inline}>
-            <Button
-              title="Metros"
-              secondary={distanceUnit !== 'm'}
-              onPress={() => setDistanceUnit('m')}
-            />
-            <Button
-              title="Kilómetros"
-              secondary={distanceUnit !== 'km'}
-              onPress={() => setDistanceUnit('km')}
-            />
-          </View>
-        ) : null}
-        {measurement === 'reps' ? (
-          <>
-            <Text style={styles.label}>Carga total (opcional)</Text>
-            <TextInput
-              accessibilityLabel="Carga total opcional"
-              keyboardType="decimal-pad"
-              onChangeText={setLoad}
-              placeholder="Sin carga"
-              style={styles.input}
-              value={load}
-            />
-            <View style={styles.inline}>
-              <Button
-                title="kg"
-                secondary={unit !== 'kg'}
-                onPress={() => setUnit('kg')}
-              />
-              <Button
-                title="lb"
-                secondary={unit !== 'lb'}
-                onPress={() => setUnit('lb')}
-              />
-            </View>
-          </>
-        ) : null}
-        {error ? (
-          <Text accessibilityLiveRegion="polite" style={styles.error}>
-            {error}
-          </Text>
-        ) : null}
-        <Button
-          title={busy ? 'Guardando…' : 'Confirmar serie'}
-          onPress={confirmSet}
-          disabled={busy}
-        />
-        <Button
-          title="Volver sin guardar"
-          secondary
-          disabled={busy}
-          onPress={() => {
-            setChosen(null);
-            setMode('picker');
-          }}
-        />
-      </ScrollView>
+      <RegisterSetV2
+        chosen={chosen}
+        previousPerformance={previousPerformance}
+        previousLookupError={previousLookupError}
+        role={role}
+        onRole={setRole}
+        quantity={quantity}
+        onQuantity={setQuantity}
+        load={load}
+        onLoad={setLoad}
+        unit={unit}
+        onUnit={setUnit}
+        distanceUnit={distanceUnit}
+        onDistanceUnit={setDistanceUnit}
+        busy={busy}
+        error={error}
+        onConfirm={confirmSet}
+        onBack={() => setMode('catalogue')}
+      />
+    );
+  }
+
+  if (mode === 'notes' && noteContext) {
+    return (
+      <ExerciseNotesV2
+        title={nameOf(noteContext.canonicalId)}
+        notes={mergeExerciseNotes(
+          sessionNotes.filter(
+            (item) => item.occurrence_id === noteContext.occurrenceId,
+          ),
+          remoteNotes.filter(
+            (item) => item.occurrence_id === noteContext.occurrenceId,
+          ),
+        )}
+        historicalNotes={mergeExerciseNotes(
+          longitudinalNotes.filter(
+            (item) => item.occurrence_id !== noteContext.occurrenceId,
+          ),
+          remoteNotes.filter(
+            (item) => item.occurrence_id !== noteContext.occurrenceId,
+          ),
+        )}
+        draft={noteDraft}
+        onDraft={setNoteDraft}
+        onSave={saveNote}
+        busy={busy}
+        error={noteError ?? error}
+        onBack={() => {
+          if (noteDraft.trim()) {
+            Alert.alert(
+              'Descartar observación',
+              'El texto que no hayas guardado se perderá.',
+              [
+                { text: 'Seguir escribiendo', style: 'cancel' },
+                {
+                  text: 'Descartar',
+                  style: 'destructive',
+                  onPress: () => setMode(noteContext.returnMode),
+                },
+              ],
+            );
+          } else {
+            setMode(noteContext.returnMode);
+          }
+        }}
+      />
     );
   }
 
   if (mode === 'history-detail') {
     return (
-      <ScrollView contentContainerStyle={styles.page}>
-        <Button
-          title="Volver al historial"
-          secondary
-          onPress={() => setMode('history')}
-        />
-        <Text style={styles.eyebrow}>ENTRENAMIENTO FINALIZADO</Text>
-        <Text accessibilityRole="header" style={styles.heading}>
-          {selectedHistory?.local_date ?? 'Detalle del entrenamiento'}
-        </Text>
-        {detailLoading ? (
-          <ActivityIndicator accessibilityLabel="Cargando detalle del entrenamiento" />
-        ) : detailError ? (
-          <Text accessibilityLiveRegion="polite" style={styles.error}>
-            {detailError}
-          </Text>
-        ) : historyDetail ? (
-          <>
-            <Text style={styles.caption}>
-              {historyDetail.entry.total_sets} series confirmadas ·{' '}
-              {historyDetail.entry.working_sets} de trabajo
-            </Text>
-            {historyDetail.exercises.map((exercise) => (
-              <View key={exercise.occurrence_id} style={styles.item}>
-                <Text style={styles.itemTitle}>
-                  {nameOf(exercise.canonical_exercise_id)}
-                </Text>
-                {exercise.sets.map((set, index) => (
-                  <Text key={set.set_id} style={styles.caption}>
-                    {index + 1}.{' '}
-                    {set.set_role === 'WORKING' ? 'Trabajo' : 'Calentamiento'} ·{' '}
-                    {set.measurement_type === 'reps'
-                      ? `${set.reps} rep`
-                      : set.measurement_type === 'time'
-                        ? `${set.duration_seconds} s`
-                        : `${set.distance_decimal} ${set.distance_unit}`}
-                    {set.load_decimal !== null
-                      ? ` · ${set.load_decimal} ${set.load_unit}`
-                      : ''}
-                  </Text>
-                ))}
-              </View>
-            ))}
-          </>
-        ) : null}
-      </ScrollView>
+      <WorkoutHistoryDetailV2
+        selectedHistory={selectedHistory}
+        historyDetail={historyDetail}
+        detailLoading={detailLoading}
+        detailError={detailError}
+        nameOf={nameOf}
+        notes={sessionNotes}
+        onOpenNotes={(exercise) => {
+          if (historyDetail) {
+            openNotes(
+              exercise,
+              historyDetail.entry.session_id,
+              'history-detail',
+            );
+          }
+        }}
+        onBack={() => setMode('history')}
+      />
     );
   }
 
   if (mode === 'history') {
     return (
-      <ScrollView contentContainerStyle={styles.page}>
-        <Text style={styles.eyebrow}>MIS ENTRENAMIENTOS</Text>
-        <Text accessibilityRole="header" style={styles.heading}>
-          Historial
-        </Text>
-        {history.map((item) => (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Ver entrenamiento del ${item.local_date}`}
-            key={item.session_id}
-            onPress={() => openHistoryDetail(item)}
-            style={styles.item}
-          >
-            <Text style={styles.itemTitle}>{item.local_date}</Text>
-            <Text>
-              {item.total_sets} series · {item.working_sets} de trabajo
-            </Text>
-            <Text style={styles.caption}>Ver ejercicios y series ›</Text>
-          </Pressable>
-        ))}
-        {history.length === 0 ? (
-          <Text>Todavía no hay entrenamientos finalizados.</Text>
-        ) : null}
-        <Button
-          title={overview ? 'Volver al entrenamiento' : 'Volver a Entrenar'}
-          secondary
-          onPress={() => setMode('catalogue')}
-        />
-      </ScrollView>
+      <WorkoutHistoryV2
+        history={history}
+        overview={overview}
+        onOpen={openHistoryDetail}
+        onBack={() => setMode('catalogue')}
+      />
     );
   }
 
   if (overview) {
     return (
-      <ScrollView contentContainerStyle={styles.page}>
-        <Text style={styles.eyebrow}>KEYLORFORGE · ENTRENAR</Text>
-        <Text accessibilityRole="header" style={styles.heading}>
-          Entrenamiento activo
-        </Text>
-        <Text style={styles.caption}>
-          {overview.totalSets} series confirmadas
-        </Text>
-        {overview.exercises.map((entry) => (
-          <View key={entry.occurrence_id} style={styles.item}>
-            <Text style={styles.itemTitle}>
-              {nameOf(entry.canonical_exercise_id)}
-            </Text>
-            {entry.sets.map((set, index) => (
-              <Text key={set.set_id} style={styles.caption}>
-                {index + 1}.{' '}
-                {set.set_role === 'WORKING' ? 'Trabajo' : 'Calentamiento'} ·{' '}
-                {set.measurement_type === 'reps'
-                  ? `${set.reps} rep`
-                  : set.measurement_type === 'time'
-                    ? `${set.duration_seconds} s`
-                    : `${set.distance_decimal} ${set.distance_unit}`}
-                {set.load_decimal !== null
-                  ? ` · ${set.load_decimal} ${set.load_unit}`
-                  : ''}
-              </Text>
-            ))}
-          </View>
-        ))}
-        {overview.exercises.length === 0 ? (
-          <Text style={styles.caption}>
-            Elige un ejercicio y confirma tu primera serie.
-          </Text>
-        ) : null}
-        {error ? (
-          <Text accessibilityLiveRegion="polite" style={styles.error}>
-            {error}
-          </Text>
-        ) : null}
-        <Button
-          title="Añadir ejercicio o serie"
-          disabled={busy}
-          onPress={() => setMode('picker')}
-        />
-        <Button
-          title="Ver historial"
-          secondary
-          disabled={busy}
-          onPress={() => setMode('history')}
-        />
-        <Button
-          title="Finalizar entrenamiento"
-          secondary
-          disabled={busy || overview.workingSets < 1}
-          onPress={finish}
-        />
-        <Button
-          title="Cancelar entrenamiento"
-          secondary
-          disabled={busy}
-          onPress={cancel}
-        />
-        {overview.workingSets === 0 ? (
-          <Text style={styles.caption}>
-            Necesitas confirmar al menos una serie de trabajo para finalizar.
-          </Text>
-        ) : null}
-      </ScrollView>
+      <ActiveWorkoutV2
+        overview={overview}
+        nameOf={nameOf}
+        busy={busy}
+        error={error}
+        onAddExercise={() => setMode('picker')}
+        onAddSet={addSetToExercise}
+        onOpenNotes={(exercise) =>
+          openNotes(exercise, overview.session.session_id, 'catalogue')
+        }
+        focusedExerciseId={focusedExerciseId}
+        onFocusExercise={setFocusedExerciseId}
+        nowMilliseconds={clockMilliseconds}
+        restRemainingSeconds={remainingRest}
+        restPresetSeconds={restSeconds}
+        onRestPreset={selectRestSeconds}
+        onRestAdjust={adjustRest}
+        onRestDismiss={dismissRest}
+        onHistory={() => setMode('history')}
+        onFinish={finish}
+        onCancel={cancel}
+      />
     );
   }
 
   return (
-    <View style={styles.root}>
-      <View style={styles.toolbar}>
-        <Button
-          title="Iniciar entrenamiento libre"
-          onPress={begin}
-          disabled={busy}
-        />
-        <Button
-          title="Ver historial"
-          secondary
-          disabled={busy}
-          onPress={() => setMode('history')}
-        />
-      </View>
-      {error ? (
-        <Text accessibilityLiveRegion="polite" style={styles.error}>
-          {error}
-        </Text>
-      ) : null}
-      <ExerciseCatalogScreen />
-    </View>
+    <WorkoutHubV2
+      onBegin={begin}
+      onHistory={() => setMode('history')}
+      busy={busy}
+      error={error}
+      onExplore={() => setMode('explore')}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#f6f8fc' },
-  page: { padding: 20, paddingBottom: 64, gap: 12 },
   center: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
     padding: 24,
     gap: 12,
-  },
-  toolbar: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    backgroundColor: '#F5F8FC',
   },
   button: {
-    backgroundColor: '#075bff',
+    minHeight: 48,
     borderRadius: 12,
+    backgroundColor: '#075BFF',
     paddingHorizontal: 18,
     paddingVertical: 14,
-    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },
   buttonText: { color: '#ffffff', fontWeight: '700' },
-  secondaryButton: { backgroundColor: '#e7efff' },
-  secondaryText: { color: '#075bff' },
-  eyebrow: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#526074',
-    letterSpacing: 1,
-  },
-  heading: { fontSize: 26, fontWeight: '800', color: '#12213a' },
-  label: { fontWeight: '700', fontSize: 15, color: '#12213a', marginTop: 8 },
-  caption: { fontSize: 14, color: '#54657e', lineHeight: 22 },
-  error: { color: '#b42318', fontSize: 14, padding: 12 },
-  inline: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  input: {
-    borderWidth: 1,
-    borderColor: '#cbd6e4',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    minHeight: 48,
-    fontSize: 17,
-  },
-  item: {
-    padding: 16,
-    borderRadius: 14,
-    backgroundColor: '#fff',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: '#e8edf5',
-  },
-  itemTitle: { fontWeight: '700', fontSize: 17, color: '#12213a' },
+  secondaryButton: { backgroundColor: '#EAF2FF' },
+  secondaryText: { color: '#075BFF' },
+  secondaryButtonDark: { backgroundColor: '#193750' },
+  secondaryTextDark: { color: '#ffffff' },
 });

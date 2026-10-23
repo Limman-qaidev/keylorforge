@@ -894,8 +894,107 @@ def test_outbox_causal_order_across_rebuilds():
     )
 
 
+def test_notes_v7_append_only_migration():
+    """Exercise exact V7 DDL against populated v6-like ledger, with real FKs."""
+    db = sqlite3.connect(":memory:")
+    db.execute("PRAGMA foreign_keys = ON")
+    owner = "a3dbf764-e0e3-41aa-9895-6e58eadfbb14"
+    session = "1f2d27bc-4904-4f4f-9367-39565d78f211"
+    occurrence = "c226a777-d460-4d5f-bad6-f75667a9d022"
+    exercise = "502c4c87-80a5-4567-9aaf-296e43bfc4d1"
+    db.executescript(
+        "CREATE TABLE local_workout_sessions (subject TEXT NOT NULL, "
+        "session_id TEXT NOT NULL, PRIMARY KEY (subject, session_id));"
+        "CREATE TABLE local_workout_occurrences ("
+        "subject TEXT NOT NULL, session_id TEXT NOT NULL, "
+        "occurrence_id TEXT NOT NULL, canonical_exercise_id TEXT NOT NULL, "
+        "PRIMARY KEY (subject, session_id, occurrence_id), "
+        "FOREIGN KEY (subject, session_id) "
+        "REFERENCES local_workout_sessions(subject, session_id));"
+    )
+    db.execute(
+        "INSERT INTO local_workout_sessions VALUES (?,?)", (owner, session)
+    )
+    db.execute(
+        "INSERT INTO local_workout_occurrences VALUES (?,?,?,?)",
+        (owner, session, occurrence, exercise),
+    )
+    db.commit()
+    db.executescript(sql(
+        "local-exercise-notes-schema.ts", "LOCAL_WORKOUT_V7_MIGRATION_SQL"
+    ))
+    assert not db.execute("PRAGMA foreign_key_check").fetchall()
+    db.execute("PRAGMA user_version = 7")
+    db.commit()
+    original = "1b428bd6-781d-44ec-8609-57af594a5511"
+    followup = "0d72c629-6248-4221-8ab2-d9b9f1b63901"
+    for identifier, body in [
+        (original, "Primer comentario"),
+        (followup, "Actualización posterior"),
+    ]:
+        db.execute(
+            "INSERT INTO local_exercise_note_events "
+            "(subject,session_id,occurrence_id,canonical_exercise_id,"
+            "note_event_id,body,created_at_utc) VALUES (?,?,?,?,?,?,?)",
+            (owner, session, occurrence, exercise, identifier,
+             body, "2026-10-23T10:30:00.000Z"),
+        )
+    db.commit()
+    assert db.execute(
+        "SELECT body FROM local_exercise_note_events WHERE subject=? "
+        "ORDER BY rowid", (owner,)
+    ).fetchall() == [
+        ("Primer comentario",), ("Actualización posterior",)
+    ]
+    assert db.execute(
+        "SELECT COUNT(*) FROM local_exercise_note_events "
+        "WHERE subject != ?", (owner,)
+    ).fetchone()[0] == 0
+    assert db.execute("PRAGMA user_version").fetchone()[0] == 7
+    db.executescript(sql(
+        "local-exercise-notes-sync-schema.ts", "LOCAL_WORKOUT_V8_MIGRATION_SQL"
+    ))
+    assert not db.execute("PRAGMA foreign_key_check").fetchall()
+    db.execute("PRAGMA user_version = 8")
+    db.commit()
+    assert db.execute(
+        "SELECT body, delivery_state FROM local_exercise_note_events "
+        "WHERE subject=? ORDER BY rowid", (owner,)
+    ).fetchall() == [
+        ("Primer comentario", "pending"),
+        ("Actualización posterior", "pending"),
+    ]
+    assert db.execute("PRAGMA user_version").fetchone()[0] == 8
+    db.executescript(sql(
+        "local-remote-note-cache-schema.ts", "LOCAL_WORKOUT_V9_MIGRATION_SQL"
+    ))
+    assert not db.execute("PRAGMA foreign_key_check").fetchall()
+    db.execute("PRAGMA user_version = 9")
+    db.execute(
+        "INSERT INTO local_remote_exercise_notes "
+        "(subject,note_event_id,session_id,occurrence_id,"
+        "canonical_exercise_id,body,created_at_utc)"
+        " VALUES (?,?,?,?,?,?,?)",
+        (owner, "93d3fc0c-6e87-492b-85d3-66d52064d917",
+         session, occurrence, exercise, "Nota de otro dispositivo",
+         "2026-10-23T11:30:00.000Z"),
+    )
+    db.commit()
+    assert db.execute(
+        "SELECT delivery_state FROM local_exercise_note_events "
+        "WHERE subject=?", (owner,)
+    ).fetchall() == [("pending",), ("pending",)]
+    assert db.execute(
+        "SELECT body FROM local_remote_exercise_notes WHERE subject=?",
+        (owner,)
+    ).fetchall() == [("Nota de otro dispositivo",)]
+    assert db.execute("PRAGMA user_version").fetchone()[0] == 9
+    print("PASS: v7 -> v9 retains local pending notes and caches remote history")
+
+
 if __name__ == "__main__":
     test_upgrade()
     test_machine_v3_upgrade()
     test_finish_v4_upgrade()
     test_outbox_causal_order_across_rebuilds()
+    test_notes_v7_append_only_migration()

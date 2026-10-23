@@ -16,6 +16,7 @@ from keylorforge_database.models import (
     WorkoutOccurrence,
     WorkoutSession,
     WorkoutSet,
+    WorkoutExerciseNoteEvent,
 )
 
 
@@ -25,9 +26,14 @@ def purge_account_workout_data(session: Session, owner_user_id: UUID) -> None:
     Called after M1 terminalization has committed, before provider deletion.
     Durable retry/recovery and external cleanup still belong to M3 #123.
     """
+    # Immutable notes reference actual occurrences: purge them first only
+    # for explicit account deletion, never for ordinary sync or logout.
     session.execute(
-        delete(WorkoutSet).where(WorkoutSet.owner_user_id == owner_user_id)
+        delete(WorkoutExerciseNoteEvent).where(
+            WorkoutExerciseNoteEvent.owner_user_id == owner_user_id
+        )
     )
+    session.execute(delete(WorkoutSet).where(WorkoutSet.owner_user_id == owner_user_id))
     session.execute(
         delete(WorkoutOccurrence).where(
             WorkoutOccurrence.owner_user_id == owner_user_id

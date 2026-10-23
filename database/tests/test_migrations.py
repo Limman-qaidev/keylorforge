@@ -56,7 +56,7 @@ def test_upgrade_clean_database_records_head(test_database_url: str) -> None:
             text("SELECT version_num FROM alembic_version")
         ).scalar_one()
 
-    assert revision == "20261009_0003"
+    assert revision == "20261023_0001"
 
     with engine.connect() as connection:
         display_name = connection.execute(
@@ -106,7 +106,9 @@ def test_upgrade_clean_database_records_head(test_database_url: str) -> None:
     assert direct_grants == []
 
 
-def test_catalog_schema_is_private_and_has_expected_constraints(test_database_url: str) -> None:
+def test_catalog_schema_is_private_and_has_expected_constraints(
+    test_database_url: str,
+) -> None:
     """Catalogue tables are normalized, constrained and inaccessible through Data API roles."""
     engine = create_engine(test_database_url)
     catalogue_tables = [
@@ -130,15 +132,19 @@ def test_catalog_schema_is_private_and_has_expected_constraints(test_database_ur
                     "ORDER BY relation.relname"
                 )
             ).all()
-            constraints = connection.execute(
-                text(
-                    "SELECT conname FROM pg_constraint WHERE conname IN ("
-                    "'ck_catalog_exercises_catalog_exercise_measurement_type', "
-                    "'ck_catalog_exercise_muscles_catalog_exercise_muscle_role', "
-                    "'ck_catalog_exercises_catalog_exercise_not_self_alias'"
-                    ") ORDER BY conname"
+            constraints = (
+                connection.execute(
+                    text(
+                        "SELECT conname FROM pg_constraint WHERE conname IN ("
+                        "'ck_catalog_exercises_catalog_exercise_measurement_type', "
+                        "'ck_catalog_exercise_muscles_catalog_exercise_muscle_role', "
+                        "'ck_catalog_exercises_catalog_exercise_not_self_alias'"
+                        ") ORDER BY conname"
+                    )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
             direct_grants = connection.execute(
                 text(
                     "SELECT table_name FROM information_schema.table_privileges "
@@ -158,7 +164,9 @@ def test_catalog_schema_is_private_and_has_expected_constraints(test_database_ur
     assert direct_grants == []
 
 
-def test_vendored_catalog_import_is_complete_and_idempotent(test_database_url: str) -> None:
+def test_vendored_catalog_import_is_complete_and_idempotent(
+    test_database_url: str,
+) -> None:
     """The pinned EN/ES snapshot imports once and never duplicates its rows."""
     snapshot = load_vendored_snapshot()
     assert len(snapshot.exercises["en"]) == len(snapshot.exercises["es"]) == 899
@@ -208,13 +216,24 @@ def test_vendored_catalog_import_is_complete_and_idempotent(test_database_url: s
     finally:
         engine.dispose()
 
-    assert counts == (899, 17, 36, 1798, 34, 72, first.exercise_muscles, first.exercise_equipment)
+    assert counts == (
+        899,
+        17,
+        36,
+        1798,
+        34,
+        72,
+        first.exercise_muscles,
+        first.exercise_equipment,
+    )
     assert locale_counts == [("en", 899), ("es", 899)]
     assert source_count == 899
     assert invalid_roles == 0
 
 
-def test_catalog_import_rejects_broken_references_before_writing(test_database_url: str) -> None:
+def test_catalog_import_rejects_broken_references_before_writing(
+    test_database_url: str,
+) -> None:
     """Importer validation rejects source drift rather than persisting partial data."""
     snapshot = load_vendored_snapshot()
     invalid = deepcopy(snapshot)
@@ -235,7 +254,7 @@ def test_catalog_migration_refuses_destructive_downgrade(
     """The profile migration must not silently drop persisted display names."""
     config = Config("alembic.ini")
 
-    with pytest.raises(NotImplementedError, match="account-owned workout"):
+    with pytest.raises(NotImplementedError, match="Immutable exercise notes"):
         command.downgrade(config, "20260831_0001")
 
     engine = create_engine(test_database_url)
@@ -244,7 +263,7 @@ def test_catalog_migration_refuses_destructive_downgrade(
             revision = connection.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-        assert revision == "20261009_0003"
+        assert revision == "20261023_0001"
     finally:
         engine.dispose()
 
@@ -419,7 +438,10 @@ def test_deletion_anonymizes_and_finalizes_an_active_identity(
             prepared = repository.start_deletion(
                 auth_provider=AuthProvider.SUPABASE, external_subject=subject
             )
-            assert prepared.lifecycle_state is ApplicationUserLifecycle.DELETION_IN_PROGRESS
+            assert (
+                prepared.lifecycle_state
+                is ApplicationUserLifecycle.DELETION_IN_PROGRESS
+            )
             assert prepared.profile is not None
             assert prepared.profile.display_name is None
             session.commit()
@@ -490,9 +512,7 @@ def test_stale_profile_update_cannot_restore_deletion_anonymization(
             repository.set_profile_display_name(user=user, display_name="Taylor")
             session.commit()
 
-        stale_user = ApplicationUserRepository(
-            session_a
-        ).get_or_provision_active_user(
+        stale_user = ApplicationUserRepository(session_a).get_or_provision_active_user(
             auth_provider=AuthProvider.SUPABASE, external_subject=subject
         )
         assert stale_user.lifecycle_state is ApplicationUserLifecycle.ACTIVE

@@ -1,5 +1,9 @@
 name: Database Migration CI
 
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 on:
   pull_request:
     branches:
@@ -65,5 +69,5 @@ jobs:
       - name: Verify Alembic current head
         run: |
           python -m alembic current | tee alembic-current.txt
-          grep -Eq '^20261009_0003 \(head\)$' alembic-current.txt
+          grep -Eq '^20261023_0001 \(head\)$' alembic-current.txt
           python -m alembic heads

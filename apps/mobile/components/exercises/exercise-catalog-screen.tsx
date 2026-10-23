@@ -1,8 +1,9 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Keyboard,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,6 +24,10 @@ import {
   listMuscles,
 } from '@/lib/exercises/catalog-api';
 import { useCachedExerciseCatalogue } from '@/lib/exercises/use-cached-exercise-catalogue';
+import {
+  normalizeExerciseQuery,
+  rankExerciseMatches,
+} from '@/lib/exercises/search-ranking';
 
 type AuthenticatedRequestContext = {
   accessToken: string;
@@ -80,13 +85,6 @@ function measurementLabel(value: string): string {
     time: 'Tiempo',
   };
   return labels[value] ?? value;
-}
-
-function fold(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLocaleLowerCase('es');
 }
 
 function roleLabel(value: string): string {
@@ -152,59 +150,102 @@ type FilterRowProps = {
   onSelect: (id: string | null) => void;
 };
 
+/**
+ * Searchable vertical selector instead of an unbounded horizontal chip strip.
+ * Filter values preserve the canonical reference IDs; only their labels change.
+ */
 function FilterRow({ label, onSelect, options, selectedId }: FilterRowProps) {
+  const [expanded, setExpanded] = useState(false);
+  const [query, setQuery] = useState('');
+  const selected = options.find((item) => item.id === selectedId);
+  const normalized = normalizeExerciseQuery(query);
+  const candidates = normalized
+    ? options.filter((item) =>
+        normalizeExerciseQuery(item.name).includes(normalized),
+      )
+    : options;
+
+  const choose = (id: string | null) => {
+    onSelect(id);
+    setExpanded(false);
+    setQuery('');
+    Keyboard.dismiss();
+  };
+
   return (
     <View style={styles.filterGroup}>
-      <Text style={styles.filterLabel}>{label}</Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterScroller}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={'Seleccionar ' + label.toLowerCase()}
+        accessibilityState={{ expanded }}
+        onPress={() => setExpanded((value) => !value)}
+        style={styles.filterSelector}
       >
-        <Pressable
-          accessibilityLabel={'Quitar filtro de ' + label.toLowerCase()}
-          accessibilityRole="button"
-          accessibilityState={{ selected: selectedId === null }}
-          onPress={() => onSelect(null)}
-          style={[
-            styles.filterChip,
-            selectedId === null && styles.filterChipSelected,
-          ]}
-        >
-          <Text
-            style={[
-              styles.filterChipText,
-              selectedId === null && styles.filterChipTextSelected,
-            ]}
-          >
-            Todos
+        <View style={styles.filterSelectorBody}>
+          <Text style={styles.filterSelectorLabel}>{label}</Text>
+          <Text style={styles.filterSelectorValue}>
+            {selected?.name ?? 'Todos'}
           </Text>
-        </Pressable>
-        {options.map((option) => {
-          const selected = option.id === selectedId;
-          return (
-            <Pressable
-              accessibilityLabel={
-                'Filtrar por ' + label.toLowerCase() + ' ' + option.name
-              }
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              key={option.id}
-              onPress={() => onSelect(option.id)}
-              style={[styles.filterChip, selected && styles.filterChipSelected]}
-            >
-              <Text
-                style={[
-                  styles.filterChipText,
-                  selected && styles.filterChipTextSelected,
-                ]}
+        </View>
+        <Text style={styles.filterSelectorChevron}>{expanded ? '⌃' : '⌄'}</Text>
+      </Pressable>
+      {expanded ? (
+        <View style={styles.filterOptionsPanel}>
+          <TextInput
+            accessibilityLabel={'Buscar ' + label.toLowerCase()}
+            autoCapitalize="none"
+            autoCorrect={false}
+            onChangeText={setQuery}
+            placeholder={'Buscar ' + label.toLowerCase() + '…'}
+            placeholderTextColor="#697991"
+            style={styles.filterSearchInput}
+            value={query}
+          />
+          <ScrollView
+            keyboardShouldPersistTaps="always"
+            nestedScrollEnabled
+            style={styles.filterOptionsList}
+          >
+            {!normalized ? (
+              <Pressable
+                accessibilityLabel={'Quitar filtro de ' + label.toLowerCase()}
+                accessibilityRole="button"
+                accessibilityState={{ selected: selectedId === null }}
+                key="all"
+                onPress={() => choose(null)}
+                style={styles.filterOption}
               >
-                {option.name}
+                <Text style={styles.filterOptionText}>Todos</Text>
+                {selectedId === null ? (
+                  <Text style={styles.filterOptionSelected}>✓</Text>
+                ) : null}
+              </Pressable>
+            ) : null}
+            {candidates.map((item) => (
+              <Pressable
+                accessibilityLabel={
+                  'Filtrar por ' + label.toLowerCase() + ' ' + item.name
+                }
+                accessibilityRole="button"
+                accessibilityState={{ selected: selectedId === item.id }}
+                key={item.id}
+                onPress={() => choose(item.id)}
+                style={styles.filterOption}
+              >
+                <Text style={styles.filterOptionText}>{item.name}</Text>
+                {selectedId === item.id ? (
+                  <Text style={styles.filterOptionSelected}>✓</Text>
+                ) : null}
+              </Pressable>
+            ))}
+            {candidates.length === 0 ? (
+              <Text style={styles.filterNoMatches}>
+                No hay opciones que coincidan.
               </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+            ) : null}
+          </ScrollView>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -212,34 +253,65 @@ function FilterRow({ label, onSelect, options, selectedId }: FilterRowProps) {
 type ExerciseCardProps = {
   exercise: ExerciseListItem;
   onOpen: (exerciseId: string) => void;
+  onQuickAdd?: (exercise: ExerciseListItem) => void;
+  compact?: boolean;
 };
 
-function ExerciseCard({ exercise, onOpen }: ExerciseCardProps) {
+function ExerciseCard({
+  exercise,
+  onOpen,
+  onQuickAdd,
+  compact = false,
+}: ExerciseCardProps) {
   return (
-    <Pressable
-      accessibilityLabel={'Abrir ' + exercise.name}
-      accessibilityRole="button"
-      onPress={() => onOpen(exercise.id)}
-      style={({ pressed }) => [styles.exerciseRow, pressed && styles.pressed]}
-    >
-      <View style={styles.exerciseMain}>
+    <View style={[styles.exerciseRow, compact && styles.exerciseRowCompact]}>
+      <Pressable
+        accessibilityLabel={'Abrir ' + exercise.name}
+        accessibilityRole="button"
+        onPress={() => onOpen(exercise.id)}
+        style={({ pressed }) => [
+          styles.exerciseMain,
+          pressed && styles.pressed,
+        ]}
+      >
         <Text style={styles.exerciseName}>{exercise.name}</Text>
         <Text style={styles.exerciseMeta}>
           {measurementLabel(exercise.measurement_type)}
           {' · '}
           {metadataLabel(exercise.category, CATEGORY_LABELS)}
         </Text>
-        <Text style={styles.exerciseSecondary}>
-          {referenceNames(exercise.primary_muscles)}
+        {compact ? (
+          <Text style={styles.exerciseSecondary} numberOfLines={1}>
+            {referenceNames(exercise.primary_muscles)}
+            {' · '}
+            {referenceNames(exercise.equipment)}
+          </Text>
+        ) : (
+          <>
+            <Text style={styles.exerciseSecondary}>
+              {referenceNames(exercise.primary_muscles)}
+            </Text>
+            <Text style={styles.exerciseSecondary}>
+              {referenceNames(exercise.equipment)}
+            </Text>
+          </>
+        )}
+      </Pressable>
+      {onQuickAdd ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={'Elegir ' + exercise.name}
+          onPress={() => onQuickAdd(exercise)}
+          style={styles.quickAdd}
+        >
+          <Text style={styles.quickAddText}>+ Elegir</Text>
+        </Pressable>
+      ) : (
+        <Text accessible={false} style={styles.chevron}>
+          ›
         </Text>
-        <Text style={styles.exerciseSecondary}>
-          {referenceNames(exercise.equipment)}
-        </Text>
-      </View>
-      <Text accessible={false} style={styles.chevron}>
-        ›
-      </Text>
-    </Pressable>
+      )}
+    </View>
   );
 }
 
@@ -338,20 +410,34 @@ function DetailView({ detail, onBack, onChoose }: DetailViewProps) {
 
 export function ExerciseCatalogScreen({
   onChooseExercise,
+  compact = false,
 }: {
-  onChooseExercise?: (exercise: ExerciseDetail) => void;
+  onChooseExercise?: (
+    exercise: Pick<ExerciseDetail, 'id' | 'name' | 'measurement_type'>,
+  ) => void;
+  compact?: boolean;
 } = {}) {
   const { invalidateSession, refreshSession, session } = useAuth();
   const accessToken = session?.access_token ?? null;
   const { snapshot, initialized } = useCachedExerciseCatalogue(session);
   const [searchDraft, setSearchDraft] = useState('');
   const [search, setSearch] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   const [primaryMuscleId, setPrimaryMuscleId] = useState<string | null>(null);
   const [equipmentId, setEquipmentId] = useState<string | null>(null);
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(
     null,
   );
   const [localLimit, setLocalLimit] = useState(30);
+
+  useEffect(() => {
+    // Native snapshot filters immediately; API fallback debounces requests.
+    const timer = setTimeout(() => {
+      setSearch(searchDraft.trim());
+      setLocalLimit(30);
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [searchDraft]);
 
   const requestContext = useMemo<AuthenticatedRequestContext | null>(() => {
     if (!accessToken) {
@@ -363,15 +449,14 @@ export function ExerciseCatalogScreen({
   const onlineEnabled = requestContext !== null && initialized && !snapshot;
   const locallyMatched = useMemo(() => {
     if (!snapshot) return [];
-    const query = fold(search.trim());
-    return snapshot.items.filter(
+    const filtered = snapshot.items.filter(
       (item) =>
-        (!query || fold(item.name).includes(query)) &&
         (!primaryMuscleId ||
           item.primary_muscles.some((ref) => ref.id === primaryMuscleId)) &&
         (!equipmentId || item.equipment.some((ref) => ref.id === equipmentId)),
     );
-  }, [snapshot, search, primaryMuscleId, equipmentId]);
+    return rankExerciseMatches(filtered, searchDraft);
+  }, [snapshot, searchDraft, primaryMuscleId, equipmentId]);
 
   const musclesQuery = useQuery({
     enabled: onlineEnabled,
@@ -531,7 +616,9 @@ export function ExerciseCatalogScreen({
       ? 0
       : (exercisesQuery.data?.pages[0]?.total ?? 0);
   const hasActiveFilters =
-    Boolean(search) || primaryMuscleId !== null || equipmentId !== null;
+    Boolean(searchDraft.trim()) ||
+    primaryMuscleId !== null ||
+    equipmentId !== null;
 
   const resetFilters = () => {
     setSearchDraft('');
@@ -555,13 +642,17 @@ export function ExerciseCatalogScreen({
 
   const header = (
     <View>
-      <Text style={styles.eyebrow}>KEYLORFORGE · ENTRENAR</Text>
-      <Text accessibilityRole="header" style={styles.title}>
-        Catálogo de ejercicios
-      </Text>
-      <Text style={styles.subtitle}>
-        Busca y filtra el catálogo canónico de KeylorForge.
-      </Text>
+      {!compact ? (
+        <>
+          <Text style={styles.eyebrow}>KEYLORFORGE · ENTRENAR</Text>
+          <Text accessibilityRole="header" style={styles.title}>
+            Catálogo de ejercicios
+          </Text>
+          <Text style={styles.subtitle}>
+            Busca y filtra el catálogo canónico de KeylorForge.
+          </Text>
+        </>
+      ) : null}
 
       <View style={styles.searchRow}>
         <TextInput
@@ -572,41 +663,88 @@ export function ExerciseCatalogScreen({
             setSearch(searchDraft.trim());
             setLocalLimit(30);
           }}
-          placeholder="Buscar por nombre"
+          placeholder="Ejercicio o movimiento…"
+          placeholderTextColor="#728097"
           returnKeyType="search"
           style={styles.searchInput}
           value={searchDraft}
         />
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            setSearch(searchDraft.trim());
-            setLocalLimit(30);
-          }}
-          style={styles.searchButton}
-        >
-          <Text style={styles.searchButtonText}>Buscar</Text>
-        </Pressable>
+        {!compact ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              setSearch(searchDraft.trim());
+              setLocalLimit(30);
+            }}
+            style={styles.searchButton}
+          >
+            <Text style={styles.searchButtonText}>Buscar</Text>
+          </Pressable>
+        ) : null}
       </View>
 
-      <FilterRow
-        label="Músculo"
-        onSelect={(id) => {
-          setPrimaryMuscleId(id);
-          setLocalLimit(30);
-        }}
-        options={snapshot?.muscles ?? musclesQuery.data ?? []}
-        selectedId={primaryMuscleId}
-      />
-      <FilterRow
-        label="Equipamiento"
-        onSelect={(id) => {
-          setEquipmentId(id);
-          setLocalLimit(30);
-        }}
-        options={snapshot?.equipment ?? equipmentQuery.data ?? []}
-        selectedId={equipmentId}
-      />
+      {compact &&
+      onChooseExercise &&
+      snapshot &&
+      searchDraft.trim().length >= 2 &&
+      locallyMatched.length > 0 ? (
+        <View style={styles.suggestions}>
+          <Text style={styles.suggestionHeading}>SUGERENCIAS</Text>
+          <ScrollView
+            horizontal
+            keyboardShouldPersistTaps="always"
+            showsHorizontalScrollIndicator={false}
+          >
+            {locallyMatched.slice(0, 3).map((item) => (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={'Sugerencia ' + item.name}
+                key={item.id}
+                onPress={() => onChooseExercise(item)}
+                style={styles.suggestionChip}
+              >
+                <Text style={styles.suggestionText} numberOfLines={1}>
+                  {item.name}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      ) : null}
+
+      {compact ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setShowFilters((value) => !value)}
+          style={styles.compactFilters}
+        >
+          <Text style={styles.compactFiltersText}>
+            {showFilters ? 'Ocultar filtros' : 'Filtrar por músculo o equipo'}
+          </Text>
+        </Pressable>
+      ) : null}
+      {!compact || showFilters ? (
+        <>
+          <FilterRow
+            label="Músculo"
+            onSelect={(id) => {
+              setPrimaryMuscleId(id);
+              setLocalLimit(30);
+            }}
+            options={snapshot?.muscles ?? musclesQuery.data ?? []}
+            selectedId={primaryMuscleId}
+          />
+          <FilterRow
+            label="Equipamiento"
+            onSelect={(id) => {
+              setEquipmentId(id);
+              setLocalLimit(30);
+            }}
+            options={snapshot?.equipment ?? equipmentQuery.data ?? []}
+            selectedId={equipmentId}
+          />
+        </>
+      ) : null}
 
       {filterError ? (
         <View style={styles.inlineError}>
@@ -746,7 +884,12 @@ export function ExerciseCatalogScreen({
       }
       ListHeaderComponent={header}
       renderItem={({ item }) => (
-        <ExerciseCard exercise={item} onOpen={setSelectedExerciseId} />
+        <ExerciseCard
+          exercise={item}
+          onOpen={setSelectedExerciseId}
+          onQuickAdd={onChooseExercise}
+          compact={compact}
+        />
       )}
       style={styles.container}
     />
@@ -754,6 +897,30 @@ export function ExerciseCatalogScreen({
 }
 
 const styles = StyleSheet.create({
+  suggestions: { gap: 8, paddingVertical: 8 },
+  suggestionHeading: { color: '#66758C', fontSize: 10, fontWeight: '800' },
+  suggestionChip: {
+    backgroundColor: '#EAF2FF',
+    borderRadius: 10,
+    maxWidth: 200,
+    minHeight: 44,
+    paddingHorizontal: 13,
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  suggestionText: { color: '#075BFF', fontWeight: '700', fontSize: 13 },
+  quickAdd: {
+    minHeight: 44,
+    minWidth: 82,
+    borderRadius: 10,
+    backgroundColor: '#075BFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+  },
+  quickAddText: { color: '#FFFFFF', fontWeight: '800', fontSize: 12 },
+  compactFilters: { paddingVertical: 12, paddingHorizontal: 4 },
+  compactFiltersText: { color: '#075BFF', fontWeight: '700', fontSize: 13 },
   backButton: {
     alignSelf: 'flex-start',
     minHeight: 48,
@@ -868,6 +1035,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
+  exerciseRowCompact: {
+    minHeight: 78,
+    marginTop: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
   exerciseSecondary: {
     color: '#66758c',
     fontSize: 13,
@@ -902,8 +1075,70 @@ const styles = StyleSheet.create({
   filterChipTextSelected: {
     color: '#ffffff',
   },
-  filterGroup: {
-    marginTop: 18,
+  filterGroup: { marginTop: 8 },
+  filterSelector: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#D4DEED',
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 55,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  filterSelectorBody: { flex: 1, gap: 3 },
+  filterSelectorLabel: {
+    color: '#65748A',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  filterSelectorValue: {
+    color: '#15263D',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  filterSelectorChevron: { color: '#075BFF', fontSize: 23 },
+  filterOptionsPanel: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#D4DEED',
+    borderRadius: 13,
+    borderWidth: 1,
+    marginTop: 6,
+    overflow: 'hidden',
+    padding: 8,
+  },
+  filterSearchInput: {
+    borderColor: '#D4DEED',
+    borderRadius: 10,
+    borderWidth: 1,
+    color: '#15263D',
+    fontSize: 15,
+    minHeight: 44,
+    paddingHorizontal: 12,
+  },
+  filterOptionsList: { maxHeight: 264, marginTop: 5 },
+  filterOption: {
+    alignItems: 'center',
+    borderBottomColor: '#E9EEF4',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 43,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  filterOptionText: { color: '#15263D', flex: 1, fontSize: 14 },
+  filterOptionSelected: {
+    color: '#075BFF',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  filterNoMatches: {
+    color: '#65748A',
+    fontSize: 13,
+    padding: 12,
   },
   inlineError: {
     alignItems: 'flex-start',

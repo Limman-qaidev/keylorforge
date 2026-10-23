@@ -67,6 +67,16 @@ describe('AuthenticatedShell', () => {
     });
   });
 
+  it('uses an immersive training surface without the global bottom tabs', async () => {
+    const { getByText, queryByLabelText } = await render(
+      <AuthenticatedShell activeDestination="train" immersive darkChrome>
+        <Text>Sesión de trabajo</Text>
+      </AuthenticatedShell>,
+    );
+    expect(getByText('Sesión de trabajo')).toBeTruthy();
+    expect(queryByLabelText('Navegación principal')).toBeNull();
+  });
+
   it('renders real destination content inside the shell', async () => {
     const { getByText } = await render(
       <AuthenticatedShell activeDestination="profile">

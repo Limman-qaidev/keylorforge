@@ -12,6 +12,7 @@ import { syncNextPendingMachineCreate } from './machine-create-sync';
 import { syncNextPendingConfirmedSet } from './confirmed-set-sync';
 import { syncNextPendingFinish } from './finish-session-sync';
 import { syncNextPendingCancel } from './cancel-session-sync';
+import { syncNextPendingExerciseNote } from './exercise-note-sync';
 import type { StartSyncAccess } from './start-session-sync';
 
 const UUID =
@@ -19,13 +20,15 @@ const UUID =
 const activeDrains = new WeakSet<SqliteWorkoutPort>();
 const MAX_BATCH = 30;
 
-export type SyncStage = 'start' | 'machine' | 'set' | 'finish' | 'cancel';
+export type SyncStage =
+  'start' | 'machine' | 'set' | 'finish' | 'cancel' | 'note';
 type SingleResult =
   | Awaited<ReturnType<typeof syncNextPendingStart>>
   | Awaited<ReturnType<typeof syncNextPendingMachineCreate>>
   | Awaited<ReturnType<typeof syncNextPendingConfirmedSet>>
   | Awaited<ReturnType<typeof syncNextPendingFinish>>
-  | Awaited<ReturnType<typeof syncNextPendingCancel>>;
+  | Awaited<ReturnType<typeof syncNextPendingCancel>>
+  | Awaited<ReturnType<typeof syncNextPendingExerciseNote>>;
 
 export type SyncDrainResult =
   | { state: 'busy'; acknowledged: 0 }
@@ -58,6 +61,7 @@ const STAGES: readonly {
   { stage: 'set', send: syncNextPendingConfirmedSet },
   { stage: 'finish', send: syncNextPendingFinish },
   { stage: 'cancel', send: syncNextPendingCancel },
+  { stage: 'note', send: syncNextPendingExerciseNote },
 ];
 
 /**

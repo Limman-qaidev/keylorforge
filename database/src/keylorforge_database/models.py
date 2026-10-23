@@ -92,7 +92,9 @@ class ApplicationUser(Base):
         ),
     )
 
-    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), primary_key=True, default=uuid4
+    )
     lifecycle_state: Mapped[ApplicationUserLifecycle] = mapped_column(
         Enum(
             ApplicationUserLifecycle,
@@ -129,7 +131,8 @@ class ApplicationUserIdentity(Base):
     __tablename__ = "application_user_identities"
     __table_args__ = (
         CheckConstraint(
-            "auth_provider = 'supabase'", name="application_user_identity_supported_provider"
+            "auth_provider = 'supabase'",
+            name="application_user_identity_supported_provider",
         ),
         UniqueConstraint("auth_provider", "external_subject"),
     )
@@ -195,7 +198,9 @@ class CatalogExercise(Base):
         ),
     )
 
-    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), primary_key=True, default=uuid4
+    )
     source: Mapped[str] = mapped_column(String(80), nullable=False)
     source_id: Mapped[str] = mapped_column(String(80), nullable=False)
     canonical_exercise_id: Mapped[UUID | None] = mapped_column(
@@ -222,11 +227,16 @@ class CatalogExercise(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
     )
 
     canonical_exercise: Mapped[CatalogExercise | None] = relationship(
-        "CatalogExercise", remote_side="CatalogExercise.id", back_populates="alias_records"
+        "CatalogExercise",
+        remote_side="CatalogExercise.id",
+        back_populates="alias_records",
     )
     alias_records: Mapped[list[CatalogExercise]] = relationship(
         "CatalogExercise", back_populates="canonical_exercise"
@@ -267,11 +277,15 @@ class CatalogMuscle(Base):
 
     __tablename__ = "catalog_muscles"
     __table_args__ = (
-        UniqueConstraint("source", "source_id", name="uq_catalog_muscles_source_source_id"),
+        UniqueConstraint(
+            "source", "source_id", name="uq_catalog_muscles_source_source_id"
+        ),
         UniqueConstraint("source", "slug", name="uq_catalog_muscles_source_slug"),
     )
 
-    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), primary_key=True, default=uuid4
+    )
     source: Mapped[str] = mapped_column(String(80), nullable=False)
     source_id: Mapped[str] = mapped_column(String(80), nullable=False)
     slug: Mapped[str] = mapped_column(String(80), nullable=False)
@@ -279,7 +293,9 @@ class CatalogMuscle(Base):
     names: Mapped[list[CatalogMuscleName]] = relationship(
         back_populates="muscle", cascade="save-update, merge"
     )
-    exercises: Mapped[list[CatalogExerciseMuscle]] = relationship(back_populates="muscle")
+    exercises: Mapped[list[CatalogExerciseMuscle]] = relationship(
+        back_populates="muscle"
+    )
 
 
 class CatalogMuscleName(Base):
@@ -289,7 +305,9 @@ class CatalogMuscleName(Base):
     __table_args__ = (UniqueConstraint("muscle_id", "locale"),)
 
     muscle_id: Mapped[UUID] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("catalog_muscles.id", ondelete="RESTRICT"), primary_key=True
+        Uuid(as_uuid=True),
+        ForeignKey("catalog_muscles.id", ondelete="RESTRICT"),
+        primary_key=True,
     )
     locale: Mapped[str] = mapped_column(String(10), primary_key=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
@@ -303,7 +321,9 @@ class CatalogEquipment(Base):
     __tablename__ = "catalog_equipment"
     __table_args__ = (UniqueConstraint("source", "source_id"),)
 
-    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), primary_key=True, default=uuid4
+    )
     source: Mapped[str] = mapped_column(String(80), nullable=False)
     source_id: Mapped[str] = mapped_column(String(80), nullable=False)
     equipment_type: Mapped[str | None] = mapped_column(String(32))
@@ -312,7 +332,9 @@ class CatalogEquipment(Base):
     names: Mapped[list[CatalogEquipmentName]] = relationship(
         back_populates="equipment", cascade="save-update, merge"
     )
-    exercises: Mapped[list[CatalogExerciseEquipment]] = relationship(back_populates="equipment")
+    exercises: Mapped[list[CatalogExerciseEquipment]] = relationship(
+        back_populates="equipment"
+    )
 
 
 class CatalogEquipmentName(Base):
@@ -322,7 +344,9 @@ class CatalogEquipmentName(Base):
     __table_args__ = (UniqueConstraint("equipment_id", "locale"),)
 
     equipment_id: Mapped[UUID] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("catalog_equipment.id", ondelete="RESTRICT"), primary_key=True
+        Uuid(as_uuid=True),
+        ForeignKey("catalog_equipment.id", ondelete="RESTRICT"),
+        primary_key=True,
     )
     locale: Mapped[str] = mapped_column(String(10), primary_key=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
@@ -342,7 +366,9 @@ class CatalogExerciseMuscle(Base):
         primary_key=True,
     )
     muscle_id: Mapped[UUID] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("catalog_muscles.id", ondelete="RESTRICT"), primary_key=True
+        Uuid(as_uuid=True),
+        ForeignKey("catalog_muscles.id", ondelete="RESTRICT"),
+        primary_key=True,
     )
     role: Mapped[ExerciseMuscleRole] = mapped_column(
         Enum(
@@ -363,7 +389,9 @@ class CatalogExerciseEquipment(Base):
     """A many-to-many association between exercise and equipment."""
 
     __tablename__ = "catalog_exercise_equipment"
-    __table_args__ = (Index("ix_catalog_exercise_equipment_equipment_id", "equipment_id"),)
+    __table_args__ = (
+        Index("ix_catalog_exercise_equipment_equipment_id", "equipment_id"),
+    )
 
     exercise_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),
@@ -371,12 +399,13 @@ class CatalogExerciseEquipment(Base):
         primary_key=True,
     )
     equipment_id: Mapped[UUID] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("catalog_equipment.id", ondelete="RESTRICT"), primary_key=True
+        Uuid(as_uuid=True),
+        ForeignKey("catalog_equipment.id", ondelete="RESTRICT"),
+        primary_key=True,
     )
 
     exercise: Mapped[CatalogExercise] = relationship(back_populates="equipment")
     equipment: Mapped[CatalogEquipment] = relationship(back_populates="exercises")
-
 
 
 class WorkoutSession(Base):
@@ -396,9 +425,7 @@ class WorkoutSession(Base):
             "utc_offset_minutes BETWEEN -840 AND 840",
             name="workout_session_utc_offset",
         ),
-        CheckConstraint(
-            "agenda_revision >= 0", name="workout_session_agenda_revision"
-        ),
+        CheckConstraint("agenda_revision >= 0", name="workout_session_agenda_revision"),
         UniqueConstraint("id", "owner_user_id", name="uq_workout_sessions_id_owner"),
         Index("ix_workout_sessions_owner_started", "owner_user_id", "started_at"),
         Index(
@@ -417,7 +444,9 @@ class WorkoutSession(Base):
     )
     origin: Mapped[str] = mapped_column(String(16), nullable=False)
     lifecycle_state: Mapped[str] = mapped_column(String(16), nullable=False)
-    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     time_zone: Mapped[str] = mapped_column(String(64), nullable=False)
     utc_offset_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
     local_date: Mapped[date] = mapped_column(Date, nullable=False)
@@ -454,7 +483,6 @@ class WorkoutMutationReceipt(Base):
     )
 
 
-
 class WorkoutCompletionSnapshot(Base):
     """Owner-scoped immutable completed Free Workout agenda and actual-set links."""
 
@@ -466,22 +494,27 @@ class WorkoutCompletionSnapshot(Base):
             ondelete="RESTRICT",
         ),
         UniqueConstraint(
-            "owner_user_id", "finish_mutation_id",
+            "owner_user_id",
+            "finish_mutation_id",
             name="uq_workout_completion_owner_finish_mutation",
         ),
         Index(
             "ix_workout_completion_owner_finished",
-            "owner_user_id", "finished_at",
+            "owner_user_id",
+            "finished_at",
         ),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
-    session_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False, unique=True)
+    session_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), nullable=False, unique=True
+    )
     owner_user_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     finish_mutation_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
-    finished_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    finished_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     final_agenda: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
-
 
 
 class WorkoutOccurrence(Base):
@@ -497,19 +530,25 @@ class WorkoutOccurrence(Base):
         ),
         ForeignKeyConstraint(
             ["first_set_id", "id", "owner_user_id"],
-            ["workout_sets.id", "workout_sets.occurrence_id",
-             "workout_sets.owner_user_id"],
+            [
+                "workout_sets.id",
+                "workout_sets.occurrence_id",
+                "workout_sets.owner_user_id",
+            ],
             name="fk_workout_occurrences_first_set",
             ondelete="NO ACTION",
             deferrable=True,
             initially="DEFERRED",
         ),
         UniqueConstraint(
-            "id", "session_id", "owner_user_id",
+            "id",
+            "session_id",
+            "owner_user_id",
             name="uq_workout_occurrences_identity_session_owner",
         ),
         UniqueConstraint(
-            "owner_user_id", "first_set_id",
+            "owner_user_id",
+            "first_set_id",
             name="uq_workout_occurrences_owner_first_set",
         ),
         Index("ix_workout_occurrences_owner_session", "owner_user_id", "session_id"),
@@ -555,20 +594,27 @@ class WorkoutSet(Base):
         ),
         ForeignKeyConstraint(
             ["occurrence_id", "session_id", "owner_user_id"],
-            ["workout_occurrences.id", "workout_occurrences.session_id",
-             "workout_occurrences.owner_user_id"],
+            [
+                "workout_occurrences.id",
+                "workout_occurrences.session_id",
+                "workout_occurrences.owner_user_id",
+            ],
             ondelete="RESTRICT",
         ),
         UniqueConstraint(
             "owner_user_id", "mutation_id", name="uq_workout_sets_owner_mutation"
         ),
         UniqueConstraint(
-            "id", "occurrence_id", "owner_user_id",
+            "id",
+            "occurrence_id",
+            "owner_user_id",
             name="uq_workout_sets_first_set_composite",
         ),
         Index(
             "ix_workout_sets_owner_occurrence_completed",
-            "owner_user_id", "occurrence_id", "completed_at",
+            "owner_user_id",
+            "occurrence_id",
+            "completed_at",
         ),
         ForeignKeyConstraint(
             ["machine_profile_id", "owner_user_id"],
@@ -578,8 +624,11 @@ class WorkoutSet(Base):
         ),
         ForeignKeyConstraint(
             ["machine_configuration_id", "machine_profile_id", "owner_user_id"],
-            ["machine_configurations.id", "machine_configurations.machine_profile_id",
-             "machine_configurations.owner_user_id"],
+            [
+                "machine_configurations.id",
+                "machine_configurations.machine_profile_id",
+                "machine_configurations.owner_user_id",
+            ],
             name="fk_workout_sets_machine_configuration_profile_owner",
             ondelete="RESTRICT",
         ),
@@ -610,7 +659,9 @@ class WorkoutSet(Base):
     machine_configuration_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True))
     machine_snapshot: Mapped[dict[str, object] | None] = mapped_column(JSONB)
     target_at_confirmation: Mapped[dict[str, object] | None] = mapped_column(JSONB)
-    completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    completed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
 
 
 class MachineProfile(Base):
@@ -639,7 +690,8 @@ class MachineProfile(Base):
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
     owner_user_id: Mapped[UUID] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("application_users.id", ondelete="RESTRICT"),
+        Uuid(as_uuid=True),
+        ForeignKey("application_users.id", ondelete="RESTRICT"),
         nullable=False,
     )
     nickname: Mapped[str] = mapped_column(String(120), nullable=False)
@@ -668,12 +720,15 @@ class MachineConfiguration(Base):
             ondelete="RESTRICT",
         ),
         UniqueConstraint(
-            "id", "machine_profile_id", "owner_user_id",
+            "id",
+            "machine_profile_id",
+            "owner_user_id",
             name="uq_machine_configurations_profile_owner",
         ),
         Index(
             "ix_machine_configurations_owner_profile",
-            "owner_user_id", "machine_profile_id",
+            "owner_user_id",
+            "machine_profile_id",
         ),
         CheckConstraint("length(trim(label)) > 0", name="label"),
         CheckConstraint(
@@ -694,6 +749,62 @@ class MachineConfiguration(Base):
     )
 
 
+class WorkoutExerciseNoteEvent(Base):
+    """Immutable owner-scoped exercise observation; supports append after FINISH."""
+
+    __tablename__ = "workout_exercise_note_events"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["occurrence_id", "session_id", "owner_user_id"],
+            [
+                "workout_occurrences.id",
+                "workout_occurrences.session_id",
+                "workout_occurrences.owner_user_id",
+            ],
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint("char_length(body) BETWEEN 1 AND 1000", name="body_length"),
+        Index(
+            "ix_workout_notes_owner_exercise_created",
+            "owner_user_id",
+            "canonical_exercise_id",
+            "created_at_utc",
+            "note_event_id",
+        ),
+        Index(
+            "ix_workout_notes_owner_session_created",
+            "owner_user_id",
+            "session_id",
+            "created_at_utc",
+            "note_event_id",
+        ),
+    )
+
+    note_event_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
+    owner_user_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("application_users.id", ondelete="RESTRICT"),
+        primary_key=True,
+    )
+    session_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    occurrence_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    canonical_exercise_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("catalog_exercises.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    body: Mapped[str] = mapped_column(String(1000), nullable=False)
+    created_at_utc: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    accepted_at_utc: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+
 class MachineMutationReceipt(Base):
     """Cross-session machine create retry receipt scoped by immutable owner."""
 
@@ -708,7 +819,8 @@ class MachineMutationReceipt(Base):
 
     mutation_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)
     owner_user_id: Mapped[UUID] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("application_users.id", ondelete="RESTRICT"),
+        Uuid(as_uuid=True),
+        ForeignKey("application_users.id", ondelete="RESTRICT"),
         primary_key=True,
     )
     entity_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
