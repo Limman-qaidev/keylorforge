@@ -951,7 +951,21 @@ def test_notes_v7_append_only_migration():
         "WHERE subject != ?", (owner,)
     ).fetchone()[0] == 0
     assert db.execute("PRAGMA user_version").fetchone()[0] == 7
-    print("PASS: v7 SQLite notes migration preserves append-only events")
+    db.executescript(sql(
+        "local-exercise-notes-sync-schema.ts", "LOCAL_WORKOUT_V8_MIGRATION_SQL"
+    ))
+    assert not db.execute("PRAGMA foreign_key_check").fetchall()
+    db.execute("PRAGMA user_version = 8")
+    db.commit()
+    assert db.execute(
+        "SELECT body, delivery_state FROM local_exercise_note_events "
+        "WHERE subject=? ORDER BY rowid", (owner,)
+    ).fetchall() == [
+        ("Primer comentario", "pending"),
+        ("Actualización posterior", "pending"),
+    ]
+    assert db.execute("PRAGMA user_version").fetchone()[0] == 8
+    print("PASS: v7 -> v8 retains original notes and backfills pending delivery")
 
 
 if __name__ == "__main__":
