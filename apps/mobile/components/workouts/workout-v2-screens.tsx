@@ -792,8 +792,9 @@ export function ExerciseNotesV2({
         onPress={onSave}
       />
       <Text style={styles.noteLocalWarning}>
-        Guardado local en este dispositivo. La sincronización de observaciones
-        con otros dispositivos está pendiente.
+        Las observaciones se guardan primero en este dispositivo. La entrega
+        al servidor se reintentará cuando exista conexión; los comentarios aún
+        pendientes pueden no aparecer en otros dispositivos.
       </Text>
     </ScrollView>
   );
