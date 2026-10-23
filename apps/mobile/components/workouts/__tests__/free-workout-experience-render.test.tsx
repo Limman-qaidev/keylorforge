@@ -232,7 +232,7 @@ describe('staged real Free Workout UI', () => {
       await user.type(await screen.findByLabelText('Cantidad realizada'), '8');
       await user.type(screen.getByLabelText('Carga total opcional'), '25');
       await user.press(screen.getByText('Confirmar serie'));
-      await screen.findByText(/1 series confirmadas/);
+      await screen.findByText(/1 serie confirmada/);
       expect(screen.getByText(/8 rep.*25 kg/)).toBeTruthy();
       await user.press(screen.getByText('Finalizar entrenamiento'));
       await waitFor(() => expect(endFreeWorkout).toHaveBeenCalledTimes(1));
