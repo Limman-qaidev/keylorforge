@@ -681,6 +681,7 @@ function FreeWorkoutSessionExperience({
           setRemoteNotes(cached);
         }
         try {
+          if (isolatedPreview) return; // QA preview never contacts a live account API.
           const fromServer = await fetchRemoteExerciseNotes(
             access, exercise.canonical_exercise_id,
           );
@@ -721,8 +722,8 @@ function FreeWorkoutSessionExperience({
         created_at_utc: new Date().toISOString(),
         body: text,
       });
-      // Notes are deliberately local until the API/outbox contract is approved.
-      // Do not rely on ordinary set-sync to deliver them.
+      // The local note is durable before the foreground coordinator attempts
+      // delivery. The confirmed-set outbox stays independent of note events.
       const [inSession, acrossSessions] = await Promise.all([
         readSessionExerciseNotes(db, access, note.sessionId),
         readCanonicalExerciseNotes(db, access, note.canonicalId),
