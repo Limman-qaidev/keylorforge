@@ -12,7 +12,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-    "test": "jest"
+    "test": "jest",
+    "test:security:deepmerge": "node scripts/test_deepmerge_security.cjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "57.0.14",
@@ -37,7 +38,7 @@
     "react-native-screens": "~4.26.0",
     "react-native-url-polyfill": "^2.0.0",
     "react-native-web": "^0.21.2",
-    "zod": "^4.3.6"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@emnapi/core": "^1.11.3",
@@ -52,5 +53,11 @@
     "prettier": "^3.6.2",
     "test-renderer": "^1.2.0",
     "typescript": "~6.0.3"
+  },
+  "overrides": {
+    "@expo/cli": {
+      "zod": "^4.6.7"
+    },
+    "deepmerge": "npm:@stackline/deepmerge@1.1.0"
   }
 }

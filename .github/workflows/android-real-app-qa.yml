@@ -1,10 +1,8 @@
 name: Android Real App QA APK (isolated)
 
+# Real QA APK builds are started only for physical device QA.
+# CI for code changes remains in mobile-ci.yml and security baseline.
 on:
-  pull_request:
-    paths:
-      - .github/workflows/android-real-app-qa.yml
-      - apps/mobile/**
   workflow_dispatch:
 
 permissions:
@@ -13,15 +11,8 @@ permissions:
 jobs:
   real-app-release:
     name: isolated-real-app-release
-    # Missing QA Supabase variables means SKIPPED, never a misleading build
-    # against placeholder credentials. Never expose variables to fork PRs.
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (
-        github.event.pull_request.head.repo.full_name == github.repository &&
-        vars.KEYLORFORGE_QA_SUPABASE_URL != '' &&
-        vars.KEYLORFORGE_QA_SUPABASE_PUBLISHABLE_KEY != ''
-      )
+    # Manual run only. Require valid QA credentials before building.
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'Limman-qaidev/keylorforge'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     defaults:
