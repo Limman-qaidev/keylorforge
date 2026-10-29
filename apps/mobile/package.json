@@ -13,7 +13,7 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "test:security:deepmerge": "node vendor/deepmerge/security.test.cjs"
+    "test:security:deepmerge": "node scripts/test_deepmerge_security.cjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "57.0.14",
@@ -58,6 +58,6 @@
     "@expo/cli": {
       "zod": "^4.6.7"
     },
-    "deepmerge": "file:./vendor/deepmerge"
+    "deepmerge": "npm:@stackline/deepmerge@1.1.0"
   }
 }
