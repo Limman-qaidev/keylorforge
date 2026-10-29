@@ -4,5 +4,3 @@ coverage/
 .npm-cache/
 package-lock.json
 AGENTS.md
-# Reviewed upstream source vendored with security patch
-vendor/deepmerge/
