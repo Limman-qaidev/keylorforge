@@ -12,7 +12,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-    "test": "jest"
+    "test": "jest",
+    "test:security:deepmerge": "node vendor/deepmerge/security.test.cjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "57.0.14",
@@ -52,5 +53,11 @@
     "prettier": "^3.6.2",
     "test-renderer": "^1.2.0",
     "typescript": "~6.0.3"
+  },
+  "overrides": {
+    "@expo/cli": {
+      "zod": "^4.6.7"
+    },
+    "deepmerge": "file:./vendor/deepmerge"
   }
 }
