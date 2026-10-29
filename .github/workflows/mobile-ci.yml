@@ -43,6 +43,9 @@ jobs:
       - name: Verify patched deepmerge against prototype poisoning
         run: npm run test:security:deepmerge
 
+      - name: Check Expo CLI configuration without compiling an APK
+        run: npx expo config --json > /dev/null
+
       - name: Check formatting
         run: npm run format:check
 
