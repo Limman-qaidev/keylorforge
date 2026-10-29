@@ -1,34 +1,33 @@
-# npm advisory remediation — 2026-10-29
+# Remediation of October 2026 dependency advisories
 
-## Scope and evidence
+## Scope
 
-Mobile dependency tree: `apps/mobile/package-lock.json`. Security gate: `.github/workflows/m3-security-baseline.yml`, using `npm audit --omit=dev --audit-level=high` followed by `apps/mobile/scripts/check_npm_advisory_allowlist.mjs`.
+The October 29 audit detected two previously unrecognized advisories in the Expo SDK 57 dependency tree. This PR changes their actual resolution while preserving the existing advisory gate. None of the five pre-existing accepted advisories is removed from the security report or added to the allowlist in this PR.
 
-| Package path | Locked before | Action | Residual exposure |
+| Dependency | Previous resolution | Proposed resolution | Validation |
 | --- | --- | --- | --- |
-| `node_modules/zod` | 4.3.6 | Update direct dependency and lock to **4.6.7** | The direct package is outside GHSA-mrhx-c7xc-m3w5's affected range (< 4.6.6); validate functional compatibility in CI. |
-| `node_modules/expo/node_modules/zod` | 3.25.76 | No forced change | **Unresolved high-severity advisory** GHSA-mrhx-c7xc-m3w5. Expo SDK 57's `@expo/cli` currently requires `zod ^3.25.76`. |
-| `node_modules/deepmerge` | 4.3.1 | No forced change | **Unresolved advisory** GHSA-gcqx-w48m-w2h4; upstream advisory reports no patched version. Transitive consumers include `@expo/config` and `jest-config`. |
+| Direct Zod | zod@4.3.6 | zod@4.6.7 | Addresses GHSA-mrhx-c7xc-m3w5 (patched >=4.6.6) |
+| Expo CLI Zod | zod@3.25.76 | zod@4.6.7 via narrowly scoped npm override | Verify Expo CLI compatibility, full CI, and Android QA APK build; upstream SDK 57 backport still open |
+| deepmerge in @expo/config and jest-config | deepmerge@4.3.1 | deepmerge npm alias to @stackline/deepmerge@1.1.0 | Drop-in CommonJS API; custom prototype-poisoning regression suite and full CI required |
 
-## Advisory and upstream references
+## Source and security rationale
 
-- https://github.com/advisories/GHSA-mrhx-c7xc-m3w5 (Zod, versions below 4.6.6 affected).
-- https://github.com/advisories/GHSA-gcqx-w48m-w2h4 (deepmerge, affected 4.2.0–4.3.1; no fixed release as of 2026-10-29).
-- https://github.com/expo/expo/pull/52316 (proposed SDK 57 CLI Zod 4 backport, **not yet merged or published** as of 2026-10-29).
+- Zod: https://github.com/advisories/GHSA-mrhx-c7xc-m3w5 (4.6.6+ unaffected per the advisory). This does not automatically prove unbounded arrays safe; continue to constrain untrusted input sizes.
+- deepmerge: https://github.com/advisories/GHSA-gcqx-w48m-w2h4 (no patched upstream version as of 2026-10-29). Alternate published package: https://www.npmjs.com/package/@stackline/deepmerge . Pin exactly v1.1.0, test API behavior, and retain npm lock integrity.
+- Expo SDK 57 upstream Zod 4 adoption: https://github.com/expo/expo/pull/52316 (not merged as of 2026-10-29). Forcing Zod 4 may introduce compatibility regressions; require independent CI and isolated APK build. Do not assume the upstream backport has been released.
 
-## Risk and deployment notes
+## Supply-chain consideration
 
-- `@expo/cli` and `@expo/config` are build/configuration tools in the mobile npm installation; `npm audit --omit=dev` still reports them because Expo lists these as runtime dependencies. This **does not prove exploitability in the shipped Android binary**, nor does it eliminate build-system risk.
-- Zod memory exhaustion requires input that triggers large-scale validation failures. Review schemas that process externally controlled collections; enforce sensible input-size bounds at transport boundaries.
-- Deepmerge prototype poisoning depends on attacker-controlled objects reaching affected merge operations. Trace actual data flows before claiming exposure is negligible.
-- **No security checks or allowlist entries have been weakened or added.** The npm security gate should remain failing until remaining issues are remediated or a separate explicit, time-bounded, evidence-backed risk acceptance is authorized.
-- Avoid `npm audit fix --force`, global `zod` overrides, or upgrading Expo SDK major versions without compatibility testing. No Android data, local SQLite, offline outbox, or authentication state may be cleared to test the package change.
-- The existing advisory allowlist script refers to GitHub issue #143, which is unrelated to these package advisories. Track this documentation-link mismatch separately; it is not part of the current dependency change.
+`@stackline/deepmerge` is a separate third-party maintainer's code, not an upstream patch; npm alias replacement introduces a new supply-chain dependency. This change is acceptable only when installation provenance, exact lock integrity, regression tests, and PR reviews are inspected and successful. Before production release, consider a first-party maintained fork and independent audit of the substitute's implementation.
 
-## Acceptance criteria
+## Gates
 
-1. `package.json` and `package-lock.json` agree on direct Zod 4.6.7.
-2. `npm ci` completes from the committed lockfile.
-3. Mobile lint, typecheck, and unit tests pass, including offline and persistence tests.
-4. The security scan does not show any **new** findings caused by the change; the two known transitive advisory identifiers remain visible and blocking.
-5. No merge until CI, remaining risk decisions, and Product Owner approval are resolved.
+1. `npm ci` must install from the committed lockfile on a clean runner.
+2. `npm ls zod deepmerge --all` must show Zod >= 4.6.6 everywhere and no vulnerable `deepmerge@4.3.1` node.
+3. Run `npm run test:security:deepmerge` against the **installed replacement**, not a detached vendor copy.
+4. `npm audit --omit=dev` may report the previously documented advisory debt, but `check_npm_advisory_allowlist.mjs` must reject every new unaccepted advisory and any critical advisory, unchanged.
+5. All backend, mobile, security, DB migration, and isolated Android build checks must pass.
+6. Codex review should be clear and no errors should be hidden or baseline thresholds relaxed.
+7. Remove the temporary lockfile workflow from the PR before merge, and rerun checks on the **final** commit.
+
+No installed Android application, SQLite store, active session, offline outbox, or existing PostgreSQL QA state may be cleared or reset as part of this task.
