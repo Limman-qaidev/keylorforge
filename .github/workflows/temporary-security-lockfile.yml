@@ -1,0 +1,37 @@
+# TEMPORARY: regenerate and validate npm lockfile for the security patch branch.
+# Remove before merge. Only this exact repository/branch can push.
+name: Security lockfile regeneration TEMP
+
+on:
+  push:
+    branches:
+      - fix/security-zod-20261029
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate-lockfile:
+    if: github.repository == 'Limman-qaidev/keylorforge' && github.ref == 'refs/heads/fix/security-zod-20261029'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.14.0'
+      - name: Regenerate deterministic package lock from declared overrides
+        working-directory: apps/mobile
+        run: |
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run test:security:deepmerge
+          npm ls zod deepmerge --all || true
+      - name: Commit generated lockfile to security branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if ! git diff --quiet -- apps/mobile/package-lock.json; then
+            git add apps/mobile/package-lock.json
+            git commit -m 'build(security): regenerate lockfile for patched vendor dependencies'
+            git push origin HEAD:fix/security-zod-20261029
+          fi
