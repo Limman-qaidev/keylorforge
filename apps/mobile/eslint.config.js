@@ -4,6 +4,6 @@ const expoConfig = require('eslint-config-expo/flat');
 module.exports = defineConfig([
   expoConfig,
   {
-    ignores: ['.expo/', 'node_modules/', 'coverage/'],
+    ignores: ['.expo/', 'node_modules/', 'coverage/', 'vendor/deepmerge/'],
   },
 ]);
