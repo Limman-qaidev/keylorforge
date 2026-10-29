@@ -1,3 +1,5 @@
+# Controlled Claude Code integration: only explicit @claude requests run the agent.
+# Never auto-merge or modify Android QA installations.
 name: Claude Code
 
 on:
