@@ -22,8 +22,9 @@ jobs:
       - name: Regenerate deterministic package lock from declared overrides
         working-directory: apps/mobile
         run: |
-          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-          npm ci --ignore-scripts --no-audit --no-fund
+          npm install --package-lock-only --install-links --ignore-scripts --no-audit --no-fund
+          node -e "let p=require('./package-lock.json');for(let k of Object.keys(p.packages)){if(k.includes('deepmerge')||k.endsWith('/zod'))console.log(k,JSON.stringify(p.packages[k]).slice(0,450))}"
+          npm ci --install-links --ignore-scripts --no-audit --no-fund
           npm run test:security:deepmerge
           npm ls zod deepmerge --all || true
       - name: Commit generated lockfile to security branch
