@@ -33,7 +33,8 @@ jobs:
           node -e "let p=require('./package-lock.json');for(let k of Object.keys(p.packages)){if(k.includes('deepmerge')||k.endsWith('/zod'))console.log(k,JSON.stringify(p.packages[k]).slice(0,450))}"
           npm ci --install-links --ignore-scripts --no-audit --no-fund
           npm run test:security:deepmerge
-          npm ls zod deepmerge --all || true
+          npm ls zod deepmerge --all
+          npm audit --omit=dev --audit-level=high
       - name: Commit generated lockfile to security branch
         run: |
           git config user.name 'github-actions[bot]'
