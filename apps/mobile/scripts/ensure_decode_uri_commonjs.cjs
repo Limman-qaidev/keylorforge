@@ -15,7 +15,12 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const packageDirectory = path.join(__dirname, '..', 'node_modules', 'decode-uri-component');
+const packageDirectory = path.join(
+  __dirname,
+  '..',
+  'node_modules',
+  'decode-uri-component',
+);
 const packagePath = path.join(packageDirectory, 'package.json');
 const indexPath = path.join(packageDirectory, 'index.js');
 const metadata = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
@@ -25,13 +30,17 @@ if (
   metadata.version !== '0.5.1' ||
   metadata.exports?.default !== './index.js'
 ) {
-  throw new Error('Unexpected decode-uri-component package: refusing compatibility change');
+  throw new Error(
+    'Unexpected decode-uri-component package: refusing compatibility change',
+  );
 }
 
 const source = fs.readFileSync(indexPath, 'utf8');
 const original = 'export default function decodeUriComponent(encodedURI) {';
-const replacement = 'module.exports = function decodeUriComponent(encodedURI) {';
-const alreadyPatched = metadata.type === 'commonjs' && source.includes(replacement);
+const replacement =
+  'module.exports = function decodeUriComponent(encodedURI) {';
+const alreadyPatched =
+  metadata.type === 'commonjs' && source.includes(replacement);
 
 if (!alreadyPatched) {
   if (
@@ -39,7 +48,9 @@ if (!alreadyPatched) {
     source.split(original).length !== 2 ||
     !source.includes('return input.replace(multiMatcher, run => decode(run));')
   ) {
-    throw new Error('Unexpected decode-uri-component source: refusing compatibility change');
+    throw new Error(
+      'Unexpected decode-uri-component source: refusing compatibility change',
+    );
   }
 
   fs.writeFileSync(indexPath, source.replace(original, replacement));
