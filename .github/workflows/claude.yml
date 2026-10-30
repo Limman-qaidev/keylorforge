@@ -23,11 +23,11 @@ jobs:
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude'))))
     runs-on: ubuntu-latest
     permissions:
-      # Write is permitted only for events initiated by the repository owner.
-      # Required to publish Claude's branch, PR and issue progress.
-      contents: write
-      pull-requests: write
-      issues: write
+      # Claude Code Action obtains its own scoped GitHub App token via OIDC.
+      # Avoid unnecessary elevated permissions for the job GITHUB_TOKEN.
+      contents: read
+      pull-requests: read
+      issues: read
       id-token: write
       actions: read # Required for Claude to read CI results on PRs
     steps:
@@ -43,6 +43,8 @@ jobs:
         uses: anthropics/claude-code-action@d70510b174a1244958df0b03166a54912811f3e6 # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # The action's setupBranch otherwise switches back to main.
+          base_branch: ${{ (github.event.issue.number == 179 && 'feat/m3-ux-v2-dark-active-workout') || github.event.repository.default_branch }}
 
           # This is an optional setting that allows Claude to read CI results on PRs
           additional_permissions: |
