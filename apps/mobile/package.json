@@ -13,7 +13,8 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "test:security:deepmerge": "node scripts/test_deepmerge_security.cjs"
+    "test:security:deepmerge": "node scripts/test_deepmerge_security.cjs",
+    "postinstall": "node scripts/ensure_decode_uri_commonjs.cjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "57.0.14",
@@ -58,6 +59,7 @@
     "@expo/cli": {
       "zod": "^4.6.7"
     },
-    "deepmerge": "npm:@stackline/deepmerge@1.1.0"
+    "deepmerge": "npm:@stackline/deepmerge@1.1.0",
+    "decode-uri-component": "0.5.1"
   }
 }

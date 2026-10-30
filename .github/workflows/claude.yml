@@ -1,4 +1,4 @@
-# Controlled Claude Code integration: only explicit @claude requests run the agent.
+# Controlled Claude Code integration: only explicit trusted-owner @claude requests run the agent.
 # Never auto-merge or modify Android QA installations.
 name: Claude Code
 
@@ -15,12 +15,16 @@ on:
 jobs:
   claude:
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      github.repository == 'Limman-qaidev/keylorforge' &&
+      github.actor == 'Limman-qaidev' &&
+      ((github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude'))))
     runs-on: ubuntu-latest
     permissions:
+      # Claude Code Action obtains its own scoped GitHub App token via OIDC.
+      # Avoid unnecessary elevated permissions for the job GITHUB_TOKEN.
       contents: read
       pull-requests: read
       issues: read
@@ -30,6 +34,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
+          # Issue #179 is stacked on PR #174; never default its changes to main.
+          ref: ${{ (github.event.issue.number == 179 && 'feat/m3-ux-v2-dark-active-workout') || github.event.repository.default_branch }}
           fetch-depth: 1
 
       - name: Run Claude Code
@@ -37,6 +43,8 @@ jobs:
         uses: anthropics/claude-code-action@d70510b174a1244958df0b03166a54912811f3e6 # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # The action's setupBranch otherwise switches back to main.
+          base_branch: ${{ (github.event.issue.number == 179 && 'feat/m3-ux-v2-dark-active-workout') || github.event.repository.default_branch }}
 
           # This is an optional setting that allows Claude to read CI results on PRs
           additional_permissions: |
