@@ -3,15 +3,7 @@ name: Android Real App QA APK (isolated)
 # Real QA APK builds are started only for physical device QA.
 # CI for code changes remains in mobile-ci.yml and security baseline.
 on:
-  # Cancellation-only PR event: job is strictly gated to manual dispatch below.
-  pull_request:
-    paths:
-      - .github/workflows/android-real-app-qa.yml
   workflow_dispatch:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
 
 permissions:
   contents: read
