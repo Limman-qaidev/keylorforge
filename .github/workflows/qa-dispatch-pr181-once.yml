@@ -1,0 +1,56 @@
+# One-off orchestration for the Product Owner's explicitly approved QA build.
+# Isolated to this branch and this new file; NO automatic APK build on PRs.
+name: One-off QA request for PR 181
+on:
+  push:
+    branches:
+      - qa/dispatch-pr181-793689d-20261030
+    paths:
+      - .github/workflows/qa-dispatch-pr181-once.yml
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  dispatch-approved-qa:
+    if: >-
+      github.repository == 'Limman-qaidev/keylorforge' &&
+      github.actor == 'Limman-qaidev' &&
+      github.ref == 'refs/heads/qa/dispatch-pr181-793689d-20261030'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: Limman-qaidev/keylorforge
+      EXPECTED_HEAD: 793689d0f390640af46651e4d7fbb2be6d4c4c1c
+      BUILD_BRANCH: claude/issue-179-20261030-0807
+    steps:
+      - name: Verify target PR 181 and pinned code before dispatch
+        shell: bash
+        run: |
+          set -euo pipefail
+          pr=$(gh api "repos/$GH_REPO/pulls/181")
+          test "$(jq -r .state <<< "$pr")" = "open"
+          test "$(jq -r .base.ref <<< "$pr")" = "feat/m3-ux-v2-dark-active-workout"
+          test "$(jq -r .head.ref <<< "$pr")" = "$BUILD_BRANCH"
+          test "$(jq -r .head.sha <<< "$pr")" = "$EXPECTED_HEAD"
+          echo "PR 181 verified at pinned reviewed SHA $EXPECTED_HEAD"
+
+      - name: Confirm real QA APK workflow on main remains dispatch-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/$GH_REPO/contents/.github/workflows/android-real-app-qa.yml?ref=main" --jq .content | base64 --decode > /tmp/qa-build.yml
+          grep -q '^  workflow_dispatch:' /tmp/qa-build.yml
+          if grep -Eq '^  (push|pull_request|issue_comment|workflow_run|schedule):' /tmp/qa-build.yml; then
+            echo "::error::QA build workflow has an automated trigger; refusing dispatch"
+            exit 1
+          fi
+
+      - name: Dispatch the single approved manual real QA APK build
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run android-real-app-qa.yml --repo "$GH_REPO" --ref "$BUILD_BRANCH"
+          echo "Approved manual QA build requested for $BUILD_BRANCH at $EXPECTED_HEAD"
