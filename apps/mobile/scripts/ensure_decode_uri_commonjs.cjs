@@ -16,8 +16,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const packageDirectory = path.join(
-  __dirname,
-  '..',
+  process.cwd(),
   'node_modules',
   'decode-uri-component',
 );
