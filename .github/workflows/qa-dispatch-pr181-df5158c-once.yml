@@ -1,0 +1,56 @@
+# One-shot owner-authorized orchestration; DELETE after dispatch completes.
+# It never builds Android itself and does not modify the QA build workflow.
+name: One-time approved PR181 QA build df5158c
+on:
+  push:
+    branches:
+      - qa/dispatch-pr181-df5158c-20261030
+    paths:
+      - .github/workflows/qa-dispatch-pr181-df5158c-once.yml
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  dispatch-verified-real-qa:
+    if: >-
+      github.repository == 'Limman-qaidev/keylorforge' &&
+      github.actor == 'Limman-qaidev' &&
+      github.ref == 'refs/heads/qa/dispatch-pr181-df5158c-20261030'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: Limman-qaidev/keylorforge
+      EXPECTED_SHA: df5158c868f3113bd4f821a074960cb3cd060cc7
+      TARGET_BRANCH: claude/issue-179-20261030-0807
+    steps:
+      - name: Check exact PR and reviewed commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          pr=$(gh api "repos/$GH_REPO/pulls/181")
+          test "$(jq -r .state <<< "$pr")" = "open"
+          test "$(jq -r .merged <<< "$pr")" = "false"
+          test "$(jq -r .base.ref <<< "$pr")" = "feat/m3-ux-v2-dark-active-workout"
+          test "$(jq -r .head.ref <<< "$pr")" = "$TARGET_BRANCH"
+          test "$(jq -r .head.sha <<< "$pr")" = "$EXPECTED_SHA"
+
+      - name: Verify build workflow is ONLY manually triggered
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/$GH_REPO/contents/.github/workflows/android-real-app-qa.yml?ref=main" --jq .content | base64 --decode > /tmp/android-qa.yml
+          grep -q '^  workflow_dispatch:' /tmp/android-qa.yml
+          if grep -Eq '^  (push|pull_request|issue_comment|workflow_run|schedule):' /tmp/android-qa.yml; then
+            echo "::error::Automated APK trigger found; refusing"
+            exit 1
+          fi
+
+      - name: Launch the one PO-authorized GitHub manual QA build
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run android-real-app-qa.yml --repo "$GH_REPO" --ref "$TARGET_BRANCH"
+          echo "Requested exactly one manually dispatched APK build on $EXPECTED_SHA"
