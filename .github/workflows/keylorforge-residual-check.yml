@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - feat/m3-ux-v2-dark-active-workout
       - feat/m3-mob-010-local-finish-schema
       - feat/m3-mob-012-remote-history-readmodel
       - feat/m3-mob-013-unified-history-readmodel
