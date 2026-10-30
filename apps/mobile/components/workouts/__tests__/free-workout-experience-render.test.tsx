@@ -243,6 +243,8 @@ describe('staged real Free Workout UI', () => {
       await user.press(screen.getByText('Confirmar serie'));
       await screen.findByText(/1 serie confirmada/);
       expect(screen.getByText(/8 rep.*25 kg/)).toBeTruthy();
+      await user.press(screen.getByText('‹ Terminar ejercicio'));
+      await screen.findByText('Entrenamiento activo');
       await user.press(screen.getByText('Finalizar entrenamiento'));
       await waitFor(() => expect(endFreeWorkout).toHaveBeenCalledTimes(1));
       await screen.findByText('Historial');
@@ -490,7 +492,7 @@ describe('staged real Free Workout UI', () => {
     expect(screen.getByLabelText('Carga total opcional').props.value).toBe(
       '25',
     );
-    await user.press(screen.getByText('Confirmar serie'));
+    await user.press(screen.getByText('Confirmar otra serie'));
     await waitFor(() =>
       expect(recordFreeWorkoutSet).toHaveBeenCalledWith(
         expect.anything(),
@@ -536,8 +538,14 @@ describe('staged real Free Workout UI', () => {
         },
       ],
     });
-    const first = setOf('1b428bd6-781d-44ec-8609-57af594a5511', '2026-10-09T15:00:00.000Z');
-    const second = setOf('2b428bd6-781d-44ec-8609-57af594a5512', '2026-10-09T15:01:00.000Z');
+    const first = setOf(
+      '1b428bd6-781d-44ec-8609-57af594a5511',
+      '2026-10-09T15:00:00.000Z',
+    );
+    const second = setOf(
+      '2b428bd6-781d-44ec-8609-57af594a5512',
+      '2026-10-09T15:01:00.000Z',
+    );
     jest
       .mocked(readActiveFreeWorkoutOverview)
       .mockResolvedValueOnce(overviewWith([]))
@@ -553,7 +561,9 @@ describe('staged real Free Workout UI', () => {
     expect(screen.queryByText('CATÁLOGO CANÓNICO')).toBeNull();
     expect(screen.getByLabelText('Cantidad realizada').props.value).toBe('8');
 
-    jest.mocked(readActiveFreeWorkoutOverview).mockResolvedValue(overviewWith([first, second]));
+    jest
+      .mocked(readActiveFreeWorkoutOverview)
+      .mockResolvedValue(overviewWith([first, second]));
     await user.press(screen.getByText('Confirmar otra serie'));
     expect(await screen.findByText(/Serie 2 · 8 rep/)).toBeTruthy();
     expect(screen.getByText(/Serie 1 · 8 rep/)).toBeTruthy();
