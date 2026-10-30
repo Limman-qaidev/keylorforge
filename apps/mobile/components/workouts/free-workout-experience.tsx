@@ -535,9 +535,9 @@ function FreeWorkoutSessionExperience({
         deviceWorkoutClock,
         request,
       );
-      // Keep exercise context. The engine reuses its canonical occurrence.
-      // Returning to the active workout does not reopen the catalogue.
-      setMode('catalogue');
+      // Stay in the same exercise form: the engine reuses the canonical
+      // occurrence, the form keeps its values as an editable prefill and the
+      // rest countdown derives from the durable timestamp after reload.
     });
   };
 
@@ -777,6 +777,15 @@ function FreeWorkoutSessionExperience({
   const choose = (
     exercise: Pick<ExerciseDetail, 'id' | 'name' | 'measurement_type'>,
   ) => {
+    // An exercise already in this session is resumed with its own sets.
+    const existing = overview?.exercises.find(
+      (item) =>
+        item.canonical_exercise_id === exercise.id && item.sets.length > 0,
+    );
+    if (existing) {
+      addSetToExercise(existing);
+      return;
+    }
     const requestId = ++selectionRequest.current;
     const selectedSubject = subjectRef.current;
     setFocusedExerciseId(exercise.id);
@@ -907,6 +916,13 @@ function FreeWorkoutSessionExperience({
         busy={busy}
         error={error}
         onConfirm={confirmSet}
+        confirmedSets={
+          overview?.exercises.find(
+            (item) => item.canonical_exercise_id === chosen.id,
+          )?.sets ?? []
+        }
+        restRemainingSeconds={remainingRest}
+        onRestDismiss={dismissRest}
         onBack={() => setMode('catalogue')}
       />
     );

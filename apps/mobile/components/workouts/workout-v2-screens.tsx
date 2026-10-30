@@ -525,9 +525,15 @@ export function RegisterSetV2({
   busy,
   error,
   onConfirm,
+  confirmedSets = [],
+  restRemainingSeconds = 0,
+  onRestDismiss,
   onBack,
 }: {
   chosen: Pick<ExerciseDetail, 'id' | 'name' | 'measurement_type'>;
+  confirmedSets?: ActiveSetSummary[];
+  restRemainingSeconds?: number;
+  onRestDismiss?: () => void;
   previousPerformance?: LastExercisePerformance | null;
   previousLookupError?: boolean;
   role: Role;
@@ -546,6 +552,8 @@ export function RegisterSetV2({
   onBack: () => void;
 }) {
   const measurement = chosen.measurement_type;
+  const hasConfirmed = confirmedSets.length > 0;
+  const restClock = `${String(Math.floor(restRemainingSeconds / 60)).padStart(2, '0')}:${String(restRemainingSeconds % 60).padStart(2, '0')}`;
   return (
     <ScrollView
       keyboardShouldPersistTaps="handled"
@@ -559,7 +567,9 @@ export function RegisterSetV2({
         onPress={onBack}
         style={styles.setBack}
       >
-        <Text style={styles.setBackText}>‹ Volver sin guardar</Text>
+        <Text style={styles.setBackText}>
+          {hasConfirmed ? '‹ Terminar ejercicio' : '‹ Volver sin guardar'}
+        </Text>
       </Pressable>
       <Text style={styles.brandEyebrowDark}>REGISTRAR SERIE</Text>
       <Text accessibilityRole="header" style={styles.setExerciseTitle}>
@@ -568,6 +578,44 @@ export function RegisterSetV2({
       <Text style={styles.subtitleDark}>
         Confirma cada serie para guardarla.
       </Text>
+      {hasConfirmed ? (
+        <View style={styles.lastWorkoutPanel}>
+          <Text style={styles.lastWorkoutEyebrow}>SERIES CONFIRMADAS</Text>
+          {confirmedSets.map((item, index) => (
+            <Text key={item.set_id} style={styles.lastWorkoutValue}>
+              {`Serie ${index + 1} · ${item.set_role === 'WARMUP' ? 'Calentamiento · ' : ''}${
+                item.measurement_type === 'reps'
+                  ? `${item.reps} rep`
+                  : item.measurement_type === 'time'
+                    ? `${item.duration_seconds} s`
+                    : `${item.distance_decimal} ${item.distance_unit}`
+              }${item.load_decimal !== null ? ` · ${item.load_decimal} ${item.load_unit}` : ''}`}
+            </Text>
+          ))}
+        </View>
+      ) : null}
+      {restRemainingSeconds > 0 ? (
+        <View style={styles.restBox}>
+          <View style={styles.restHead}>
+            <View>
+              <Text style={styles.restEyebrow}>DESCANSO</Text>
+              <Text accessibilityRole="timer" style={styles.restCountdown}>
+                {restClock}
+              </Text>
+            </View>
+            {onRestDismiss ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Omitir descanso"
+                onPress={onRestDismiss}
+                style={styles.restDismiss}
+              >
+                <Text style={styles.restDismissText}>Omitir</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
       {previousPerformance ? (
         <View style={styles.lastWorkoutPanel}>
           <Text style={styles.lastWorkoutEyebrow}>
@@ -696,7 +744,13 @@ export function RegisterSetV2({
         </Text>
       ) : null}
       <Action
-        label={busy ? 'Guardando…' : 'Confirmar serie'}
+        label={
+          busy
+            ? 'Guardando…'
+            : hasConfirmed
+              ? 'Confirmar otra serie'
+              : 'Confirmar serie'
+        }
         onPress={onConfirm}
         disabled={busy}
       />
