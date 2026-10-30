@@ -15,6 +15,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { ExerciseDetail } from '@/lib/exercises/catalog-api';
 import type { LastExercisePerformance } from '@/lib/workouts/last-exercise-performance';
@@ -44,7 +45,7 @@ function Action({
   label: string;
   onPress: () => void;
   disabled?: boolean;
-  variant?: 'primary' | 'dark' | 'light' | 'subtle' | 'danger';
+  variant?: 'primary' | 'dark' | 'light' | 'subtle' | 'danger' | 'outline';
 }) {
   return (
     <Pressable
@@ -58,6 +59,7 @@ function Action({
         variant === 'light' && styles.actionLight,
         variant === 'subtle' && styles.actionSubtle,
         variant === 'danger' && styles.actionDanger,
+        variant === 'outline' && styles.actionOutline,
         disabled && styles.disabled,
       ]}
     >
@@ -67,6 +69,7 @@ function Action({
           (variant === 'light' || variant === 'subtle') &&
             styles.actionTextLight,
           variant === 'danger' && styles.actionTextDanger,
+          variant === 'outline' && styles.actionTextOutline,
         ]}
       >
         {label}
@@ -525,9 +528,15 @@ export function RegisterSetV2({
   busy,
   error,
   onConfirm,
+  confirmedSets = [],
+  restRemainingSeconds = 0,
+  onRestDismiss,
   onBack,
 }: {
   chosen: Pick<ExerciseDetail, 'id' | 'name' | 'measurement_type'>;
+  confirmedSets?: ActiveSetSummary[];
+  restRemainingSeconds?: number;
+  onRestDismiss?: () => void;
   previousPerformance?: LastExercisePerformance | null;
   previousLookupError?: boolean;
   role: Role;
@@ -546,21 +555,25 @@ export function RegisterSetV2({
   onBack: () => void;
 }) {
   const measurement = chosen.measurement_type;
-  return (
+  const hasConfirmed = confirmedSets.length > 0;
+  const restClock = `${String(Math.floor(restRemainingSeconds / 60)).padStart(2, '0')}:${String(restRemainingSeconds % 60).padStart(2, '0')}`;
+  const form = (
     <ScrollView
       keyboardShouldPersistTaps="handled"
       style={styles.darkRoot}
       contentContainerStyle={styles.setPage}
     >
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ disabled: busy }}
-        disabled={busy}
-        onPress={onBack}
-        style={styles.setBack}
-      >
-        <Text style={styles.setBackText}>‹ Volver sin guardar</Text>
-      </Pressable>
+      {hasConfirmed ? null : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: busy }}
+          disabled={busy}
+          onPress={onBack}
+          style={styles.setBack}
+        >
+          <Text style={styles.setBackText}>‹ Volver sin guardar</Text>
+        </Pressable>
+      )}
       <Text style={styles.brandEyebrowDark}>REGISTRAR SERIE</Text>
       <Text accessibilityRole="header" style={styles.setExerciseTitle}>
         {chosen.name}
@@ -568,6 +581,44 @@ export function RegisterSetV2({
       <Text style={styles.subtitleDark}>
         Confirma cada serie para guardarla.
       </Text>
+      {hasConfirmed ? (
+        <View style={styles.lastWorkoutPanel}>
+          <Text style={styles.lastWorkoutEyebrow}>SERIES CONFIRMADAS</Text>
+          {confirmedSets.map((item, index) => (
+            <Text key={item.set_id} style={styles.lastWorkoutValue}>
+              {`Serie ${index + 1} · ${item.set_role === 'WARMUP' ? 'Calentamiento · ' : ''}${
+                item.measurement_type === 'reps'
+                  ? `${item.reps} rep`
+                  : item.measurement_type === 'time'
+                    ? `${item.duration_seconds} s`
+                    : `${item.distance_decimal} ${item.distance_unit}`
+              }${item.load_decimal !== null ? ` · ${item.load_decimal} ${item.load_unit}` : ''}`}
+            </Text>
+          ))}
+        </View>
+      ) : null}
+      {restRemainingSeconds > 0 ? (
+        <View style={styles.restBox}>
+          <View style={styles.restHead}>
+            <View>
+              <Text style={styles.restEyebrow}>DESCANSO</Text>
+              <Text accessibilityRole="timer" style={styles.restCountdown}>
+                {restClock}
+              </Text>
+            </View>
+            {onRestDismiss ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Omitir descanso"
+                onPress={onRestDismiss}
+                style={styles.restDismiss}
+              >
+                <Text style={styles.restDismissText}>Omitir</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
       {previousPerformance ? (
         <View style={styles.lastWorkoutPanel}>
           <Text style={styles.lastWorkoutEyebrow}>
@@ -695,12 +746,37 @@ export function RegisterSetV2({
           {error}
         </Text>
       ) : null}
-      <Action
-        label={busy ? 'Guardando…' : 'Confirmar serie'}
-        onPress={onConfirm}
-        disabled={busy}
-      />
     </ScrollView>
+  );
+  return (
+    <View style={styles.darkRoot}>
+      {form}
+      <SafeAreaView
+        edges={['bottom']}
+        style={styles.setFooter}
+        testID="register-set-footer"
+      >
+        <Action
+          label={
+            busy
+              ? 'Guardando…'
+              : hasConfirmed
+                ? 'Confirmar otra serie'
+                : 'Confirmar serie'
+          }
+          onPress={onConfirm}
+          disabled={busy}
+        />
+        {hasConfirmed ? (
+          <Action
+            label="Terminar ejercicio"
+            variant="outline"
+            onPress={onBack}
+            disabled={busy}
+          />
+        ) : null}
+      </SafeAreaView>
+    </View>
   );
 }
 
@@ -1267,7 +1343,7 @@ const styles = StyleSheet.create({
   },
   darkRoot: { flex: 1, backgroundColor: '#061524' },
   darkPage: { padding: 20, paddingBottom: 110, gap: 12, minHeight: '100%' },
-  setPage: { padding: 20, paddingBottom: 120, gap: 10 },
+  setPage: { padding: 20, paddingBottom: 24, gap: 10 },
   setBack: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' },
   setBackText: { color: '#9FB1C4', fontSize: 14, fontWeight: '800' },
   workoutSecondaryActions: {
@@ -1384,6 +1460,22 @@ const styles = StyleSheet.create({
   actionLight: { backgroundColor: '#EAF2FF' },
   actionSubtle: { backgroundColor: '#E3EAF2' },
   actionDanger: { backgroundColor: '#311D31' },
+  actionOutline: {
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: '#AFC7D9',
+    minHeight: 48,
+  },
+  actionTextOutline: { color: '#E6F0FA' },
+  setFooter: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 16,
+    gap: 8,
+    backgroundColor: '#061524',
+    borderTopWidth: 1,
+    borderTopColor: '#193750',
+  },
   actionText: { fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
   actionTextLight: { color: '#075BFF' },
   actionTextDanger: { color: '#FFC2C2' },

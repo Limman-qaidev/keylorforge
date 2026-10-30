@@ -1,0 +1,36 @@
+/**
+ * The Expo Router navigation stack uses CJS query-string@7.
+ * Verify the audited URI decoder still satisfies its callable CJS interface.
+ * A Jest transform-only fix would mask this real runtime compatibility issue.
+ */
+const queryString = jest.requireActual('query-string') as {
+  parse: (input: string) => Record<string, string | string[] | null>;
+  stringify: (input: Record<string, string | string[]>) => string;
+};
+const decodeComponent = jest.requireActual('decode-uri-component') as (
+  input: string,
+) => string;
+
+describe('secure CommonJS URI decoder used by Expo Router', () => {
+  it('exports a callable CJS decoder for valid and malformed Unicode', () => {
+    expect(typeof decodeComponent).toBe('function');
+    expect(decodeComponent('m%C3%BAsculo')).toBe('músculo');
+    expect(decodeComponent('%zz')).toBe('%zz');
+  });
+
+  it('parses and stringifies Unicode, repeated keys and spaces', () => {
+    const parsed = queryString.parse(
+      'exercise=press%20banca&name=m%C3%BAsculo&set=1&set=2',
+    );
+    expect(parsed.exercise).toBe('press banca');
+    expect(parsed.name).toBe('músculo');
+    expect(parsed.set).toEqual(['1', '2']);
+    expect(queryString.stringify({ exercise: 'press banca' })).toBe(
+      'exercise=press%20banca',
+    );
+  });
+
+  it('handles invalid percent escapes through query-string', () => {
+    expect(queryString.parse('bad=%zz').bad).toBe('%zz');
+  });
+});

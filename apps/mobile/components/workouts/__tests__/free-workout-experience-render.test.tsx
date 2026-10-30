@@ -1,4 +1,10 @@
-import { act, render, userEvent, waitFor } from '@testing-library/react-native';
+import {
+  act,
+  render,
+  userEvent,
+  waitFor,
+  within,
+} from '@testing-library/react-native';
 import { Alert, StyleSheet } from 'react-native';
 
 import { FreeWorkoutExperience } from '../free-workout-experience';
@@ -241,6 +247,12 @@ describe('staged real Free Workout UI', () => {
       await user.type(await screen.findByLabelText('Cantidad realizada'), '8');
       await user.type(screen.getByLabelText('Carga total opcional'), '25');
       await user.press(screen.getByText('Confirmar serie'));
+      await screen.findByText(/Serie 1 · 8 rep · 25 kg/);
+      expect(screen.queryByText('CATÁLOGO CANÓNICO')).toBeNull();
+      await user.press(
+        screen.getByRole('button', { name: 'Terminar ejercicio' }),
+      );
+      await screen.findByText('Entrenamiento activo');
       await screen.findByText(/1 serie confirmada/);
       expect(screen.getByText(/8 rep.*25 kg/)).toBeTruthy();
       await user.press(screen.getByText('Finalizar entrenamiento'));
@@ -490,7 +502,7 @@ describe('staged real Free Workout UI', () => {
     expect(screen.getByLabelText('Carga total opcional').props.value).toBe(
       '25',
     );
-    await user.press(screen.getByText('Confirmar serie'));
+    await user.press(screen.getByText('Confirmar otra serie'));
     await waitFor(() =>
       expect(recordFreeWorkoutSet).toHaveBeenCalledWith(
         expect.anything(),
@@ -505,6 +517,91 @@ describe('staged real Free Workout UI', () => {
       ),
     );
     expect(screen.queryByText('CATÁLOGO CANÓNICO')).toBeNull();
+  });
+
+  it('records consecutive sets of one exercise without returning to the catalogue', async () => {
+    const exerciseId = '502c4c87-80a5-4567-9aaf-296e43bfc4d1';
+    const occurrence = 'c226a777-d460-4d5f-bad6-f75667a9d022';
+    const setOf = (id: string, at: string) => ({
+      set_id: id,
+      set_role: 'WORKING' as const,
+      measurement_type: 'reps' as const,
+      reps: 8,
+      duration_seconds: null,
+      distance_decimal: null,
+      distance_unit: null,
+      load_decimal: '25',
+      load_unit: 'lb' as const,
+      completed_at_utc: at,
+    });
+    const overviewWith = (sets: ReturnType<typeof setOf>[]) => ({
+      session,
+      totalSets: sets.length,
+      workingSets: sets.length,
+      exercises: [
+        {
+          occurrence_id: occurrence,
+          canonical_exercise_id: exerciseId,
+          actual_order: 0,
+          agenda_item_id: null,
+          sets,
+        },
+      ],
+    });
+    const first = setOf(
+      '1b428bd6-781d-44ec-8609-57af594a5511',
+      '2026-10-09T15:00:00.000Z',
+    );
+    const second = setOf(
+      '2b428bd6-781d-44ec-8609-57af594a5512',
+      '2026-10-09T15:01:00.000Z',
+    );
+    jest
+      .mocked(readActiveFreeWorkoutOverview)
+      .mockResolvedValueOnce(overviewWith([]))
+      .mockResolvedValue(overviewWith([first]));
+    const user = userEvent.setup();
+    const screen = await render(<FreeWorkoutExperience />);
+    await user.press(await screen.findByText('Añadir ejercicio'));
+    await user.press(await screen.findByText('Elegir Press de banca'));
+    await screen.findByText('REGISTRAR SERIE');
+    expect(screen.getByText('‹ Volver sin guardar')).toBeTruthy();
+    expect(screen.queryByText('Terminar ejercicio')).toBeNull();
+    const footerBefore = screen.getByTestId('register-set-footer');
+    expect(footerBefore.props.edges).toEqual(['bottom']);
+    await user.type(screen.getByLabelText('Cantidad realizada'), '8');
+    await user.press(screen.getByText('Confirmar serie'));
+    expect(await screen.findByText(/Serie 1 · 8 rep · 25 lb/)).toBeTruthy();
+    expect(screen.queryByText('CATÁLOGO CANÓNICO')).toBeNull();
+    expect(screen.getByLabelText('Cantidad realizada').props.value).toBe('8');
+
+    jest
+      .mocked(readActiveFreeWorkoutOverview)
+      .mockResolvedValue(overviewWith([first, second]));
+    await user.press(screen.getByText('Confirmar otra serie'));
+    expect(await screen.findByText(/Serie 2 · 8 rep/)).toBeTruthy();
+    expect(screen.getByText(/Serie 1 · 8 rep/)).toBeTruthy();
+    expect(recordFreeWorkoutSet).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText('CATÁLOGO CANÓNICO')).toBeNull();
+    expect(screen.queryByText('‹ Terminar ejercicio')).toBeNull();
+    expect(screen.queryByText('‹ Volver sin guardar')).toBeNull();
+    const finishExercise = screen.getByRole('button', {
+      name: 'Terminar ejercicio',
+    });
+    expect(finishExercise.props.accessibilityState?.disabled).toBe(false);
+    // Both actions live in the bottom safe-area footer, primary first.
+    const footer = screen.getByTestId('register-set-footer');
+    expect(footer.props.edges).toEqual(['bottom']);
+    expect(
+      within(footer).getByRole('button', { name: 'Confirmar otra serie' }),
+    ).toBeTruthy();
+    expect(
+      within(footer).getByRole('button', { name: 'Terminar ejercicio' }),
+    ).toBeTruthy();
+    await user.press(finishExercise);
+    expect(await screen.findByText('Entrenamiento activo')).toBeTruthy();
+    expect(screen.queryByText('Historial')).toBeNull();
+    expect(recordFreeWorkoutSet).toHaveBeenCalledTimes(2);
   });
 
   it('recovers an existing session, refuses empty Finish and records only a confirmed set', async () => {
