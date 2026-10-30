@@ -3,13 +3,11 @@
  * Verify the audited URI decoder still satisfies its callable CJS interface.
  * A Jest transform-only fix would mask this real runtime compatibility issue.
  */
-declare const require: (name: string) => any;
-
-const queryString = require('query-string') as {
+const queryString = jest.requireActual('query-string') as {
   parse: (input: string) => Record<string, string | string[] | null>;
   stringify: (input: Record<string, string | string[]>) => string;
 };
-const decodeComponent = require('decode-uri-component') as (input: string) => string;
+const decodeComponent = jest.requireActual('decode-uri-component') as (input: string) => string;
 
 describe('secure CommonJS URI decoder used by Expo Router', () => {
   it('exports a callable function and correctly handles valid and malformed Unicode', () => {
