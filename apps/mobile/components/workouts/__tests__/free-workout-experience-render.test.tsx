@@ -243,7 +243,9 @@ describe('staged real Free Workout UI', () => {
       await user.press(screen.getByText('Confirmar serie'));
       await screen.findByText(/Serie 1 · 8 rep · 25 kg/);
       expect(screen.queryByText('CATÁLOGO CANÓNICO')).toBeNull();
-      await user.press(screen.getByText('‹ Terminar ejercicio'));
+      await user.press(
+        screen.getByRole('button', { name: 'Terminar ejercicio' }),
+      );
       await screen.findByText('Entrenamiento activo');
       await screen.findByText(/1 serie confirmada/);
       expect(screen.getByText(/8 rep.*25 kg/)).toBeTruthy();
@@ -557,6 +559,8 @@ describe('staged real Free Workout UI', () => {
     await user.press(await screen.findByText('Añadir ejercicio'));
     await user.press(await screen.findByText('Elegir Press de banca'));
     await screen.findByText('REGISTRAR SERIE');
+    expect(screen.getByText('‹ Volver sin guardar')).toBeTruthy();
+    expect(screen.queryByText('Terminar ejercicio')).toBeNull();
     await user.type(screen.getByLabelText('Cantidad realizada'), '8');
     await user.press(screen.getByText('Confirmar serie'));
     expect(await screen.findByText(/Serie 1 · 8 rep · 25 lb/)).toBeTruthy();
@@ -571,8 +575,16 @@ describe('staged real Free Workout UI', () => {
     expect(screen.getByText(/Serie 1 · 8 rep/)).toBeTruthy();
     expect(recordFreeWorkoutSet).toHaveBeenCalledTimes(2);
     expect(screen.queryByText('CATÁLOGO CANÓNICO')).toBeNull();
-    await user.press(screen.getByText('‹ Terminar ejercicio'));
+    expect(screen.queryByText('‹ Terminar ejercicio')).toBeNull();
+    expect(screen.queryByText('‹ Volver sin guardar')).toBeNull();
+    const finishExercise = screen.getByRole('button', {
+      name: 'Terminar ejercicio',
+    });
+    expect(finishExercise.props.accessibilityState?.disabled).toBe(false);
+    await user.press(finishExercise);
     expect(await screen.findByText('Entrenamiento activo')).toBeTruthy();
+    expect(screen.queryByText('Historial')).toBeNull();
+    expect(recordFreeWorkoutSet).toHaveBeenCalledTimes(2);
   });
 
   it('recovers an existing session, refuses empty Finish and records only a confirmed set', async () => {

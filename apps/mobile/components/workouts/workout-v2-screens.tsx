@@ -44,7 +44,7 @@ function Action({
   label: string;
   onPress: () => void;
   disabled?: boolean;
-  variant?: 'primary' | 'dark' | 'light' | 'subtle' | 'danger';
+  variant?: 'primary' | 'dark' | 'light' | 'subtle' | 'danger' | 'outline';
 }) {
   return (
     <Pressable
@@ -58,6 +58,7 @@ function Action({
         variant === 'light' && styles.actionLight,
         variant === 'subtle' && styles.actionSubtle,
         variant === 'danger' && styles.actionDanger,
+        variant === 'outline' && styles.actionOutline,
         disabled && styles.disabled,
       ]}
     >
@@ -67,6 +68,7 @@ function Action({
           (variant === 'light' || variant === 'subtle') &&
             styles.actionTextLight,
           variant === 'danger' && styles.actionTextDanger,
+          variant === 'outline' && styles.actionTextOutline,
         ]}
       >
         {label}
@@ -554,23 +556,23 @@ export function RegisterSetV2({
   const measurement = chosen.measurement_type;
   const hasConfirmed = confirmedSets.length > 0;
   const restClock = `${String(Math.floor(restRemainingSeconds / 60)).padStart(2, '0')}:${String(restRemainingSeconds % 60).padStart(2, '0')}`;
-  return (
+  const form = (
     <ScrollView
       keyboardShouldPersistTaps="handled"
       style={styles.darkRoot}
       contentContainerStyle={styles.setPage}
     >
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ disabled: busy }}
-        disabled={busy}
-        onPress={onBack}
-        style={styles.setBack}
-      >
-        <Text style={styles.setBackText}>
-          {hasConfirmed ? '‹ Terminar ejercicio' : '‹ Volver sin guardar'}
-        </Text>
-      </Pressable>
+      {hasConfirmed ? null : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: busy }}
+          disabled={busy}
+          onPress={onBack}
+          style={styles.setBack}
+        >
+          <Text style={styles.setBackText}>‹ Volver sin guardar</Text>
+        </Pressable>
+      )}
       <Text style={styles.brandEyebrowDark}>REGISTRAR SERIE</Text>
       <Text accessibilityRole="header" style={styles.setExerciseTitle}>
         {chosen.name}
@@ -743,18 +745,33 @@ export function RegisterSetV2({
           {error}
         </Text>
       ) : null}
-      <Action
-        label={
-          busy
-            ? 'Guardando…'
-            : hasConfirmed
-              ? 'Confirmar otra serie'
-              : 'Confirmar serie'
-        }
-        onPress={onConfirm}
-        disabled={busy}
-      />
     </ScrollView>
+  );
+  return (
+    <View style={styles.darkRoot}>
+      {form}
+      <View style={styles.setFooter}>
+        <Action
+          label={
+            busy
+              ? 'Guardando…'
+              : hasConfirmed
+                ? 'Confirmar otra serie'
+                : 'Confirmar serie'
+          }
+          onPress={onConfirm}
+          disabled={busy}
+        />
+        {hasConfirmed ? (
+          <Action
+            label="Terminar ejercicio"
+            variant="outline"
+            onPress={onBack}
+            disabled={busy}
+          />
+        ) : null}
+      </View>
+    </View>
   );
 }
 
@@ -1321,7 +1338,7 @@ const styles = StyleSheet.create({
   },
   darkRoot: { flex: 1, backgroundColor: '#061524' },
   darkPage: { padding: 20, paddingBottom: 110, gap: 12, minHeight: '100%' },
-  setPage: { padding: 20, paddingBottom: 120, gap: 10 },
+  setPage: { padding: 20, paddingBottom: 24, gap: 10 },
   setBack: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' },
   setBackText: { color: '#9FB1C4', fontSize: 14, fontWeight: '800' },
   workoutSecondaryActions: {
@@ -1438,6 +1455,22 @@ const styles = StyleSheet.create({
   actionLight: { backgroundColor: '#EAF2FF' },
   actionSubtle: { backgroundColor: '#E3EAF2' },
   actionDanger: { backgroundColor: '#311D31' },
+  actionOutline: {
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: '#AFC7D9',
+    minHeight: 48,
+  },
+  actionTextOutline: { color: '#E6F0FA' },
+  setFooter: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 16,
+    gap: 8,
+    backgroundColor: '#061524',
+    borderTopWidth: 1,
+    borderTopColor: '#193750',
+  },
   actionText: { fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
   actionTextLight: { color: '#075BFF' },
   actionTextDanger: { color: '#FFC2C2' },
