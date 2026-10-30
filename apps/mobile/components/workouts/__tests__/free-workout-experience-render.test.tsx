@@ -1,4 +1,10 @@
-import { act, render, userEvent, waitFor } from '@testing-library/react-native';
+import {
+  act,
+  render,
+  userEvent,
+  waitFor,
+  within,
+} from '@testing-library/react-native';
 import { Alert, StyleSheet } from 'react-native';
 
 import { FreeWorkoutExperience } from '../free-workout-experience';
@@ -561,6 +567,8 @@ describe('staged real Free Workout UI', () => {
     await screen.findByText('REGISTRAR SERIE');
     expect(screen.getByText('‹ Volver sin guardar')).toBeTruthy();
     expect(screen.queryByText('Terminar ejercicio')).toBeNull();
+    const footerBefore = screen.getByTestId('register-set-footer');
+    expect(footerBefore.props.edges).toEqual(['bottom']);
     await user.type(screen.getByLabelText('Cantidad realizada'), '8');
     await user.press(screen.getByText('Confirmar serie'));
     expect(await screen.findByText(/Serie 1 · 8 rep · 25 lb/)).toBeTruthy();
@@ -581,6 +589,15 @@ describe('staged real Free Workout UI', () => {
       name: 'Terminar ejercicio',
     });
     expect(finishExercise.props.accessibilityState?.disabled).toBe(false);
+    // Both actions live in the bottom safe-area footer, primary first.
+    const footer = screen.getByTestId('register-set-footer');
+    expect(footer.props.edges).toEqual(['bottom']);
+    expect(
+      within(footer).getByRole('button', { name: 'Confirmar otra serie' }),
+    ).toBeTruthy();
+    expect(
+      within(footer).getByRole('button', { name: 'Terminar ejercicio' }),
+    ).toBeTruthy();
     await user.press(finishExercise);
     expect(await screen.findByText('Entrenamiento activo')).toBeTruthy();
     expect(screen.queryByText('Historial')).toBeNull();

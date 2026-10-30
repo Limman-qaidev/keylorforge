@@ -15,6 +15,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { ExerciseDetail } from '@/lib/exercises/catalog-api';
 import type { LastExercisePerformance } from '@/lib/workouts/last-exercise-performance';
@@ -750,7 +751,11 @@ export function RegisterSetV2({
   return (
     <View style={styles.darkRoot}>
       {form}
-      <View style={styles.setFooter}>
+      <SafeAreaView
+        edges={['bottom']}
+        style={styles.setFooter}
+        testID="register-set-footer"
+      >
         <Action
           label={
             busy
@@ -770,7 +775,7 @@ export function RegisterSetV2({
             disabled={busy}
           />
         ) : null}
-      </View>
+      </SafeAreaView>
     </View>
   );
 }
