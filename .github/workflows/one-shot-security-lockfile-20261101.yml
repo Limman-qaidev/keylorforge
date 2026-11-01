@@ -1,0 +1,75 @@
+# One-off owner-initiated dependency repair on an isolated security branch.
+# This temporary workflow must be deleted when the generated lockfile is pushed.
+name: One-shot patched Expo npm lockfile
+on:
+  push:
+    branches:
+      - security/2026-11-expo-dependency-fixes
+    paths:
+      - .github/workflows/one-shot-security-lockfile-20261101.yml
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate-and-check:
+    if: >-
+      github.repository == 'Limman-qaidev/keylorforge' &&
+      github.actor == 'Limman-qaidev' &&
+      github.ref == 'refs/heads/security/2026-11-expo-dependency-fixes'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: security/2026-11-expo-dependency-fixes
+          persist-credentials: true
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.14.0'
+      - name: Verify narrowly scoped patched overrides
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e 'const x=require("./apps/mobile/package.json").overrides; for(const k of ["@expo/config","@expo/config-plugins","@expo/metro-config","@expo/fingerprint","@expo/cli"]) {if(x[k]?.glob!=="14.0.2")process.exit(1)};if(x["@expo/fingerprint"].minimatch!=="11.0.1"||x["node-forge"]!=="1.4.1")process.exit(1)'
+      - name: Regenerate deterministic lockfile with patched transitive packages
+        working-directory: apps/mobile
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Pin generated lockfile on security branch only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add apps/mobile/package-lock.json
+          if git diff --cached --quiet; then
+            echo 'No lockfile changes generated'
+          else
+            git commit -m 'security(npm): regenerate lockfile with upstream patched transitive dependencies'
+            git push origin HEAD:refs/heads/security/2026-11-expo-dependency-fixes
+          fi
+      - name: Verify npm ci and all resolved versions
+        working-directory: apps/mobile
+        run: |
+          set -euo pipefail
+          npm ci --no-fund
+          npm ls glob minimatch node-forge --all || true
+      - name: Validate production npm advisory regression gate
+        working-directory: apps/mobile
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm audit --omit=dev --audit-level=high --json > /tmp/security-audit.json || true
+          node scripts/check_npm_advisory_allowlist.mjs /tmp/security-audit.json
+      - name: Run Expo config without APK
+        working-directory: apps/mobile
+        run: npx expo config --json > /tmp/expo-config.json
+      - name: Run format, lint and TypeScript
+        working-directory: apps/mobile
+        run: |
+          npm run format:check
+          npm run lint
+          npm run typecheck
+      - name: Run Jest full suite
+        working-directory: apps/mobile
+        run: npm test -- --ci --runInBand
