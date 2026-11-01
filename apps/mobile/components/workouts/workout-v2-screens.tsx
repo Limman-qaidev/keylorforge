@@ -590,10 +590,10 @@ export function RegisterSetV2({
     );
     const hide = Keyboard.addListener(
       ios ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => {
-        setKeyboardVisible(false);
-        setFocused(false);
-      },
+      // Android can hide the IME (Back) while the TextInput keeps focus, so
+      // only a real onBlur clears `focused`; keyboardVisible alone drops
+      // `editing` until the IME reopens.
+      () => setKeyboardVisible(false),
     );
     return () => {
       show.remove();

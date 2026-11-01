@@ -136,6 +136,22 @@ describe('RegisterSetV2 keyboard handling', () => {
     expect(screen.getByTestId('register-set-footer')).toBeTruthy();
   });
 
+  it('shows the bar again when the IME reopens without a new focus event', async () => {
+    const kb = mockKeyboard();
+    const screen = await renderForm('reps', 1);
+    await fireEvent(screen.getByLabelText('Cantidad realizada'), 'focus');
+    await kb.emit('Show');
+    expect(screen.getByTestId('register-set-keyboard-bar')).toBeTruthy();
+
+    await kb.emit('Hide');
+    expect(screen.getByTestId('register-set-footer')).toBeTruthy();
+    expect(screen.queryByTestId('register-set-keyboard-bar')).toBeNull();
+
+    await kb.emit('Show');
+    expect(screen.queryByTestId('register-set-footer')).toBeNull();
+    expect(screen.getByTestId('register-set-keyboard-bar')).toBeTruthy();
+  });
+
   it('keeps the bar when focus alternates between load and reps', async () => {
     const kb = mockKeyboard();
     const screen = await renderForm('reps', 1);
