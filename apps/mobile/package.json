@@ -57,9 +57,27 @@
   },
   "overrides": {
     "@expo/cli": {
-      "zod": "^4.6.7"
+      "zod": "^4.6.7",
+      "glob": "14.0.2"
     },
     "deepmerge": "npm:@stackline/deepmerge@1.1.0",
-    "decode-uri-component": "0.5.1"
+    "decode-uri-component": "0.5.1",
+    "@expo/config": {
+      "glob": "14.0.2"
+    },
+    "@expo/config-plugins": {
+      "glob": "14.0.2"
+    },
+    "@expo/metro-config": {
+      "glob": "14.0.2"
+    },
+    "@expo/fingerprint": {
+      "glob": "14.0.2",
+      "minimatch": "11.0.1"
+    },
+    "node-forge": "1.4.1",
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "11.0.1"
+    }
   }
 }

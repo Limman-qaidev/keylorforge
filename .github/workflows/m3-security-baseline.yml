@@ -63,6 +63,9 @@ jobs:
       - name: Reject new or critical npm advisories
         working-directory: apps/mobile
         run: node scripts/check_npm_advisory_allowlist.mjs npm-security-report.json
+      - name: Test audit gate fails closed for new and critical findings
+        working-directory: apps/mobile
+        run: node scripts/test_npm_advisory_gate.mjs
 
       - name: Explain baseline result
         if: always()
