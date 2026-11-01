@@ -1,0 +1,49 @@
+# One-time branch-limited formatter for newly added security regression tests.
+name: One-time Prettier for security regression test
+on:
+  push:
+    branches:
+      - security/2026-11-expo-dependency-fixes
+    paths:
+      - .github/workflows/one-shot-security-test-format-20261101.yml
+
+permissions:
+  contents: write
+
+jobs:
+  format-and-test:
+    if: >-
+      github.repository == 'Limman-qaidev/keylorforge' &&
+      github.actor == 'Limman-qaidev' &&
+      github.ref == 'refs/heads/security/2026-11-expo-dependency-fixes'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: security/2026-11-expo-dependency-fixes
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.14.0'
+      - name: Install locked dependencies
+        working-directory: apps/mobile
+        run: npm ci --no-fund
+      - name: Format only the new fail-closed security regression test
+        working-directory: apps/mobile
+        run: npx prettier --write scripts/test_npm_advisory_gate.mjs
+      - name: Commit formatted regression test
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add apps/mobile/scripts/test_npm_advisory_gate.mjs
+          if ! git diff --cached --quiet; then
+            git commit -m 'style(security): format fail-closed audit regression test'
+            git push origin HEAD:refs/heads/security/2026-11-expo-dependency-fixes
+          fi
+      - name: Verify scanner regression tests and format
+        working-directory: apps/mobile
+        run: |
+          set -euo pipefail
+          node scripts/test_npm_advisory_gate.mjs
+          npm run format:check
