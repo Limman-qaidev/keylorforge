@@ -32,7 +32,7 @@ const chosen = (measurement_type: 'reps' | 'time' | 'distance') => ({
   measurement_type,
 });
 
-function renderForm(
+async function renderForm(
   measurement: 'reps' | 'time' | 'distance' = 'reps',
   confirmedCount = 0,
 ) {
@@ -49,7 +49,7 @@ function renderForm(
     load_decimal: '25',
     load_unit: 'kg',
   }));
-  const utils = render(
+  const utils = await render(
     <RegisterSetV2
       chosen={chosen(measurement)}
       confirmedSets={confirmedSets as never}
@@ -82,22 +82,22 @@ describe('RegisterSetV2 keyboard handling', () => {
     ['distance', 'Cantidad realizada'],
   ] as const)(
     'swaps the CTA footer for a Listo bar while %s field "%s" is edited',
-    (measurement, label) => {
+    async (measurement, label) => {
       const kb = mockKeyboard();
-      const screen = renderForm(measurement, 2);
+      const screen = await renderForm(measurement, 2);
       expect(screen.getByTestId('register-set-footer')).toBeTruthy();
 
-      fireEvent(screen.getByLabelText(label), 'focus');
-      kb.emit('Show');
+      await fireEvent(screen.getByLabelText(label), 'focus');
+      await kb.emit('Show');
 
       expect(screen.queryByTestId('register-set-footer')).toBeNull();
       expect(screen.getByTestId('register-set-keyboard-bar')).toBeTruthy();
       expect(screen.queryByText('Confirmar otra serie')).toBeNull();
 
-      fireEvent.press(screen.getByText('Listo'));
+      await fireEvent.press(screen.getByText('Listo'));
       expect(kb.dismiss).toHaveBeenCalledTimes(1);
 
-      kb.emit('Hide');
+      await kb.emit('Hide');
       expect(screen.getByTestId('register-set-footer')).toBeTruthy();
       expect(screen.queryByTestId('register-set-keyboard-bar')).toBeNull();
       expect(screen.getByText('Confirmar otra serie')).toBeTruthy();
@@ -105,50 +105,50 @@ describe('RegisterSetV2 keyboard handling', () => {
     },
   );
 
-  it('restores the footer on blur even if keyboardDidHide never arrives', () => {
+  it('restores the footer on blur even if keyboardDidHide never arrives', async () => {
     const kb = mockKeyboard();
-    const screen = renderForm('reps', 1);
+    const screen = await renderForm('reps', 1);
     const reps = screen.getByLabelText('Cantidad realizada');
-    fireEvent(reps, 'focus');
-    kb.emit('Show');
+    await fireEvent(reps, 'focus');
+    await kb.emit('Show');
     expect(screen.queryByTestId('register-set-footer')).toBeNull();
 
-    fireEvent(reps, 'blur');
+    await fireEvent(reps, 'blur');
     expect(screen.getByTestId('register-set-footer')).toBeTruthy();
   });
 
-  it('keeps the bar when focus alternates between load and reps', () => {
+  it('keeps the bar when focus alternates between load and reps', async () => {
     const kb = mockKeyboard();
-    const screen = renderForm('reps', 1);
+    const screen = await renderForm('reps', 1);
     const reps = screen.getByLabelText('Cantidad realizada');
     const load = screen.getByLabelText('Carga total opcional');
-    fireEvent(reps, 'focus');
-    kb.emit('Show');
-    act(() => {
-      fireEvent(reps, 'blur');
-      fireEvent(load, 'focus');
+    await fireEvent(reps, 'focus');
+    await kb.emit('Show');
+    await act(async () => {
+      await fireEvent(reps, 'blur');
+      await fireEvent(load, 'focus');
     });
     expect(screen.getByTestId('register-set-keyboard-bar')).toBeTruthy();
     expect(screen.queryByTestId('register-set-footer')).toBeNull();
   });
 
-  it('does not regress CTAs once the keyboard is closed', () => {
+  it('does not regress CTAs once the keyboard is closed', async () => {
     const kb = mockKeyboard();
-    const screen = renderForm('reps', 1);
-    fireEvent(screen.getByLabelText('Cantidad realizada'), 'focus');
-    kb.emit('Show');
-    kb.emit('Hide');
+    const screen = await renderForm('reps', 1);
+    await fireEvent(screen.getByLabelText('Cantidad realizada'), 'focus');
+    await kb.emit('Show');
+    await kb.emit('Hide');
 
-    fireEvent.press(screen.getByText('Confirmar otra serie'));
+    await fireEvent.press(screen.getByText('Confirmar otra serie'));
     expect(screen.onConfirm).toHaveBeenCalledTimes(1);
-    fireEvent.press(screen.getByText('Terminar ejercicio'));
+    await fireEvent.press(screen.getByText('Terminar ejercicio'));
     expect(screen.onBack).toHaveBeenCalledTimes(1);
   });
 
-  it('removes keyboard listeners on unmount', () => {
+  it('removes keyboard listeners on unmount', async () => {
     const kb = mockKeyboard();
-    const screen = renderForm('reps', 0);
-    screen.unmount();
+    const screen = await renderForm('reps', 0);
+    await screen.unmount();
     expect(kb.remove).toHaveBeenCalledTimes(2);
   });
 });
