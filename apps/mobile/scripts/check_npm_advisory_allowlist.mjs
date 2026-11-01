@@ -47,19 +47,14 @@ function resolveMinimatch(fromPath, packages) {
     }
     current = current.slice(0, parentSeparator);
   }
-  return packages['node_modules/minimatch']
-    ? 'node_modules/minimatch'
-    : null;
+  return packages['node_modules/minimatch'] ? 'node_modules/minimatch' : null;
 }
 
 function isPatchedMinimatch(version) {
   // GHSA-g3hv-75wg-m249 first patched in 11.0.1; 11.0.0 is vulnerable.
   // Reject prereleases and malformed versions rather than treating them safe.
   const parts = typeof version === 'string' ? version.split('.') : [];
-  if (
-    parts.length !== 3 ||
-    parts.some((part) => !/^[0-9]+$/.test(part))
-  ) {
+  if (parts.length !== 3 || parts.some((part) => !/^[0-9]+$/.test(part))) {
     return false;
   }
   const major = Number(parts[0]);
@@ -82,8 +77,8 @@ function isLegacyMinimatch3FalsePositive(name, id) {
       path === 'node_modules/minimatch' ||
       path.endsWith('/node_modules/minimatch'),
   );
-  const unpatched = installed.filter(([, item]) =>
-    !isPatchedMinimatch(item.version),
+  const unpatched = installed.filter(
+    ([, item]) => !isPatchedMinimatch(item.version),
   );
   if (
     unpatched.length !== 1 ||
