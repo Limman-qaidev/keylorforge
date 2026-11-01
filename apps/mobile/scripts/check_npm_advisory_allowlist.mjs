@@ -55,13 +55,16 @@ function resolveMinimatch(fromPath, packages) {
 function isPatchedMinimatch(version) {
   // GHSA-g3hv-75wg-m249 first patched in 11.0.1; 11.0.0 is vulnerable.
   // Reject prereleases and malformed versions rather than treating them safe.
-  const match = /^(\\d+)\\.(\\d+)\\.(\\d+)$/.exec(version ?? '');
-  if (!match) {
+  const parts = typeof version === 'string' ? version.split('.') : [];
+  if (
+    parts.length !== 3 ||
+    parts.some((part) => !/^[0-9]+$/.test(part))
+  ) {
     return false;
   }
-  const major = Number(match[1]);
-  const minor = Number(match[2]);
-  const patch = Number(match[3]);
+  const major = Number(parts[0]);
+  const minor = Number(parts[1]);
+  const patch = Number(parts[2]);
   return major > 11 || (major === 11 && (minor > 0 || patch >= 1));
 }
 
