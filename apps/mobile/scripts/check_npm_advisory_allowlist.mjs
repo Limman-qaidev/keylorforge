@@ -41,8 +41,10 @@ function isLegacyMinimatch3FalsePositive(name, id) {
     readFileSync(new URL('../package-lock.json', import.meta.url), 'utf8'),
   );
   const packages = lock.packages ?? {};
-  const installed = Object.entries(packages).filter(([path]) =>
-    /(?:^|\\/)node_modules\\/minimatch$/.test(path),
+  const installed = Object.entries(packages).filter(
+    ([path]) =>
+      path === 'node_modules/minimatch' ||
+      path.endsWith('/node_modules/minimatch'),
   );
   const unpatched = installed.filter(([, item]) => {
     const major = Number(item.version?.split('.')[0]);
@@ -57,9 +59,13 @@ function isLegacyMinimatch3FalsePositive(name, id) {
     return false;
   }
 
-  const legacyConsumers = Object.entries(packages).filter(([, item]) =>
-    /^\\^?3\\./.test(item.dependencies?.minimatch ?? ''),
-  );
+  const legacyConsumers = Object.entries(packages).filter(([, item]) => {
+    const range = item.dependencies?.minimatch;
+    return (
+      typeof range === 'string' &&
+      (range.startsWith('^3.') || range.startsWith('3.'))
+    );
+  });
   return (
     legacyConsumers.length === legacyMinimatchDevConsumers.size &&
     legacyConsumers.every(
