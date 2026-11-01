@@ -32,6 +32,37 @@ const legacyMinimatchDevConsumers = new Set([
   'node_modules/test-exclude/node_modules/glob',
 ]);
 
+// Resolve installed packages by Node's nearest-node_modules lookup, not by
+// dependency range syntax. This catches ^3, ~3, optional and peer consumers.
+function resolveMinimatch(fromPath, packages) {
+  let current = fromPath;
+  while (true) {
+    const nested = `${current}/node_modules/minimatch`;
+    if (packages[nested]) {
+      return nested;
+    }
+    const parentSeparator = current.lastIndexOf('/node_modules/');
+    if (parentSeparator === -1) {
+      break;
+    }
+    current = current.slice(0, parentSeparator);
+  }
+  return packages['node_modules/minimatch'] ? 'node_modules/minimatch' : null;
+}
+
+function isPatchedMinimatch(version) {
+  // GHSA-g3hv-75wg-m249 first patched in 11.0.1; 11.0.0 is vulnerable.
+  // Reject prereleases and malformed versions rather than treating them safe.
+  const parts = typeof version === 'string' ? version.split('.') : [];
+  if (parts.length !== 3 || parts.some((part) => !/^[0-9]+$/.test(part))) {
+    return false;
+  }
+  const major = Number(parts[0]);
+  const minor = Number(parts[1]);
+  const patch = Number(parts[2]);
+  return major > 11 || (major === 11 && (minor > 0 || patch >= 1));
+}
+
 function isLegacyMinimatch3FalsePositive(name, id) {
   if (name !== 'minimatch' || id !== 'GHSA-g3hv-75wg-m249') {
     return false;
@@ -46,10 +77,9 @@ function isLegacyMinimatch3FalsePositive(name, id) {
       path === 'node_modules/minimatch' ||
       path.endsWith('/node_modules/minimatch'),
   );
-  const unpatched = installed.filter(([, item]) => {
-    const major = Number(item.version?.split('.')[0]);
-    return !Number.isInteger(major) || major < 11;
-  });
+  const unpatched = installed.filter(
+    ([, item]) => !isPatchedMinimatch(item.version),
+  );
   if (
     unpatched.length !== 1 ||
     unpatched[0][0] !== 'node_modules/minimatch' ||
@@ -59,11 +89,17 @@ function isLegacyMinimatch3FalsePositive(name, id) {
     return false;
   }
 
-  const legacyConsumers = Object.entries(packages).filter(([, item]) => {
-    const range = item.dependencies?.minimatch;
+  const legacyConsumers = Object.entries(packages).filter(([path, item]) => {
+    const needsMinimatch = [
+      item.dependencies,
+      item.optionalDependencies,
+      item.peerDependencies,
+    ].some((dependencies) =>
+      Object.prototype.hasOwnProperty.call(dependencies ?? {}, 'minimatch'),
+    );
     return (
-      typeof range === 'string' &&
-      (range.startsWith('^3.') || range.startsWith('3.'))
+      needsMinimatch &&
+      resolveMinimatch(path, packages) === 'node_modules/minimatch'
     );
   });
   return (
