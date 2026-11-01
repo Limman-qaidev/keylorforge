@@ -113,13 +113,13 @@ function validateAudit(report) {
     }
   }
 
+  if (unknown.length > 0) {
+    throw new Error(`New npm advisories need triage: ${unknown.join(', ')}`);
+  }
   if (counts.total > 0 && seen.size + triagedFalsePositives.size === 0) {
     throw new Error(
       'npm audit reported vulnerabilities without source advisories',
     );
-  }
-  if (unknown.length > 0) {
-    throw new Error(`New npm advisories need triage: ${unknown.join(', ')}`);
   }
 
   console.log(
