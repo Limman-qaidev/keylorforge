@@ -5,25 +5,44 @@ import { RegisterSetV2 } from '../workout-v2-screens';
 
 type Handler = () => void;
 
+type Subscription = {
+  event: string;
+  cb: Handler;
+  remove: jest.Mock;
+};
+
 function mockKeyboard() {
-  const handlers = new Map<string, Handler>();
-  const remove = jest.fn();
+  // One entry per addListener call, each with its own remove(). Effects may
+  // run more than once (strict/async test renderer), so never assume a single
+  // registration.
+  const subscriptions: Subscription[] = [];
   jest
     .spyOn(Keyboard, 'addListener')
     .mockImplementation((event: string, cb: unknown) => {
-      handlers.set(event, cb as Handler);
-      return { remove } as never;
+      const subscription: Subscription = {
+        event,
+        cb: cb as Handler,
+        remove: jest.fn(),
+      };
+      subscriptions.push(subscription);
+      return { remove: subscription.remove } as never;
     });
   const dismiss = jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => {});
+  const active = () =>
+    subscriptions.filter((s) => s.remove.mock.calls.length === 0);
   const emit = (name: 'Show' | 'Hide') =>
     act(() => {
       // Platform.OS is 'ios' under the default jest-expo preset, 'android'
-      // otherwise: fire whichever variant was registered.
-      const did = handlers.get(`keyboardDid${name}`);
-      const will = handlers.get(`keyboardWill${name}`);
-      (did ?? will)?.();
+      // otherwise: fire whichever variant is registered and still active.
+      active()
+        .filter(
+          (s) =>
+            s.event === `keyboardDid${name}` ||
+            s.event === `keyboardWill${name}`,
+        )
+        .forEach((s) => s.cb());
     });
-  return { emit, dismiss, remove };
+  return { emit, dismiss, subscriptions, active };
 }
 
 const chosen = (measurement_type: 'reps' | 'time' | 'distance') => ({
@@ -149,6 +168,10 @@ describe('RegisterSetV2 keyboard handling', () => {
     const kb = mockKeyboard();
     const screen = await renderForm('reps', 0);
     await screen.unmount();
-    expect(kb.remove).toHaveBeenCalledTimes(2);
+    expect(kb.subscriptions.length).toBeGreaterThanOrEqual(2);
+    kb.subscriptions.forEach((subscription) => {
+      expect(subscription.remove).toHaveBeenCalledTimes(1);
+    });
+    expect(kb.active()).toHaveLength(0);
   });
 });
