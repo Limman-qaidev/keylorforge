@@ -11,6 +11,65 @@ const acceptedByPackage = {
   uuid: ['GHSA-w5hq-g745-h8pq'],
 };
 
+// One narrowly scoped false-positive triage, NOT a blanket GHSA allowlist.
+// GHSA-g3hv-75wg-m249 describes firstPhasePreProcess() on minimatch 10.2.6,
+// introduced after legacy minimatch v3.1.5. The immutable v3.1.5 source lacks
+// both firstPhasePreProcess and optimizationLevel. The registry's broad range
+// (<11.0.1) includes the legacy version despite this incompatible code path.
+// Evidence and PO risk-acceptance gate: issue #182. This rule applies ONLY
+// when all legacy consumers remain in the exact known Jest/ESLint dev graph;
+// a new 10.x instance, version change, or new consumer MUST fail CI.
+const legacyMinimatchDevConsumers = new Set([
+  'node_modules/@eslint/config-array',
+  'node_modules/@eslint/eslintrc',
+  'node_modules/@jest/reporters/node_modules/glob',
+  'node_modules/eslint',
+  'node_modules/eslint-plugin-import',
+  'node_modules/eslint-plugin-react',
+  'node_modules/jest-config/node_modules/glob',
+  'node_modules/jest-runtime/node_modules/glob',
+  'node_modules/test-exclude',
+  'node_modules/test-exclude/node_modules/glob',
+]);
+
+function isLegacyMinimatch3FalsePositive(name, id) {
+  if (name !== 'minimatch' || id !== 'GHSA-g3hv-75wg-m249') {
+    return false;
+  }
+
+  const lock = JSON.parse(
+    readFileSync(new URL('../package-lock.json', import.meta.url), 'utf8'),
+  );
+  const packages = lock.packages ?? {};
+  const installed = Object.entries(packages).filter(([path]) =>
+    /(?:^|\\/)node_modules\\/minimatch$/.test(path),
+  );
+  const unpatched = installed.filter(([, item]) => {
+    const major = Number(item.version?.split('.')[0]);
+    return !Number.isInteger(major) || major < 11;
+  });
+  if (
+    unpatched.length !== 1 ||
+    unpatched[0][0] !== 'node_modules/minimatch' ||
+    unpatched[0][1].version !== '3.1.5' ||
+    unpatched[0][1].devOptional !== true
+  ) {
+    return false;
+  }
+
+  const legacyConsumers = Object.entries(packages).filter(([, item]) =>
+    /^\\^?3\\./.test(item.dependencies?.minimatch ?? ''),
+  );
+  return (
+    legacyConsumers.length === legacyMinimatchDevConsumers.size &&
+    legacyConsumers.every(
+      ([path, item]) =>
+        legacyMinimatchDevConsumers.has(path) &&
+        (item.dev === true || item.devOptional === true),
+    )
+  );
+}
+
 function validateAudit(report) {
   if (
     !report ||
@@ -31,13 +90,16 @@ function validateAudit(report) {
 
   const unknown = [];
   const seen = new Set();
+  const triagedFalsePositives = new Set();
   for (const [name, item] of Object.entries(report.vulnerabilities)) {
     for (const advisory of item.via ?? []) {
       if (typeof advisory !== 'object' || advisory === null) {
         continue; // Dependents have via-name edges, not original advisories.
       }
       const id = advisory.url?.split('/').pop();
-      if (!id || !acceptedByPackage[name]?.includes(id)) {
+      if (isLegacyMinimatch3FalsePositive(name, id)) {
+        triagedFalsePositives.add(`${name}/${id}`);
+      } else if (!id || !acceptedByPackage[name]?.includes(id)) {
         unknown.push(`${name}: ${id ?? 'unidentified advisory'}`);
       } else {
         seen.add(`${name}/${id}`);
@@ -45,7 +107,7 @@ function validateAudit(report) {
     }
   }
 
-  if (counts.total > 0 && seen.size === 0) {
+  if (counts.total > 0 && seen.size + triagedFalsePositives.size === 0) {
     throw new Error(
       'npm audit reported vulnerabilities without source advisories',
     );
@@ -56,7 +118,9 @@ function validateAudit(report) {
 
   console.log(
     `Known npm advisory debt: ${seen.size} accepted source advisories, ` +
-      `${counts.total} affected dependency entries; 0 critical. See issue #143.`,
+      `${counts.total} affected dependency entries; 0 critical. ` +
+      `${triagedFalsePositives.size} strictly version-scoped false-positive(s) ` +
+      `documented in issue #182. See issue #143 for accepted debt.`,
   );
 }
 
