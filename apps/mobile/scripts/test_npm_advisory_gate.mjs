@@ -7,7 +7,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const tmp = mkdtempSync(join(tmpdir(), 'keylorforge-audit-gate-'));
-const cli = new URL('./check_npm_advisory_allowlist.mjs', import.meta.url).pathname;
+const cli = new URL('./check_npm_advisory_allowlist.mjs', import.meta.url)
+  .pathname;
 
 function advisory(name, id, critical = 0, extra = []) {
   return {
