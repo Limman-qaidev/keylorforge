@@ -19,8 +19,9 @@ function mockKeyboard() {
     act(() => {
       // Platform.OS is 'ios' under the default jest-expo preset, 'android'
       // otherwise: fire whichever variant was registered.
-      (handlers.get(`keyboardDid${name}`) ??
-        handlers.get(`keyboardWill${name}`))?.();
+      const did = handlers.get(`keyboardDid${name}`);
+      const will = handlers.get(`keyboardWill${name}`);
+      (did ?? will)?.();
     });
   return { emit, dismiss, remove };
 }
