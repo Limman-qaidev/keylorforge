@@ -5,9 +5,18 @@
  * No fake set statistics, pending exercise drafts or simulated timers.
  * All mutations remain with FreeWorkoutSessionExperience.
  */
-import { useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,6 +24,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { ExerciseDetail } from '@/lib/exercises/catalog-api';
 import type { LastExercisePerformance } from '@/lib/workouts/last-exercise-performance';
@@ -44,7 +54,7 @@ function Action({
   label: string;
   onPress: () => void;
   disabled?: boolean;
-  variant?: 'primary' | 'dark' | 'light' | 'subtle' | 'danger';
+  variant?: 'primary' | 'dark' | 'light' | 'subtle' | 'danger' | 'outline';
 }) {
   return (
     <Pressable
@@ -58,6 +68,7 @@ function Action({
         variant === 'light' && styles.actionLight,
         variant === 'subtle' && styles.actionSubtle,
         variant === 'danger' && styles.actionDanger,
+        variant === 'outline' && styles.actionOutline,
         disabled && styles.disabled,
       ]}
     >
@@ -67,6 +78,7 @@ function Action({
           (variant === 'light' || variant === 'subtle') &&
             styles.actionTextLight,
           variant === 'danger' && styles.actionTextDanger,
+          variant === 'outline' && styles.actionTextOutline,
         ]}
       >
         {label}
@@ -525,9 +537,15 @@ export function RegisterSetV2({
   busy,
   error,
   onConfirm,
+  confirmedSets = [],
+  restRemainingSeconds = 0,
+  onRestDismiss,
   onBack,
 }: {
   chosen: Pick<ExerciseDetail, 'id' | 'name' | 'measurement_type'>;
+  confirmedSets?: ActiveSetSummary[];
+  restRemainingSeconds?: number;
+  onRestDismiss?: () => void;
   previousPerformance?: LastExercisePerformance | null;
   previousLookupError?: boolean;
   role: Role;
@@ -546,21 +564,67 @@ export function RegisterSetV2({
   onBack: () => void;
 }) {
   const measurement = chosen.measurement_type;
-  return (
+  const hasConfirmed = confirmedSets.length > 0;
+  const restClock = `${String(Math.floor(restRemainingSeconds / 60)).padStart(2, '0')}:${String(restRemainingSeconds % 60).padStart(2, '0')}`;
+  const scrollRef = useRef<ScrollView>(null);
+  const fieldsTop = useRef(0);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [focused, setFocused] = useState(false);
+  // Hide the CTA footer only while the IME is up AND a field has focus; a blur
+  // (or unmount) therefore restores it even if keyboardDidHide is never seen.
+  const editing = keyboardVisible && focused;
+  const scrollToFields = useCallback(() => {
+    scrollRef.current?.scrollTo({
+      y: Math.max(0, fieldsTop.current - 12),
+      animated: true,
+    });
+  }, []);
+  useEffect(() => {
+    const ios = Platform.OS === 'ios';
+    const show = Keyboard.addListener(
+      ios ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => {
+        setKeyboardVisible(true);
+        scrollToFields();
+      },
+    );
+    const hide = Keyboard.addListener(
+      ios ? 'keyboardWillHide' : 'keyboardDidHide',
+      // Android can hide the IME (Back) while the TextInput keeps focus, so
+      // only a real onBlur clears `focused`; keyboardVisible alone drops
+      // `editing` until the IME reopens.
+      () => setKeyboardVisible(false),
+    );
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, [scrollToFields]);
+  const fieldFocusProps = {
+    onFocus: () => {
+      setFocused(true);
+      scrollToFields();
+    },
+    onBlur: () => setFocused(false),
+  };
+  const form = (
     <ScrollView
+      ref={scrollRef}
       keyboardShouldPersistTaps="handled"
       style={styles.darkRoot}
       contentContainerStyle={styles.setPage}
     >
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ disabled: busy }}
-        disabled={busy}
-        onPress={onBack}
-        style={styles.setBack}
-      >
-        <Text style={styles.setBackText}>‹ Volver sin guardar</Text>
-      </Pressable>
+      {hasConfirmed ? null : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: busy }}
+          disabled={busy}
+          onPress={onBack}
+          style={styles.setBack}
+        >
+          <Text style={styles.setBackText}>‹ Volver sin guardar</Text>
+        </Pressable>
+      )}
       <Text style={styles.brandEyebrowDark}>REGISTRAR SERIE</Text>
       <Text accessibilityRole="header" style={styles.setExerciseTitle}>
         {chosen.name}
@@ -568,6 +632,44 @@ export function RegisterSetV2({
       <Text style={styles.subtitleDark}>
         Confirma cada serie para guardarla.
       </Text>
+      {hasConfirmed ? (
+        <View style={styles.lastWorkoutPanel}>
+          <Text style={styles.lastWorkoutEyebrow}>SERIES CONFIRMADAS</Text>
+          {confirmedSets.map((item, index) => (
+            <Text key={item.set_id} style={styles.lastWorkoutValue}>
+              {`Serie ${index + 1} · ${item.set_role === 'WARMUP' ? 'Calentamiento · ' : ''}${
+                item.measurement_type === 'reps'
+                  ? `${item.reps} rep`
+                  : item.measurement_type === 'time'
+                    ? `${item.duration_seconds} s`
+                    : `${item.distance_decimal} ${item.distance_unit}`
+              }${item.load_decimal !== null ? ` · ${item.load_decimal} ${item.load_unit}` : ''}`}
+            </Text>
+          ))}
+        </View>
+      ) : null}
+      {restRemainingSeconds > 0 ? (
+        <View style={styles.restBox}>
+          <View style={styles.restHead}>
+            <View>
+              <Text style={styles.restEyebrow}>DESCANSO</Text>
+              <Text accessibilityRole="timer" style={styles.restCountdown}>
+                {restClock}
+              </Text>
+            </View>
+            {onRestDismiss ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Omitir descanso"
+                onPress={onRestDismiss}
+                style={styles.restDismiss}
+              >
+                <Text style={styles.restDismissText}>Omitir</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
       {previousPerformance ? (
         <View style={styles.lastWorkoutPanel}>
           <Text style={styles.lastWorkoutEyebrow}>
@@ -612,7 +714,12 @@ export function RegisterSetV2({
         />
       </View>
       <SectionLabel dark>REGISTRA LO QUE HAS HECHO</SectionLabel>
-      <View style={styles.fieldsRow}>
+      <View
+        style={styles.fieldsRow}
+        onLayout={(event) => {
+          fieldsTop.current = event.nativeEvent.layout.y;
+        }}
+      >
         {measurement === 'reps' ? (
           <>
             <View style={styles.metricField}>
@@ -621,6 +728,7 @@ export function RegisterSetV2({
                 accessibilityLabel="Cantidad realizada"
                 keyboardType="decimal-pad"
                 onChangeText={onQuantity}
+                {...fieldFocusProps}
                 placeholder="0"
                 placeholderTextColor="#62788f"
                 style={styles.metricInput}
@@ -634,6 +742,7 @@ export function RegisterSetV2({
                 accessibilityLabel="Carga total opcional"
                 keyboardType="decimal-pad"
                 onChangeText={onLoad}
+                {...fieldFocusProps}
                 placeholder="—"
                 placeholderTextColor="#62788f"
                 style={styles.metricInput}
@@ -651,6 +760,7 @@ export function RegisterSetV2({
               accessibilityLabel="Cantidad realizada"
               keyboardType="decimal-pad"
               onChangeText={onQuantity}
+              {...fieldFocusProps}
               placeholder="0"
               placeholderTextColor="#62788f"
               style={styles.metricInput}
@@ -695,12 +805,49 @@ export function RegisterSetV2({
           {error}
         </Text>
       ) : null}
-      <Action
-        label={busy ? 'Guardando…' : 'Confirmar serie'}
-        onPress={onConfirm}
-        disabled={busy}
-      />
     </ScrollView>
+  );
+  return (
+    // Expo SDK 57 is edge-to-edge on Android, so the window no longer resizes
+    // for the IME: 'padding' lifts the form (and its focused input) on both OSs.
+    <KeyboardAvoidingView behavior="padding" style={styles.darkRoot}>
+      {form}
+      {editing ? (
+        <View style={styles.setFooter} testID="register-set-keyboard-bar">
+          <Action
+            label="Listo"
+            variant="outline"
+            onPress={() => Keyboard.dismiss()}
+          />
+        </View>
+      ) : (
+        <SafeAreaView
+          edges={['bottom']}
+          style={styles.setFooter}
+          testID="register-set-footer"
+        >
+          <Action
+            label={
+              busy
+                ? 'Guardando…'
+                : hasConfirmed
+                  ? 'Confirmar otra serie'
+                  : 'Confirmar serie'
+            }
+            onPress={onConfirm}
+            disabled={busy}
+          />
+          {hasConfirmed ? (
+            <Action
+              label="Terminar ejercicio"
+              variant="outline"
+              onPress={onBack}
+              disabled={busy}
+            />
+          ) : null}
+        </SafeAreaView>
+      )}
+    </KeyboardAvoidingView>
   );
 }
 
@@ -1267,7 +1414,7 @@ const styles = StyleSheet.create({
   },
   darkRoot: { flex: 1, backgroundColor: '#061524' },
   darkPage: { padding: 20, paddingBottom: 110, gap: 12, minHeight: '100%' },
-  setPage: { padding: 20, paddingBottom: 120, gap: 10 },
+  setPage: { padding: 20, paddingBottom: 24, gap: 10 },
   setBack: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' },
   setBackText: { color: '#9FB1C4', fontSize: 14, fontWeight: '800' },
   workoutSecondaryActions: {
@@ -1384,6 +1531,22 @@ const styles = StyleSheet.create({
   actionLight: { backgroundColor: '#EAF2FF' },
   actionSubtle: { backgroundColor: '#E3EAF2' },
   actionDanger: { backgroundColor: '#311D31' },
+  actionOutline: {
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: '#AFC7D9',
+    minHeight: 48,
+  },
+  actionTextOutline: { color: '#E6F0FA' },
+  setFooter: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 16,
+    gap: 8,
+    backgroundColor: '#061524',
+    borderTopWidth: 1,
+    borderTopColor: '#193750',
+  },
   actionText: { fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
   actionTextLight: { color: '#075BFF' },
   actionTextDanger: { color: '#FFC2C2' },

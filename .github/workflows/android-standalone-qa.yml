@@ -1,11 +1,8 @@
 name: Android Standalone QA APK
 
+# Smoke QA APK builds only upon explicit manual request for physical testing.
 on:
-  pull_request:
-    paths:
-      - .github/workflows/android-standalone-qa.yml
-      - apps/mobile/app.config.js
-      - apps/mobile/scripts/prepare-qa-standalone-smoke.mjs
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -13,7 +10,7 @@ permissions:
 jobs:
   isolated-standalone-apk:
     name: isolated-standalone-apk
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'Limman-qaidev/keylorforge'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     defaults:
